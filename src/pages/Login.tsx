@@ -5,21 +5,38 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
 
+// const DEMO_ACCOUNTS = [
+//   { role: 'employee', label: 'Processor', email: 'employee@top.com', desc: 'View tasks & submit timesheets', color: 'bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50' },
+//   { role: 'manager',  label: 'Manager',   email: 'manager@top.com',  desc: 'Approve timesheets & manage jobs', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 hover:bg-blue-50' },
+//   { role: 'admin',    label: 'Admin',     email: 'admin@top.com',    desc: 'Full system access & analytics', color: 'bg-purple-50 text-purple-700 border-purple-200 hover:border-purple-400 hover:bg-purple-50' },
+// ]
+
 export function Login() {
   const navigate = useNavigate()
-  const { login, error: authError } = useAuthStore()
+  const { login } = useAuthStore()
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPw,   setShowPw]   = useState(false)
   const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     setLoading(true)
-    const success = await login(email, password)
+    const ok = await login(email, password)
     setLoading(false)
-    if (success) navigate('/dashboard')
+    if (ok) navigate('/dashboard')
+    else setError('Invalid credentials. Try a demo account below.')
   }
+
+  // const handleDemo = async (demoEmail: string) => {
+  //   setError('')
+  //   setLoading(true)
+  //   const ok = await login(demoEmail, 'password')
+  //   setLoading(false)
+  //   if (ok) navigate('/dashboard')
+  // }
 
   return (
     <div className="min-h-screen flex bg-slate-50">
@@ -104,6 +121,34 @@ export function Login() {
               <p className="text-slate-500 text-sm mt-1">Sign in to your account to continue.</p>
             </div>
 
+            {/* Demo role buttons
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Quick demo access</p>
+              <div className="space-y-2">
+                {DEMO_ACCOUNTS.map(acc => (
+                  <button
+                    key={acc.role}
+                    onClick={() => handleDemo(acc.email)}
+                    disabled={loading}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 text-left group disabled:opacity-50 ${acc.color}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-none">{acc.label}</p>
+                      <p className="text-xs opacity-70 mt-0.5">{acc.desc}</p>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                ))}
+              </div>
+            </div> */}
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex-1 h-px bg-slate-100" />
+              <span className="text-xs text-slate-400 font-medium">or sign in manually</span>
+              <div className="flex-1 h-px bg-slate-100" />
+            </div>
+
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
@@ -137,12 +182,13 @@ export function Login() {
                 autoComplete="current-password"
               />
 
-              {authError && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2.5 rounded-lg">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                  {authError}
-                </div>
-              )}
+
+{error && (
+  <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2.5 rounded-lg">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    {error}
+  </div>
+)}
 
               <div className="flex items-center justify-between pt-0.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -158,6 +204,10 @@ export function Login() {
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
+
+            {/* <p className="text-center text-xs text-slate-400 mt-5">
+              Demo password: <code className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">password</code>
+            </p> */}
           </div>
         </div>
       </div>
