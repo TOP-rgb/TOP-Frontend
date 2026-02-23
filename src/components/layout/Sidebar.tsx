@@ -49,7 +49,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300',
+        'fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300 ',
         sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'
       )}
       style={{ backgroundColor: SIDEBAR_BG }}
@@ -90,7 +90,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation - more padding top + bottom on list */}
-      <nav className="flex-1 pt-6 pb-4 px-2 overflow-y-auto">
+      <nav className="flex-1 pt-6 pb-4 px-2 overflow-y-auto overflow-y-scroll hide-scrollbar">
         {filtered.map(item => (
           <NavLink
             key={item.path}
