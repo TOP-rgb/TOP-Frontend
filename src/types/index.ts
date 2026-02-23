@@ -12,6 +12,14 @@ export interface User {
   phone?: string
   billingRate?: number
   costRate?: number
+  organizationId?: string
+  organizationName?: string
+}
+
+export interface Organization {
+  id: string
+  name: string
+  slug: string
 }
 
 // Database model (matches Prisma schema)

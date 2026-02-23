@@ -3,7 +3,6 @@ import { StatCard } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatCurrency } from '@/lib/utils'
-import { useTimesheets } from '@/hooks/useTimesheets'
 import { useTasks } from '@/hooks/useTasks'
 import { useEmployeeDashboard, useManagerDashboard, useAdminDashboard } from '@/hooks/useDashboard'
 import {
@@ -75,7 +74,7 @@ function EmployeeDashboard() {
   const stats = data?.stats
   const recentTimesheets = data?.recentTimesheets ?? []
 
-  // Build weekly chart from recent timesheet entries (group by day of week)
+  // Build weekly chart from this week's timesheet entries, split billable vs non-billable
   const weeklyMap: Record<string, { billable: number; nonBillable: number }> = {
     Mon: { billable: 0, nonBillable: 0 },
     Tue: { billable: 0, nonBillable: 0 },
@@ -94,7 +93,11 @@ function EmployeeDashboard() {
     if (d >= weekStart) {
       const day = dayNames[d.getDay()]
       if (day in weeklyMap) {
-        weeklyMap[day].billable += ts.hours
+        if (ts.billable) {
+          weeklyMap[day].billable += ts.hours
+        } else {
+          weeklyMap[day].nonBillable += ts.hours
+        }
       }
     }
   })
@@ -114,15 +117,15 @@ function EmployeeDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Hours This Week"
-          value={`${stats?.thisMonthHours ?? 0}h`}
-          subtitle="logged this month"
+          value={`${stats?.thisWeekHours ?? 0}h`}
+          subtitle={`${stats?.thisMonthHours ?? 0}h this month`}
           icon={<Clock size={18} />}
           color="blue"
         />
         <StatCard
           title="Active Tasks"
-          value={myTasks.filter(t => t.status === 'in_progress').length.toString()}
-          subtitle="tasks in progress"
+          value={(stats?.activeTasks ?? 0).toString()}
+          subtitle={`${stats?.pendingTasks ?? 0} pending`}
           icon={<CheckSquare size={18} />}
           color="amber"
         />
@@ -220,14 +223,24 @@ function EmployeeDashboard() {
 // ── Manager Dashboard ─────────────────────────────────────────────────────────
 
 function ManagerDashboard() {
-  const { data, loading } = useManagerDashboard()
-  const { entries: allEntries } = useTimesheets()
+  const { data, loading, error } = useManagerDashboard()
 
   if (loading) return <LoadingSpinner />
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-3">
+        <AlertCircle size={24} className="text-red-500" />
+      </div>
+      <h3 className="text-base font-semibold text-slate-700 mb-1">Failed to load dashboard</h3>
+      <p className="text-slate-400 text-sm max-w-sm">{error}</p>
+    </div>
+  )
 
   const jobStats = data?.jobStats
   const revenue = data?.revenue
   const recentJobs = data?.recentJobs ?? []
+  const teamMembers = data?.teamStats?.teamMembers ?? []
+  const totalTeamHours = data?.teamStats?.totalTeamHours ?? 0
 
   // Build pie chart data from real job status counts
   const jobStatusData = jobStats ? [
@@ -237,9 +250,6 @@ function ManagerDashboard() {
     { name: 'Completed', value: jobStats.byStatus.COMPLETED, color: JOB_STATUS_COLORS.COMPLETED },
     { name: 'Invoiced', value: jobStats.byStatus.INVOICED, color: JOB_STATUS_COLORS.INVOICED },
   ].filter(s => s.value > 0) : []
-
-  // Team members hours
-  const teamMembers = data?.teamStats?.teamMembers ?? []
 
   // Revenue bar data — show revenue vs cost from API
   const revenueBarData = revenue ? [
@@ -281,9 +291,9 @@ function ManagerDashboard() {
           color="purple"
         />
         <StatCard
-          title="Time Entries"
-          value={allEntries.length.toString()}
-          subtitle="logged this period"
+          title="Team Hours"
+          value={`${totalTeamHours}h`}
+          subtitle={`${teamMembers.length} team member${teamMembers.length !== 1 ? 's' : ''}`}
           icon={<Clock size={18} />}
           color="amber"
         />
@@ -293,7 +303,7 @@ function ManagerDashboard() {
         {/* Revenue overview */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Financial Overview</h3>
-          {revenueBarData.length === 0 ? (
+          {revenueBarData.length === 0 || revenue?.total === 0 ? (
             <p className="text-sm text-slate-400 text-center py-16">No revenue data yet.</p>
           ) : (
             <div className="space-y-4">
@@ -356,26 +366,31 @@ function ManagerDashboard() {
         </div>
       </div>
 
-      {/* Recent time entries */}
+      {/* Team hours */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Time Entries</h3>
-          <Badge variant="secondary">{allEntries.length} entries</Badge>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Team Hours</h3>
+          <Badge variant="secondary">{totalTeamHours}h total</Badge>
         </div>
-        {allEntries.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8">No time entries logged yet.</p>
+        {teamMembers.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-8">No time logged yet.</p>
         ) : (
-          <div className="space-y-2">
-            {allEntries.slice(0, 6).map(entry => (
-              <div key={entry.id} className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <Avatar name={entry.userName} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{entry.userName}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{entry.jobTitle} · <span className="text-emerald-600 dark:text-emerald-400 font-medium">{entry.hours}h</span> · {entry.date}</p>
+          <div className="space-y-3">
+            {teamMembers.map(member => (
+              <div key={member.userId} className="flex items-center gap-4">
+                <Avatar name={member.name} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-slate-800 dark:text-white truncate">{member.name}</span>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex-shrink-0 ml-2">{member.hours}h</span>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
+                    <div
+                      className="bg-blue-500 h-1.5 rounded-full transition-all"
+                      style={{ width: `${totalTeamHours > 0 ? (member.hours / totalTeamHours) * 100 : 0}%` }}
+                    />
                   </div>
                 </div>
-                <Badge variant="secondary">{entry.clientName}</Badge>
               </div>
             ))}
           </div>
@@ -418,32 +433,6 @@ function ManagerDashboard() {
           </div>
         )}
       </div>
-
-      {/* Team hours */}
-      {teamMembers.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Team Hours</h3>
-          <div className="space-y-3">
-            {teamMembers.map(member => (
-              <div key={member.userId} className="flex items-center gap-4">
-                <Avatar name={member.name} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-slate-800 dark:text-white truncate">{member.name}</span>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 flex-shrink-0 ml-2">{member.hours}h</span>
-                  </div>
-                  <div className="bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
-                    <div
-                      className="bg-blue-500 h-1.5 rounded-full transition-all"
-                      style={{ width: `${Math.min((member.hours / (data?.teamStats.totalTeamHours || 1)) * 100 * teamMembers.length, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -451,9 +440,18 @@ function ManagerDashboard() {
 // ── Admin Dashboard ────────────────────────────────────────────────────────────
 
 function AdminDashboard() {
-  const { data, loading } = useAdminDashboard()
+  const { data, loading, error } = useAdminDashboard()
 
   if (loading) return <LoadingSpinner />
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-3">
+        <AlertCircle size={24} className="text-red-500" />
+      </div>
+      <h3 className="text-base font-semibold text-slate-700 mb-1">Failed to load dashboard</h3>
+      <p className="text-slate-400 text-sm max-w-sm">{error}</p>
+    </div>
+  )
 
   const financial = data?.financial
   const jobStats = data?.jobStats
@@ -492,22 +490,22 @@ function AdminDashboard() {
         <StatCard
           title="Total Revenue"
           value={formatCurrency(financial?.totalRevenue ?? 0)}
-          subtitle={`${financial?.completedJobs ?? 0} completed jobs`}
+          subtitle={`${financial?.completedJobs ?? 0} completed job${(financial?.completedJobs ?? 0) !== 1 ? 's' : ''}`}
           icon={<DollarSign size={18} />}
           color="emerald"
         />
         <StatCard
-          title="Total Cost"
-          value={formatCurrency(financial?.totalCost ?? 0)}
-          subtitle="delivery cost"
-          icon={<BarChart2 size={18} />}
+          title="Total Jobs"
+          value={(jobStats?.total ?? 0).toString()}
+          subtitle={`${(jobStats?.byStatus.OPEN ?? 0) + (jobStats?.byStatus.IN_PROGRESS ?? 0)} active`}
+          icon={<Briefcase size={18} />}
           color="blue"
         />
         <StatCard
-          title="Net Margin"
-          value={financial ? `${financial.profitMargin}%` : '—'}
-          subtitle="profit margin"
-          icon={<TrendingUp size={18} />}
+          title="Team Members"
+          value={(userStats?.total ?? 0).toString()}
+          subtitle={`${userStats?.byStatus.ACTIVE ?? 0} active`}
+          icon={<Users size={18} />}
           color="purple"
         />
         <StatCard

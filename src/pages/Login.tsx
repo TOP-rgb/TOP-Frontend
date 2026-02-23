@@ -205,9 +205,12 @@ export function Login() {
               </Button>
             </form>
 
-            {/* <p className="text-center text-xs text-slate-400 mt-5">
-              Demo password: <code className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">password</code>
-            </p> */}
+            <p className="text-center text-sm text-slate-500 mt-5">
+              Don't have an account?{' '}
+              <a href="/signup" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors">
+                Sign up free
+              </a>
+            </p>
           </div>
         </div>
       </div>

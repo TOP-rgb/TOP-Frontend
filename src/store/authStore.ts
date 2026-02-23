@@ -4,13 +4,15 @@ import type { User, UserRole } from '@/types'
 import { api, setToken, clearToken, getToken } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
 
-interface ApiUser {
+export interface ApiUser {
   id: string
   email: string
   firstName: string
   lastName: string
   role: string
   status: string
+  organizationId?: string
+  organization?: { id: string; name: string; slug: string }
   createdAt?: string
   updatedAt?: string
 }
@@ -36,13 +38,14 @@ function normaliseUser(u: ApiUser): User {
     id: u.id,
     name: `${u.firstName} ${u.lastName}`,
     email: u.email,
-    // Backend roles: 'Admin', 'Manager', 'Employee'
     role: u.role.toLowerCase() as UserRole,
     status: u.status.toLowerCase() as 'active' | 'inactive',
     department: '',
     joinedDate: u.createdAt || '',
     phone: '',
     costRate: 0,
+    organizationId: u.organizationId ?? u.organization?.id,
+    organizationName: u.organization?.name,
   }
 }
 
@@ -55,6 +58,7 @@ interface AuthState {
   logout: () => void
   switchRole: (role: UserRole) => void
   restoreSession: () => Promise<void>
+  setAuthUser: (raw: ApiUser) => void
   clearError: () => void
 }
 
@@ -157,6 +161,10 @@ export const useAuthStore = create<AuthState>()(
         const currentUser = get().user
         if (!currentUser) return
 
+      },
+
+      setAuthUser: (raw: ApiUser) => {
+        set({ user: normaliseUser(raw), isAuthenticated: true, isLoading: false, error: null })
       },
 
       clearError: () => set({ error: null }),

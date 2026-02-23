@@ -66,16 +66,18 @@ export function Sidebar() {
       >
         {sidebarCollapsed ? (
           <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center font-black text-lg text-[#0f172a] mx-auto">
-            T
+            {user?.organizationName?.[0]?.toUpperCase() ?? 'T'}
           </div>
         ) : (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center font-black text-lg text-[#0f172a]">
-              T
+              {user?.organizationName?.[0]?.toUpperCase() ?? 'T'}
             </div>
             <div className="leading-tight">
-              <div className="text-white font-black text-xl tracking-tight">TOP</div>
-              <div className="text-slate-400 text-[10px] mt-0.5 font-medium">The Outsource Pro</div>
+              <div className="text-white font-black text-xl tracking-tight truncate max-w-[130px]">
+                {user?.organizationName || 'TOP'}
+              </div>
+              <div className="text-slate-400 text-[10px] mt-0.5 font-medium">Job Management</div>
             </div>
           </div>
         )}

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Login } from '@/pages/Login'
+import { Signup } from '@/pages/Signup'
 import { Dashboard } from '@/pages/Dashboard'
 import { Users } from '@/pages/Users'
 import { Clients } from '@/pages/Clients'
@@ -47,6 +48,7 @@ export default function App() {
         <Routes>
           
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />

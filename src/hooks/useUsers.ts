@@ -142,42 +142,21 @@ export function useUsers(options: UseUsersOptions = {}) {
     phone?: string
   }): Promise<boolean> => {
     try {
-      // Step 1: Create via /auth/signup
-      const res = await api.post<{ success: boolean; data: { user: ApiUser; token: string } }>(
-        '/auth/signup',
-        { 
-          firstName: data.firstName, 
-          lastName: data.lastName, 
-          email: data.email, 
-          password: data.password 
-        }
-      )
-      
-      const newUser = normaliseUser(res.data.user)
-      
-      // Step 2: Update with additional fields if needed
-      if (data.role !== 'employee' || data.department || data.phone) {
-        const updatePayload: any = {};
-        if (data.role !== 'employee') {
-          updatePayload.role = data.role.toUpperCase();
-        }
-        if (data.department) {
-          updatePayload.department = data.department;
-        }
-        if (data.phone) {
-          updatePayload.phone = data.phone;
-        }
-        
-        const updateRes = await api.put<ApiResponse<ApiUser>>(`/users/${newUser.id}`, updatePayload);
-        const updatedUser = normaliseUser(updateRes.data);
-        setUsers(prev => [updatedUser, ...prev]);
-      } else {
-        setUsers(prev => [newUser, ...prev]);
-      }
-      
+      // Use the invite endpoint — adds user to the admin's organization
+      const res = await api.post<ApiResponse<ApiUser>>('/users/invite', {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+        department: data.department || null,
+        phone: data.phone || null,
+      })
+      const newUser = normaliseUser(res.data)
+      setUsers(prev => [newUser, ...prev])
       return true
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to create user')
+      setError(e instanceof Error ? e.message : 'Failed to invite user')
       return false
     }
   }

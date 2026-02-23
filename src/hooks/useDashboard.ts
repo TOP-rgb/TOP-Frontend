@@ -8,15 +8,19 @@ export interface EmployeeDashboardData {
   user: { id: string; firstName: string; lastName: string; email: string; role: string }
   stats: {
     totalHours: number
+    thisWeekHours: number
     thisMonthHours: number
     activeJobs: number
     totalTimesheetEntries: number
+    activeTasks: number
+    pendingTasks: number
   }
   recentTimesheets: Array<{
     id: string
     date: string
     hours: number
     description: string | null
+    billable: boolean
     job: { id: string; jobId: string; title: string; status: string; client: { id: string; company: string } }
   }>
   activeJobs: Array<{
