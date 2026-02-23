@@ -212,6 +212,15 @@ export function Timesheets() {
   const { tasks } = useTasks()
   const { users } = useUsers()
 
+  // Get job IDs that the employee has access to (through assigned tasks)
+  const accessibleJobIds = useMemo(() => {
+    if (isManager) return null // Managers see all jobs
+    return tasks
+      .filter(t => t.assignedToIds?.includes(user?.id || ''))
+      .map(t => t.jobId)
+      .filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
+  }, [tasks, user?.id, isManager])
+
   // Only employees — for the filter dropdown
   const employeeList = useMemo(() => users.filter(u => u.status === 'active'), [users])
 
@@ -297,18 +306,19 @@ export function Timesheets() {
     job: '',
     taskId: '',
     task: '',
+    notes: '',
     billable: true,
   })
   const [dailyEntries, setDailyEntries] = useState<Array<{
     id: string; date: string; hours: number; client: string
-    jobId: string; job: string; taskId: string; task: string; billable: boolean
+    jobId: string; job: string; taskId: string; task: string;   notes: string; billable: boolean
   }>>([])
   const [submitting, setSubmitting] = useState(false)
 
   const resetLogModal = () => {
     setLogDailyModal(false)
     setDailyEntries([])
-    setDailyLog({ date: new Date().toISOString().split('T')[0], hours: '8', client: '', jobId: '', job: '', taskId: '', task: '', billable: true })
+    setDailyLog({ date: new Date().toISOString().split('T')[0], hours: '8', client: '', jobId: '', job: '', taskId: '', task: '',notes:'', billable: true })
   }
 
   // Helper: get jobId display string
@@ -955,50 +965,71 @@ export function Timesheets() {
                   style={{ width: '100%', padding: '10px 13px', background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.jobId ? '#fff' : '#64748b', fontSize: 14, outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
                 >
                   <option value="">Select job...</option>
-                  {jobs.filter(j => j.status === 'in_progress' || j.status === 'open').map(j => (
-                    <option key={j.id} value={j.id}>{j.jobId} — {j.title} ({j.clientName})</option>
-                  ))}
+                  {jobs
+                    .filter(j => {
+                      // For managers/admins, show all active jobs
+                      if (isManager) return j.status === 'in_progress' || j.status === 'open'
+                      // For employees, only show jobs they have tasks assigned to
+                      return (j.status === 'in_progress' || j.status === 'open') && 
+                             accessibleJobIds?.includes(j.id)
+                    })
+                    .map(j => (
+                      <option key={j.id} value={j.id}>
+                        {j.jobId} — {j.title} ({j.clientName})
+                      </option>
+                    ))}
                 </select>
               </div>
 
-              {/* Task + Client (auto) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Task (optional)</label>
-                  <select
-                    value={dailyLog.taskId}
-                    disabled={!dailyLog.jobId}
-                    onChange={e => {
-                      const sel = tasks.find(t => t.id === e.target.value)
-                      setDailyLog({ ...dailyLog, taskId: e.target.value, task: sel?.name ?? '' })
-                    }}
-                    style={{ width: '100%', padding: '10px 13px', background: dailyLog.jobId ? '#1e2d4a' : '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.jobId ? '#fff' : '#475569', fontSize: 14, outline: 'none', boxSizing: 'border-box', cursor: dailyLog.jobId ? 'pointer' : 'not-allowed' }}
-                  >
-                    <option value="">{dailyLog.jobId ? 'Select task...' : 'Select a job first'}</option>
-                    {tasks.filter(t => t.jobId === dailyLog.jobId).map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Client (auto-filled)</label>
-                  <div style={{ width: '100%', padding: '10px 13px', background: '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.client ? '#94a3b8' : '#475569', fontSize: 14, boxSizing: 'border-box', minHeight: 42 }}>
-                    {dailyLog.client || 'Auto-filled from job'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Notes (optional)</label>
-                <input
-                  type="text"
-                  placeholder="Add any notes..."
-                  value={dailyLog.task && !dailyLog.taskId ? dailyLog.task : ''}
-                  onChange={e => setDailyLog({ ...dailyLog, task: e.target.value })}
-                  style={{ width: '100%', padding: '10px 13px', background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
+            
+             {/* Task + Client (auto) */}
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+  <div>
+    <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Task (optional)</label>
+    <select
+      value={dailyLog.taskId}
+      disabled={!dailyLog.jobId}
+      onChange={e => {
+        const sel = tasks.find(t => t.id === e.target.value)
+        setDailyLog({ ...dailyLog, taskId: e.target.value, task: sel?.name ?? '' })
+      }}
+      style={{ width: '100%', padding: '10px 13px', background: dailyLog.jobId ? '#1e2d4a' : '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.jobId ? '#fff' : '#475569', fontSize: 14, outline: 'none', boxSizing: 'border-box', cursor: dailyLog.jobId ? 'pointer' : 'not-allowed' }}
+    >
+      <option value="">{dailyLog.jobId ? 'Select task...' : 'Select a job first'}</option>
+      {tasks
+        .filter(t => {
+          // First filter by job
+          if (t.jobId !== dailyLog.jobId) return false
+          
+          // For managers, show all tasks for this job
+          if (isManager) return true
+          
+          // For employees, only show tasks assigned to them
+          return t.assignedToIds?.includes(user?.id || '')
+        })
+        .map(t => (
+          <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+    </select>
+  </div>
+  <div>
+    <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Client (auto-filled)</label>
+    <div style={{ width: '100%', padding: '10px 13px', background: '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.client ? '#94a3b8' : '#475569', fontSize: 14, boxSizing: 'border-box', minHeight: 42 }}>
+      {dailyLog.client || 'Auto-filled from job'}
+    </div>
+  </div>
+</div>
+             {/* Notes */}
+<div>
+  <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Notes (optional)</label>
+  <input
+    type="text"
+    placeholder="Add any notes..."
+    value={dailyLog.notes || ''}
+    onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })}
+    style={{ width: '100%', padding: '10px 13px', background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+  />
+</div>
             </div>
 
             {/* Footer buttons */}
@@ -1021,9 +1052,10 @@ export function Timesheets() {
                       job: dailyLog.job,
                       taskId: dailyLog.taskId,
                       task: dailyLog.task,
+                      notes: dailyLog.notes,
                       billable: dailyLog.billable,
                     }])
-                    setDailyLog(prev => ({ ...prev, jobId: '', job: '', client: '', taskId: '', task: '', hours: '8' }))
+                    setDailyLog(prev => ({ ...prev, jobId: '', job: '', client: '', taskId: '', task: '',  notes: '', hours: '8' }))
                   }
                 }}
                 style={{ padding: '10px 22px', borderRadius: 8, background: '#1e2d4a', color: '#60a5fa', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #2d4068' } as React.CSSProperties}
@@ -1045,7 +1077,7 @@ export function Timesheets() {
                             taskId: entry.taskId || undefined,
                             date: entry.date,
                             hours: entry.hours,
-                            description: entry.task || entry.job,
+                            description: entry.notes ||entry.task || entry.job,
                             billable: entry.billable,
                           } as any)
                         }
