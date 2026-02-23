@@ -10,6 +10,8 @@ interface ApiUser {
   lastName: string
   role: string
   status: string
+  department?: string
+  phone?: string
   createdAt: string
 }
 
@@ -20,9 +22,9 @@ function normaliseUser(u: ApiUser): User {
     email: u.email,
     role: normStr(u.role) as UserRole,
     status: normStr(u.status) as 'active' | 'inactive',
-    department: '',
+    department: u.department || '',
     joinedDate: u.createdAt?.slice(0, 10) ?? '',
-    phone: '',
+    phone: u.phone || '',
     costRate: 0,
   }
 }
@@ -83,16 +85,23 @@ export function useUsers(options: UseUsersOptions = {}) {
         delete payload.name;
       }
       
-      // Remove fields that don't exist in Prisma schema
-      delete payload.department;
-      delete payload.phone;
-      delete payload.costRate;
-      delete payload.joinedDate;
+      // Handle role and status uppercase
+      if (payload.role) {
+        payload.role = payload.role.toUpperCase();
+      }
+      if (payload.status) {
+        payload.status = payload.status.toUpperCase();
+      }
       
-      console.log('Sending update payload:', payload); // Debug log
+      // Remove fields that don't exist in Prisma schema
+      delete payload.joinedDate;
+      delete payload.costRate;
+      
+      console.log('Sending update payload:', payload);
       
       const res = await api.put<ApiResponse<ApiUser>>(`/users/${id}`, payload)
       const updated = normaliseUser(res.data)
+      
       setUsers(prev => prev.map(u => u.id === id ? updated : u))
       return true
     } catch (e: unknown) {
@@ -101,31 +110,27 @@ export function useUsers(options: UseUsersOptions = {}) {
     }
   }
 
-
-
-// Deactivate user - now using the /deactivate endpoint
-const deactivateUser = async (id: string): Promise<boolean> => {
-  try {
-    await api.delete(`/users/${id}/deactivate`) // Note the /deactivate suffix
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, status: 'inactive' as const } : u))
-    return true
-  } catch (e: unknown) {
-    setError(e instanceof Error ? e.message : 'Failed to deactivate user')
-    return false
+  const deactivateUser = async (id: string): Promise<boolean> => {
+    try {
+      await api.delete(`/users/${id}/deactivate`)
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: 'inactive' as const } : u))
+      return true
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to deactivate user')
+      return false
+    }
   }
-}
 
-// Delete user permanently - using the main endpoint
-const deleteUser = async (id: string): Promise<boolean> => {
-  try {
-    await api.delete(`/users/${id}`) // No suffix
-    setUsers(prev => prev.filter(u => u.id !== id))
-    return true
-  } catch (e: unknown) {
-    setError(e instanceof Error ? e.message : 'Failed to delete user')
-    return false
+  const deleteUser = async (id: string): Promise<boolean> => {
+    try {
+      await api.delete(`/users/${id}`)
+      setUsers(prev => prev.filter(u => u.id !== id))
+      return true
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to delete user')
+      return false
+    }
   }
-}
 
   const createUser = async (data: {
     firstName: string
@@ -133,20 +138,43 @@ const deleteUser = async (id: string): Promise<boolean> => {
     email: string
     password: string
     role: UserRole
+    department?: string
+    phone?: string
   }): Promise<boolean> => {
     try {
-      // Step 1: Create via /auth/signup — hashes password + creates DB record
+      // Step 1: Create via /auth/signup
       const res = await api.post<{ success: boolean; data: { user: ApiUser; token: string } }>(
         '/auth/signup',
-        { firstName: data.firstName, lastName: data.lastName, email: data.email, password: data.password }
+        { 
+          firstName: data.firstName, 
+          lastName: data.lastName, 
+          email: data.email, 
+          password: data.password 
+        }
       )
+      
       const newUser = normaliseUser(res.data.user)
-      // Step 2: If role is not employee, update via PUT /users/:id/role (admin-only endpoint)
-      if (data.role !== 'employee') {
-        await api.put<ApiResponse<ApiUser>>(`/users/${newUser.id}/role`, { role: data.role.toUpperCase() })
-        newUser.role = data.role
+      
+      // Step 2: Update with additional fields if needed
+      if (data.role !== 'employee' || data.department || data.phone) {
+        const updatePayload: any = {};
+        if (data.role !== 'employee') {
+          updatePayload.role = data.role.toUpperCase();
+        }
+        if (data.department) {
+          updatePayload.department = data.department;
+        }
+        if (data.phone) {
+          updatePayload.phone = data.phone;
+        }
+        
+        const updateRes = await api.put<ApiResponse<ApiUser>>(`/users/${newUser.id}`, updatePayload);
+        const updatedUser = normaliseUser(updateRes.data);
+        setUsers(prev => [updatedUser, ...prev]);
+      } else {
+        setUsers(prev => [newUser, ...prev]);
       }
-      setUsers(prev => [newUser, ...prev])
+      
       return true
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to create user')
@@ -162,7 +190,7 @@ const deleteUser = async (id: string): Promise<boolean> => {
     updateUserRole, 
     updateUser, 
     deactivateUser, 
-    deleteUser,  // Add this
+    deleteUser,
     createUser 
   }
 }

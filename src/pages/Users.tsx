@@ -199,8 +199,17 @@ export function Users() {
         user={selectedUser}
         onSave={async (u) => {
           if (selectedUser) {
-            await updateUser(selectedUser.id, u)
+            // For editing existing user, include department and phone
+            await updateUser(selectedUser.id, {
+              name: u.name,
+              email: u.email,
+              role: u.role,
+              department: u.department,
+              phone: u.phone,
+              status: u.status
+            })
           } else {
+            // For creating new user, include department and phone
             const parts = (u.name ?? '').trim().split(' ')
             const firstName = parts[0] ?? ''
             const lastName = parts.slice(1).join(' ') || firstName
@@ -210,6 +219,8 @@ export function Users() {
               email: u.email ?? '',
               password: (u as User & { password?: string }).password ?? '',
               role: u.role ?? 'employee',
+              department: u.department,  // Add department
+              phone: u.phone,            // Add phone
             })
           }
           setShowModal(false)
