@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
@@ -39,11 +38,10 @@ function RequireRole({ children, roles }: { children: React.ReactNode; roles: Us
   return <>{children}</>
 }
 
-export default function App() {
-  const { restoreSession } = useAuthStore()
-  useEffect(() => { restoreSession() }, [])
 
+export default function App() {
   return (
+    
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>

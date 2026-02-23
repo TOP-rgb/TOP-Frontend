@@ -6,6 +6,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { X } from 'lucide-react'
 
 interface ModalProps {
   open: boolean
@@ -14,7 +15,12 @@ interface ModalProps {
   description?: string
   children: React.ReactNode
   footer?: React.ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full' // Add this
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  hideHeader?: boolean
+  hideFooter?: boolean
+  headerClassName?: string
+  footerClassName?: string
+  contentClassName?: string
 }
 
 const sizeClasses = {
@@ -32,24 +38,48 @@ export function Modal({
   description,
   children,
   footer,
-  size = 'md', // Default to md
+  size = 'md',
+  hideHeader = false,
+  hideFooter = false,
+  headerClassName = '',
+  footerClassName = '',
+  contentClassName = '',
 }: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={sizeClasses[size]}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && (
-            <DialogDescription>{description}</DialogDescription>
-          )}
-        </DialogHeader>
+      <DialogContent className={`${sizeClasses[size]} p-0 gap-0 overflow-hidden`}>
+        {/* Custom close button */}
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 z-50 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          style={{ color: '#94a3b8' }}
+        >
+          <X size={18} />
+          <span className="sr-only">Close</span>
+        </button>
 
-        <div className="py-4">
+        {/* Header */}
+        {!hideHeader && (
+          <DialogHeader className={`px-6 py-4 bg-[#0f1a2e] border-b border-[#2d4068] rounded-t-lg ${headerClassName}`}>
+            <DialogTitle className="text-lg font-semibold text-white">
+              {title}
+            </DialogTitle>
+            {description && (
+              <DialogDescription className="text-sm text-slate-400 mt-1">
+                {description}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+        )}
+
+        {/* Content */}
+        <div className={`px-6 py-5 bg-[#152035] ${contentClassName}`}>
           {children}
         </div>
 
-        {footer && (
-          <DialogFooter>
+        {/* Footer */}
+        {!hideFooter && footer && (
+          <DialogFooter className={`px-6 py-4 bg-[#0f1a2e] border-t border-[#2d4068] rounded-b-lg ${footerClassName}`}>
             {footer}
           </DialogFooter>
         )}
