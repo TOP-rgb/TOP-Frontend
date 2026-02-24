@@ -34,16 +34,23 @@ export function useEmployeeDashboard() {
   const [loading, setLoading] = useState(!!getToken())
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetch = () => {
     if (!getToken()) { setLoading(false); return }
     setLoading(true)
     api.get<ApiResponse<EmployeeDashboardData>>('/dashboard/employee')
       .then(res => setData(res.data))
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load dashboard'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetch()
+    const onFocus = () => fetch()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
-  return { data, loading, error }
+  return { data, loading, error, refetch: fetch }
 }
 
 // ── Manager Dashboard ─────────────────────────────────────────────────────────
@@ -75,16 +82,23 @@ export function useManagerDashboard() {
   const [loading, setLoading] = useState(!!getToken())
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetch = () => {
     if (!getToken()) { setLoading(false); return }
     setLoading(true)
     api.get<ApiResponse<ManagerDashboardData>>('/dashboard/manager')
       .then(res => setData(res.data))
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load dashboard'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetch()
+    const onFocus = () => fetch()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
-  return { data, loading, error }
+  return { data, loading, error, refetch: fetch }
 }
 
 // ── Admin Dashboard ───────────────────────────────────────────────────────────
@@ -121,16 +135,23 @@ export function useAdminDashboard() {
   const [loading, setLoading] = useState(!!getToken())
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetch = () => {
     if (!getToken()) { setLoading(false); return }
     setLoading(true)
     api.get<ApiResponse<AdminDashboardData>>('/dashboard/admin')
       .then(res => setData(res.data))
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load dashboard'))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetch()
+    const onFocus = () => fetch()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
-  return { data, loading, error }
+  return { data, loading, error, refetch: fetch }
 }
 
 // ── Revenue & Team Stats ──────────────────────────────────────────────────────

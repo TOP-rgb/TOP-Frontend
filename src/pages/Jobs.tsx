@@ -123,14 +123,14 @@ export function Jobs() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Job ID', 'Client Name', 'Billing Type', 'Billing Rate', 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
+                {['Job ID', 'Client Name', ...(user?.role !== 'employee' ? ['Billing Type', 'Billing Rate'] : []), 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={11} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
+                <tr><td colSpan={user?.role !== 'employee' ? 11 : 9} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
               ) : filtered.map((job, i) => (
                 <tr key={job.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                   <td style={{ padding: '12px 16px' }}>
@@ -140,10 +140,14 @@ export function Jobs() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36' }}>{job.clientName}</div>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{job.title}</div>
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151', textTransform: 'capitalize' }}>{job.billingType}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>
-                    {job.billingType === 'fixed' ? formatCurrency(job.billingRate) : `${formatCurrency(job.billingRate)}/hr`}
-                  </td>
+                  {user?.role !== 'employee' && (
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151', textTransform: 'capitalize' }}>{job.billingType}</td>
+                  )}
+                  {user?.role !== 'employee' && (
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>
+                      {job.billingType === 'fixed' ? formatCurrency(job.billingRate) : `${formatCurrency(job.billingRate)}/hr`}
+                    </td>
+                  )}
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDate(job.quoteApprovedDate) || '—'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDate(job.startDate) || '—'}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{job.quotedHours}</td>
@@ -184,52 +188,55 @@ export function Jobs() {
       </div>
 
       {/* Job detail modal — dark navy style */}
-      {detailJob && (
-        <Modal open={!!detailJob} onClose={() => setDetailJob(null)} title="" size="xl">
-          <div style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 400 }}>
+      {detailJob && (() => {
+        const jobTasks = tasks.filter(t => t.jobId === detailJob.id)
+        const taskActual = jobTasks.reduce((s, t) => s + (t.actualHours || 0), 0)
+        const taskEstimated = jobTasks.reduce((s, t) => s + (t.estimatedHours || 0), 0)
+        const dispActual = jobTasks.length > 0 ? taskActual : detailJob.actualHours
+        const dispEstimated = jobTasks.length > 0 ? taskEstimated : detailJob.quotedHours
+        const hoursPct = dispEstimated > 0 ? Math.min(Math.round((dispActual / dispEstimated) * 100), 100) : 0
+        const hoursOver = dispActual > dispEstimated
+        const totalTasks = jobTasks.length
+        const completedTasks = jobTasks.filter(t => t.status === 'completed').length
+        const inProgressTasks = jobTasks.filter(t => t.status === 'in_progress').length
+        const taskPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+        const sc = ({ open: { bg: '#1e3a5f', color: '#60a5fa' }, in_progress: { bg: '#14532d40', color: '#86efac' }, on_hold: { bg: '#78350f30', color: '#fcd34d' }, completed: { bg: '#14532d60', color: '#4ade80' }, invoiced: { bg: '#312e8130', color: '#a5b4fc' }, closed: { bg: '#1e293b', color: '#64748b' } } as Record<string,{bg:string;color:string}>)[detailJob.status] ?? { bg: '#1e293b', color: '#64748b' }
+        return (
+        <Modal open={!!detailJob} onClose={() => setDetailJob(null)} title="" size="full">
+          <div style={{ background: '#152035', borderRadius: 12, margin: -24, display: 'flex', overflow: 'hidden', minHeight: 460 }}>
 
             {/* Left sidebar */}
-            <div style={{ width: 220, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 22 }}>
+            <div style={{ width: 196, minWidth: 196, background: '#0f1a2e', padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: 18, borderRight: '1px solid #1e2d4a' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#2563eb', background: '#1e3a5f', padding: '3px 10px', borderRadius: 5, display: 'inline-block', alignSelf: 'flex-start' }}>{detailJob.jobId}</div>
               {/* Status */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7 }}>Status</div>
-                {(() => {
-                  const colors: Record<string, { bg: string; color: string }> = {
-                    open: { bg: '#1e3a5f', color: '#60a5fa' },
-                    in_progress: { bg: '#14532d40', color: '#86efac' },
-                    on_hold: { bg: '#78350f30', color: '#fcd34d' },
-                    completed: { bg: '#14532d60', color: '#4ade80' },
-                    invoiced: { bg: '#312e8130', color: '#a5b4fc' },
-                    closed: { bg: '#1e293b', color: '#64748b' },
-                  }
-                  const c = colors[detailJob.status] ?? { bg: '#1e293b', color: '#64748b' }
-                  return (
-                    <span style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: c.color, background: c.bg, padding: '4px 12px', borderRadius: 20 }}>
-                      {statusLabel[detailJob.status]}
-                    </span>
-                  )
-                })()}
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Status</div>
+                <span style={{ display: 'inline-block', fontSize: 12, fontWeight: 700, color: sc.color, background: sc.bg, padding: '4px 12px', borderRadius: 20 }}>
+                  {statusLabel[detailJob.status]}
+                </span>
               </div>
 
               {/* Priority */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7 }}>Priority</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Priority</div>
                 <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: '#1e2d4a', color: priorityColor[detailJob.priority as Priority] ?? '#94a3b8' }}>
                   {detailJob.priority.charAt(0).toUpperCase() + detailJob.priority.slice(1)}
                 </span>
               </div>
 
-              {/* Billing */}
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Billing</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{detailJob.billingType === 'fixed' ? 'Fixed Price' : 'Hourly'}</div>
-                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{detailJob.billingType === 'fixed' ? formatCurrency(detailJob.billingRate) : `${formatCurrency(detailJob.billingRate)}/hr`}</div>
-              </div>
+              {/* Billing — hidden for employees */}
+              {user?.role !== 'employee' && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Billing</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{detailJob.billingType === 'fixed' ? 'Fixed Price' : 'Hourly'}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{detailJob.billingType === 'fixed' ? formatCurrency(detailJob.billingRate) : `${formatCurrency(detailJob.billingRate)}/hr`}</div>
+                </div>
+              )}
 
               {/* Job Type */}
               {detailJob.jobType && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Job Type</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Job Type</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{detailJob.jobType}</div>
                 </div>
               )}
@@ -237,52 +244,88 @@ export function Jobs() {
               {/* Dates */}
               {detailJob.startDate && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Start Date</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Start Date</div>
                   <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDate(detailJob.startDate)}</div>
                 </div>
               )}
               {detailJob.deadline && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Deadline</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Deadline</div>
                   <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDate(detailJob.deadline)}</div>
                 </div>
               )}
             </div>
 
             {/* Right content */}
-            <div style={{ flex: 1, padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ flex: 1, minWidth: 0, padding: '24px 24px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
               {/* Title */}
               <div>
-                <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 20, margin: 0, marginBottom: 4 }}>
-                  {detailJob.jobId} — {detailJob.title}
-                </h2>
-                <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>{detailJob.clientName}</p>
+                <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: 0, marginBottom: 2, lineHeight: 1.3 }}>{detailJob.title}</h2>
+                <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>{detailJob.clientName}</p>
               </div>
 
-              {/* Hours progress card */}
-              <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '16px 18px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Hours Progress</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: '#e2e8f0', lineHeight: 1 }}>{detailJob.actualHours}h</div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>Actual hours</div>
+              {/* Progress cards — side by side */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+                {/* Hours Progress */}
+                <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Hours Progress</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: hoursOver ? '#f87171' : hoursPct === 100 ? '#4ade80' : '#60a5fa' }}>{hoursPct}%</div>
                   </div>
-                  <div style={{ width: 1, height: 36, background: '#2d4068' }} />
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: '#94a3b8' }}>{detailJob.quotedHours}h</div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>Quoted hours</div>
-                  </div>
-                </div>
-                {/* Progress bar */}
-                {(() => {
-                  const pct = detailJob.quotedHours > 0 ? Math.min((detailJob.actualHours / detailJob.quotedHours) * 100, 100) : 0
-                  const isOver = detailJob.actualHours > detailJob.quotedHours
-                  return (
-                    <div style={{ background: '#0f1a2e', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 6, width: `${pct}%`, background: isOver ? '#ef4444' : '#2563eb', transition: 'width 0.3s' }} />
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: hoursOver ? '#f87171' : '#e2e8f0', lineHeight: 1 }}>{dispActual}h</div>
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Actual</div>
                     </div>
-                  )
-                })()}
+                    <div style={{ width: 1, height: 28, background: '#2d4068', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', lineHeight: 1 }}>{dispEstimated}h</div>
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Estimated</div>
+                    </div>
+                  </div>
+                  <div style={{ background: '#0f1a2e', borderRadius: 6, height: 6, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 6, width: `${hoursPct}%`, background: hoursOver ? '#ef4444' : '#2563eb', transition: 'width 0.3s' }} />
+                  </div>
+                  {jobTasks.length === 0 && (
+                    <div style={{ fontSize: 10, color: '#334155', marginTop: 6 }}>Based on job-level hours</div>
+                  )}
+                </div>
+
+                {/* Task Progress */}
+                <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total Progress</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: taskPct === 100 ? '#4ade80' : '#60a5fa' }}>{taskPct}%</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0', lineHeight: 1 }}>{completedTasks}</div>
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Done</div>
+                    </div>
+                    <div style={{ width: 1, height: 28, background: '#2d4068', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', lineHeight: 1 }}>{totalTasks}</div>
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Total</div>
+                    </div>
+                    {inProgressTasks > 0 && (
+                      <>
+                        <div style={{ width: 1, height: 28, background: '#2d4068', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 600, color: '#fcd34d', lineHeight: 1 }}>{inProgressTasks}</div>
+                          <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Active</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ background: '#0f1a2e', borderRadius: 6, height: 6, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 6, width: `${taskPct}%`, background: taskPct === 100 ? '#4ade80' : '#2563eb', transition: 'width 0.3s' }} />
+                  </div>
+                  {totalTasks === 0 && (
+                    <div style={{ fontSize: 10, color: '#334155', marginTop: 6 }}>No tasks yet</div>
+                  )}
+                </div>
               </div>
 
               {/* Financial cards — admin/manager only */}
@@ -294,31 +337,32 @@ export function Jobs() {
                     { label: 'Profit', value: formatCurrency(detailJob.profit ?? 0), color: '#60a5fa' },
                     { label: 'Margin', value: `${detailJob.margin ?? 0}%`, color: '#c084fc' },
                   ].map(m => (
-                    <div key={m.label} style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '14px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: m.color }}>{m.value}</div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>{m.label}</div>
+                    <div key={m.label} style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '12px 10px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: m.color }}>{m.value}</div>
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>{m.label}</div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Footer */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
+              {/* Footer buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 'auto', paddingTop: 4 }}>
                 <button onClick={() => setDetailJob(null)}
-                  style={{ padding: '10px 22px', border: '1px solid #2d4068', borderRadius: 8, background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
-                  CLOSE
+                  style={{ padding: '8px 20px', border: '1px solid #2d4068', borderRadius: 8, background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  Close
                 </button>
                 {canEdit && (
                   <button onClick={() => { setSelected(detailJob); setDetailJob(null); setShowModal(true) }}
-                    style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-                    EDIT JOB
+                    style={{ padding: '8px 22px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    Edit Job
                   </button>
                 )}
               </div>
             </div>
           </div>
         </Modal>
-      )}
+        )
+      })()}
 
       {/* Create / Edit Job modal */}
       <JobModal

@@ -5,9 +5,11 @@ import { Avatar } from '@/components/ui/Avatar'
 import { formatCurrency } from '@/lib/utils'
 import { useTasks } from '@/hooks/useTasks'
 import { useEmployeeDashboard, useManagerDashboard, useAdminDashboard } from '@/hooks/useDashboard'
+import { useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import {
   Clock, Briefcase, CheckSquare, TrendingUp, DollarSign,
-  Users, AlertCircle, BarChart2, FileText, Target, Loader2
+  Users, AlertCircle, BarChart2, FileText, Target, Loader2, RefreshCw
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -65,9 +67,12 @@ export function Dashboard() {
 
 function EmployeeDashboard() {
   const { user } = useAuthStore()
-  const { data, loading } = useEmployeeDashboard()
+  const { data, loading, refetch } = useEmployeeDashboard()
   const { tasks } = useTasks()
   const myTasks = tasks.filter(t => t.assignedToIds?.includes(user?.id ?? ''))
+  const location = useLocation()
+
+  useEffect(() => { refetch() }, [location.pathname])
 
   if (loading) return <LoadingSpinner />
 
@@ -223,7 +228,10 @@ function EmployeeDashboard() {
 // ── Manager Dashboard ─────────────────────────────────────────────────────────
 
 function ManagerDashboard() {
-  const { data, loading, error } = useManagerDashboard()
+  const { data, loading, error, refetch } = useManagerDashboard()
+  const location = useLocation()
+
+  useEffect(() => { refetch() }, [location.pathname])
 
   if (loading) return <LoadingSpinner />
   if (error) return (
@@ -263,9 +271,19 @@ function ManagerDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Manager Overview 📊</h2>
-        <p className="text-slate-500 text-sm mt-1">Team performance and job profitability at a glance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Manager Overview 📊</h2>
+          <p className="text-slate-500 text-sm mt-1">Team performance and job profitability at a glance</p>
+        </div>
+        <button
+          onClick={refetch}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -440,7 +458,11 @@ function ManagerDashboard() {
 // ── Admin Dashboard ────────────────────────────────────────────────────────────
 
 function AdminDashboard() {
-  const { data, loading, error } = useAdminDashboard()
+  const { data, loading, error, refetch } = useAdminDashboard()
+  const location = useLocation()
+
+  // Refetch every time the user navigates to /dashboard
+  useEffect(() => { refetch() }, [location.pathname])
 
   if (loading) return <LoadingSpinner />
   if (error) return (
@@ -481,9 +503,19 @@ function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Leadership Dashboard 📈</h2>
-        <p className="text-slate-500 text-sm mt-1">Company-wide performance, revenue and profitability</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Leadership Dashboard 📈</h2>
+          <p className="text-slate-500 text-sm mt-1">Company-wide performance, revenue and profitability</p>
+        </div>
+        <button
+          onClick={refetch}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
