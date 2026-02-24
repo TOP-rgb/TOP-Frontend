@@ -233,6 +233,11 @@ export function Timesheets() {
     return rawEntriesAll.filter(e => e.userId === selectedUserId)
   }, [rawEntriesAll, isManager, selectedUserId])
 
+  // Show inline entry controls (Add Entry, threshold bar, Submit) only when:
+  // - user is an employee (always), OR
+  // - manager/admin has selected their own user ID from the filter dropdown
+  const showEmployeeControls = !isManager || selectedUserId === user?.id
+
   // ---------- Tab + date navigation ----------
   type Tab = 'daily' | 'weekly' | 'monthly'
   const [activeTab, setActiveTab] = useState<Tab>('weekly')
@@ -1094,7 +1099,7 @@ export function Timesheets() {
 
         {/* ── Add Entry + Threshold bar + Submit ── */}
         <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          {activeTab !== 'monthly' && (
+          {showEmployeeControls && activeTab !== 'monthly' && (
             <button
               onClick={() => {
                 // Smart default date per tab:
@@ -1117,37 +1122,39 @@ export function Timesheets() {
             </button>
           )}
           {activeTab === 'monthly' && <div />}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
-            {/* Threshold progress */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 120, height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
-                <div style={{ height: '100%', borderRadius: 99, background: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#2563eb', width: `${Math.min((totalHoursInPeriod / threshold) * 100, 100)}%`, transition: 'width 0.3s' }} />
+          {showEmployeeControls && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
+              {/* Threshold progress */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 120, height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: 99, background: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#2563eb', width: `${Math.min((totalHoursInPeriod / threshold) * 100, 100)}%`, transition: 'width 0.3s' }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#374151', whiteSpace: 'nowrap' }}>
+                  {totalHoursInPeriod.toFixed(1)}h / {threshold}h
+                </span>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#374151', whiteSpace: 'nowrap' }}>
-                {totalHoursInPeriod.toFixed(1)}h / {threshold}h
-              </span>
+              {/* Message or Submit button */}
+              {/* {draftEntries.length > 0 && !thresholdMet && (
+                <span style={{ fontSize: 12, color: '#d97706', fontWeight: 500 }}>
+                  Add {(threshold - totalHoursInPeriod).toFixed(1)}h more to reach the {threshold}h threshold before submitting
+                </span>
+              )}
+              {draftEntries.length > 0 && thresholdExceeded && (
+                <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  ⚠ Exceeded {threshold}h threshold — contact your manager to submit
+                </span>
+              )} */}
+              {/* {draftEntries.length > 0 && thresholdMet && !thresholdExceeded && (
+                <button
+                  onClick={handleSubmitDrafts}
+                  disabled={draftSubmitting}
+                  style={{ padding: '8px 20px', border: 'none', borderRadius: 8, background: draftSubmitting ? '#86efac' : '#059669', color: '#fff', fontWeight: 700, fontSize: 14, cursor: draftSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {draftSubmitting ? 'Submitting…' : `Submit ${draftEntries.length} Entr${draftEntries.length === 1 ? 'y' : 'ies'}`}
+                </button>
+              )} */}
             </div>
-            {/* Message or Submit button */}
-            {draftEntries.length > 0 && !thresholdMet && (
-              <span style={{ fontSize: 12, color: '#d97706', fontWeight: 500 }}>
-                Add {(threshold - totalHoursInPeriod).toFixed(1)}h more to reach the {threshold}h threshold before submitting
-              </span>
-            )}
-            {draftEntries.length > 0 && thresholdExceeded && (
-              <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
-                ⚠ Exceeded {threshold}h threshold — contact your manager to submit
-              </span>
-            )}
-            {draftEntries.length > 0 && thresholdMet && !thresholdExceeded && (
-              <button
-                onClick={handleSubmitDrafts}
-                disabled={draftSubmitting}
-                style={{ padding: '8px 20px', border: 'none', borderRadius: 8, background: draftSubmitting ? '#86efac' : '#059669', color: '#fff', fontWeight: 700, fontSize: 14, cursor: draftSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                {draftSubmitting ? 'Submitting…' : `Submit ${draftEntries.length} Entr${draftEntries.length === 1 ? 'y' : 'ies'}`}
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -1187,10 +1194,10 @@ export function Timesheets() {
 
       {/* ── Log Daily Time modal ── */}
       <Modal open={logDailyModal} onClose={resetLogModal} title="" size="xl">
-        <div style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 440, overflow: 'hidden' }}>
+        <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 440, overflow: 'hidden' }}>
 
           {/* Left panel — summary / logged entries */}
-          <div style={{ width: 220, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div className="modal-sidebar" style={{ width: 220, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 6 }}>Log Daily Time</h2>
             <p style={{ color: '#64748b', fontSize: 12, marginBottom: 28, lineHeight: 1.5 }}>Add time entries — multiple per day supported</p>
 
@@ -1259,7 +1266,7 @@ export function Timesheets() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
               {/* Date / Hours / Billable */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+              <div className="modal-grid-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Date</label>
                   <input
@@ -1320,7 +1327,7 @@ export function Timesheets() {
 
             
              {/* Task + Client (auto) */}
-<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+<div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
   <div>
     <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Task (optional)</label>
     <select

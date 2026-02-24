@@ -15,9 +15,11 @@ export function Signup() {
     lastName: '',
     email: '',
     password: '',
+    confirmPassword: '',
     organizationName: '',
   })
   const [showPw, setShowPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -29,6 +31,30 @@ export function Signup() {
     setError('')
     if (!form.organizationName.trim()) {
       setError('Organization name is required.')
+      return
+    }
+    if (!form.firstName.trim()) {
+      setError('First name is required.')
+      return
+    }
+    if (!form.lastName.trim()) {
+      setError('Last name is required.')
+      return
+    }
+    if (!form.email.trim()) {
+      setError('Email is required.')
+      return
+    }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (!form.confirmPassword) {
+      setError('Please confirm your password.')
+      return
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.')
       return
     }
     setLoading(true)
@@ -188,6 +214,27 @@ export function Signup() {
                     className="hover:text-slate-600 transition-colors"
                   >
                     {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                }
+                required
+                autoComplete="new-password"
+              />
+
+              {/* Confirm Password */}
+              <Input
+                label="Confirm password"
+                type={showConfirmPw ? 'text' : 'password'}
+                placeholder="Repeat your password"
+                value={form.confirmPassword}
+                onChange={set('confirmPassword')}
+                leftIcon={<Lock size={14} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPw(v => !v)}
+                    className="hover:text-slate-600 transition-colors"
+                  >
+                    {showConfirmPw ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 }
                 required

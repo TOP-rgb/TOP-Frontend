@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
 import { useAuthStore } from '@/store/authStore'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Login } from '@/pages/Login'
@@ -11,6 +12,7 @@ import { Jobs } from '@/pages/Jobs'
 import { Tasks } from '@/pages/Tasks'
 import { Timesheets } from '@/pages/Timesheets'
 import { Placeholder } from '@/pages/Placeholder'
+import { Invoices } from '@/pages/Invoices'
 import type { UserRole } from '@/types'
 
 const queryClient = new QueryClient({
@@ -42,8 +44,9 @@ function RequireRole({ children, roles }: { children: React.ReactNode; roles: Us
 
 export default function App() {
   return (
-    
+
     <QueryClientProvider client={queryClient}>
+      <Toaster position="bottom-right" richColors toastOptions={{ duration: 3000 }} />
       <BrowserRouter>
         <Routes>
           
@@ -65,7 +68,7 @@ export default function App() {
               <RequireRole roles={['manager', 'admin']}><Placeholder title="Reports & Analytics" /></RequireRole>
             } />
             <Route path="invoices" element={
-              <RequireRole roles={['manager', 'admin']}><Placeholder title="Invoice Management" /></RequireRole>
+              <RequireRole roles={['manager', 'admin']}><Invoices /></RequireRole>
             } />
             <Route path="performance" element={
               <RequireRole roles={['admin']}><Placeholder title="Performance Dashboard" /></RequireRole>

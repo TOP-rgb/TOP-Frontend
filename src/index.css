@@ -17,3 +17,49 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;             /* Chrome, Safari */
 }
+
+/* ── Modal responsive layout ── */
+.modal-flex {
+  display: flex;
+  overflow: hidden;
+}
+
+@media (max-width: 600px) {
+  .modal-flex {
+    flex-direction: column;
+  }
+  .modal-sidebar {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+    border-right: none !important;
+    border-bottom: 1px solid #1e2d4a;
+    padding: 20px 18px !important;
+  }
+  .modal-sidebar h2 {
+    font-size: 16px !important;
+    margin-bottom: 16px !important;
+  }
+  .modal-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .modal-grid-3 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .modal-grid-4 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ── Invoice PDF print ── */
+@media print {
+  body > * { display: none !important; }
+  #invoice-preview {
+    display: block !important;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}

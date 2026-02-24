@@ -109,6 +109,50 @@ export interface Task {
   description?: string
 }
 
+// ── Invoice ──────────────────────────────────────────────────────────────────
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
+
+export interface InvoiceLineItem {
+  description: string
+  qty: number
+  rate: number
+  amount: number
+}
+
+export interface Invoice {
+  id: string
+  invoiceNumber: string
+  jobId: string
+  jobTitle?: string
+  jobRef?: string
+  clientId: string
+  clientCompany: string
+  clientEmail: string
+  clientAddress?: string
+  organizationId: string
+  organizationName: string
+  status: InvoiceStatus
+  issueDate: string
+  dueDate: string
+  subtotal: number
+  taxRate: number
+  taxAmount: number
+  total: number
+  notes?: string
+  lineItems: InvoiceLineItem[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InvoiceFormData {
+  jobId: string
+  taxRate: number
+  dueDate: string
+  notes: string
+  lineItems: InvoiceLineItem[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export type TimesheetStatus = 'pending_normal' | 'pending_approval' | 'approved' | 'rejected'
 
 export interface TimesheetEntry {

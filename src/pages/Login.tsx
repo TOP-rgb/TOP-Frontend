@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { toast } from 'sonner'
 
 // const DEMO_ACCOUNTS = [
 //   { role: 'employee', label: 'Processor', email: 'employee@top.com', desc: 'View tasks & submit timesheets', color: 'bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-400 hover:bg-slate-50' },
@@ -27,7 +28,11 @@ export function Login() {
     const ok = await login(email, password)
     setLoading(false)
     if (ok) navigate('/dashboard')
-    else setError('Invalid credentials. Try a demo account below.')
+    else {
+      const msg = 'Invalid email or password. Please try again.'
+      setError(msg)
+      toast.error(msg)
+    }
   }
 
   // const handleDemo = async (demoEmail: string) => {

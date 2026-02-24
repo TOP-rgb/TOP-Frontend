@@ -3,6 +3,7 @@ import type { Client, ClientFormData } from '@/types'
 import { Modal } from '@/components/ui/Modal'
 import { Search, Plus, Edit2, Loader2 } from 'lucide-react'
 import { useClients } from '@/hooks/useClients'
+import { toast } from 'sonner'
 
 export function Clients() {
   const [search, setSearch] = useState('')
@@ -128,9 +129,13 @@ export function Clients() {
       client={selected}
       onSave={async (formData: ClientFormData) => {
         if (selected) {
-          await updateClient(selected.id, formData);
+          const ok = await updateClient(selected.id, formData)
+          if (ok) toast.success('Client updated successfully')
+          else toast.error('Failed to update client')
         } else {
-          await createClient(formData);
+          const ok = await createClient(formData)
+          if (ok) toast.success('Client created successfully')
+          else toast.error('Failed to create client')
         }
         setShowModal(false);
       }}
@@ -190,6 +195,10 @@ function ClientModal({ open, onClose, client, onSave }: ClientModalProps) {
   };
 
   const handleSubmit = () => {
+    if (!form.name.trim()) { toast.error('Contact name is required'); return }
+    if (!form.company.trim()) { toast.error('Company name is required'); return }
+    if (!form.email.trim()) { toast.error('Email is required'); return }
+    if (!form.phone.trim()) { toast.error('Phone number is required'); return }
     onSave(form);
   };
 
@@ -208,7 +217,7 @@ function ClientModal({ open, onClose, client, onSave }: ClientModalProps) {
         <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 20, marginBottom: 28 }}>
           {client ? 'Edit Client' : 'Add New Client'}
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
           <div>
             <label style={label}>Contact Name *</label>
             <input 

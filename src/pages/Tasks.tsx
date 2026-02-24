@@ -11,6 +11,7 @@ import {
   DollarSign, Timer, Square, Loader2, User, X,
   FileText, Calendar, Tag, Search, Check,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -148,10 +149,10 @@ function TaskDetailModal({ task, users, onClose, onEdit, canEdit }: {
 
   return (
     <Modal open onClose={onClose} title="" size="lg">
-      <div style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 360 }}>
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 360 }}>
 
         {/* Left sidebar — identity */}
-        <div style={{ width: 200, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="modal-sidebar" style={{ width: 200, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Status badge */}
           <div>
             <div style={{ ...secLabel }}><Tag size={10} /> Status</div>
@@ -602,8 +603,15 @@ const userTasks = isManager
             jobs={jobs}
             users={users}
             onSave={async t => {
-              if (selected) await updateTask(selected.id, t)
-              else await createTask({ ...t, jobId: t.jobId })
+              if (selected) {
+                const ok = await updateTask(selected.id, t)
+                if (ok) toast.success('Task updated successfully')
+                else toast.error('Failed to update task')
+              } else {
+                const ok = await createTask({ ...t, jobId: t.jobId })
+                if (ok) toast.success('Task created successfully')
+                else toast.error('Failed to create task')
+              }
               setShowModal(false)
             }}
           />
@@ -665,6 +673,16 @@ function TaskModal({ open, onClose, task, jobs, users, onSave }: TaskModalProps)
     borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   }
   const lbl: React.CSSProperties = { fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }
+  const req = <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>
+
+  const handleNext = () => {
+    if (step === 1) {
+      if (!form.name?.trim()) { toast.error('Task name is required'); return }
+      if (!form.jobId) { toast.error('Please select a job'); return }
+    }
+    setStep(s => s + 1)
+  }
+
   const steps = [
     { num: 1, label: 'Task Details' },
     { num: 2, label: 'Assignment' },
@@ -673,10 +691,10 @@ function TaskModal({ open, onClose, task, jobs, users, onSave }: TaskModalProps)
 
   return (
     <Modal open={open} onClose={onClose} title="" size="xl">
-      <div style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 420, overflow: 'hidden' }}>
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 420, overflow: 'hidden' }}>
 
         {/* Left step sidebar */}
-        <div style={{ width: 190, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>
+        <div className="modal-sidebar" style={{ width: 190, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>
           <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 32 }}>
             {task ? 'Edit Task' : 'Create Task'}
           </h2>
@@ -708,17 +726,17 @@ function TaskModal({ open, onClose, task, jobs, users, onSave }: TaskModalProps)
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Task Details</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={lbl}>Task Name</label>
+                  <label style={lbl}>Task Name {req}</label>
                   <input style={darkInput} value={form.name ?? ''} onChange={e => s('name', e.target.value)} placeholder="e.g. Reconcile accounts" />
                 </div>
                 <div>
-                  <label style={lbl}>Job</label>
+                  <label style={lbl}>Job {req}</label>
                   <select style={{ ...darkInput, cursor: 'pointer' }} value={form.jobId ?? ''} onChange={e => handleJobChange(e.target.value)}>
                     <option value="">Select job…</option>
                     {jobs.map(j => <option key={j.id} value={j.id}>{j.jobId} — {j.title} ({j.clientName})</option>)}
                   </select>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
                     <label style={lbl}>Task Type</label>
                     <select style={{ ...darkInput, cursor: 'pointer' }} value={form.type ?? ''} onChange={e => s('type', e.target.value)}>
@@ -809,7 +827,7 @@ function TaskModal({ open, onClose, task, jobs, users, onSave }: TaskModalProps)
                   />
                 </div>
                 {/* Summary review */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[
                     { label: 'Task', value: form.name || '—' },
                     { label: 'Job', value: form.jobTitle || '—' },
@@ -839,7 +857,7 @@ function TaskModal({ open, onClose, task, jobs, users, onSave }: TaskModalProps)
               CANCEL
             </button>
             {step < 3 ? (
-              <button onClick={() => setStep(s => s + 1)} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={handleNext} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                 NEXT
               </button>
             ) : (

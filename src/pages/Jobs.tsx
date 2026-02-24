@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useJobs } from '@/hooks/useJobs'
 import { useClients } from '@/hooks/useClients'
 import { useTasks } from '@/hooks/useTasks'
+import { toast } from 'sonner'
 
 const STATUS_FLOW: JobStatus[] = ['open', 'in_progress', 'on_hold', 'completed', 'invoiced', 'closed']
 
@@ -205,10 +206,10 @@ export function Jobs() {
         const sc = ({ open: { bg: '#1e3a5f', color: '#60a5fa' }, in_progress: { bg: '#14532d40', color: '#86efac' }, on_hold: { bg: '#78350f30', color: '#fcd34d' }, completed: { bg: '#14532d60', color: '#4ade80' }, invoiced: { bg: '#312e8130', color: '#a5b4fc' }, closed: { bg: '#1e293b', color: '#64748b' } } as Record<string,{bg:string;color:string}>)[detailJob.status] ?? { bg: '#1e293b', color: '#64748b' }
         return (
         <Modal open={!!detailJob} onClose={() => setDetailJob(null)} title="" size="full">
-          <div style={{ background: '#152035', borderRadius: 12, margin: -24, display: 'flex', overflow: 'hidden', minHeight: 460 }}>
+          <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, display: 'flex', overflow: 'hidden', minHeight: 460 }}>
 
             {/* Left sidebar */}
-            <div style={{ width: 196, minWidth: 196, background: '#0f1a2e', padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: 18, borderRight: '1px solid #1e2d4a' }}>
+            <div className="modal-sidebar" style={{ width: 196, minWidth: 196, background: '#0f1a2e', padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: 18, borderRight: '1px solid #1e2d4a' }}>
               <div style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#2563eb', background: '#1e3a5f', padding: '3px 10px', borderRadius: 5, display: 'inline-block', alignSelf: 'flex-start' }}>{detailJob.jobId}</div>
               {/* Status */}
               <div>
@@ -268,7 +269,7 @@ export function Jobs() {
               </div>
 
               {/* Progress cards — side by side */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
                 {/* Hours Progress */}
                 <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '14px 16px' }}>
@@ -332,7 +333,7 @@ export function Jobs() {
 
               {/* Financial cards — admin/manager only */}
               {user?.role !== 'employee' && detailJob.revenue != null && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                <div className="modal-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                   {[
                     { label: 'Revenue', value: formatCurrency(detailJob.revenue ?? 0), color: '#4ade80' },
                     { label: 'Cost', value: formatCurrency(detailJob.totalCost ?? 0), color: '#f87171' },
@@ -373,8 +374,15 @@ export function Jobs() {
         job={selected}
         clients={clients.map(c => ({ id: c.id, company: c.company }))}
         onSave={async (j) => {
-          if (selected) await updateJob(selected.id, j)
-          else await createJob(j)
+          if (selected) {
+            const ok = await updateJob(selected.id, j)
+            if (ok) toast.success('Job updated successfully')
+            else toast.error('Failed to update job')
+          } else {
+            const ok = await createJob(j)
+            if (ok) toast.success('Job created successfully')
+            else toast.error('Failed to create job')
+          }
           setShowModal(false)
         }}
       />
@@ -442,15 +450,26 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
     borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box',
   }
   const lbl: React.CSSProperties = { fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }
+  const req = <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>
 
   const handleClose = () => { onClose(); setStep(1) }
   const handleCreate = () => { onSave(form as Job); setStep(1) }
+  const handleNext = () => {
+    if (step === 1) {
+      if (!form.title?.trim()) { toast.error('Job name is required'); return }
+      if (!form.clientId) { toast.error('Please select a client'); return }
+    }
+    if (step === 3) {
+      if (!form.billingRate && form.billingRate !== 0) { toast.error('Billing rate is required'); return }
+    }
+    setStep(st => st + 1)
+  }
 
   return (
     <Modal open={open} onClose={handleClose} title="" size="xl">
-      <div style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 380, overflow: 'hidden' }}>
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 380, overflow: 'hidden' }}>
         {/* Left step sidebar */}
-        <div style={{ width: 190, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>
+        <div className="modal-sidebar" style={{ width: 190, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>
           <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 32 }}>
             {job ? 'Edit Job' : 'Create Job'}
           </h2>
@@ -480,9 +499,9 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
           {step === 1 && (
             <div>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Job Details</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={lbl}>Job Name</label>
+                  <label style={lbl}>Job Name {req}</label>
                   <input style={darkInput} value={form.title ?? ''} onChange={e => s('title', e.target.value)} placeholder="FY2024 Tax Return" />
                 </div>
                 <div>
@@ -490,7 +509,7 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
                   <input style={darkInput} value={form.jobType ?? ''} onChange={e => s('jobType', e.target.value)} placeholder="Tax Return" />
                 </div>
                 <div>
-                  <label style={lbl}>Assigned Client</label>
+                  <label style={lbl}>Assigned Client {req}</label>
                   <select style={{ ...darkInput, cursor: 'pointer' }} value={form.clientId ?? ''} onChange={e => { s('clientId', e.target.value); s('clientName', clients.find(c => c.id === e.target.value)?.company ?? '') }}>
                     <option value="">Select client</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.company}</option>)}
@@ -522,7 +541,7 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
             <div>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Timeline</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
                     <label style={lbl}>Start Date</label>
                     <input style={darkInput} type="date" value={form.startDate ?? ''} onChange={e => s('startDate', e.target.value)} />
@@ -545,7 +564,7 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
             <div>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Billing Details</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
                     <label style={lbl}>Billing Type</label>
                     <select style={{ ...darkInput, cursor: 'pointer' }} value={form.billingType ?? 'hourly'} onChange={e => s('billingType', e.target.value as BillingType)}>
@@ -577,7 +596,7 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
               CANCEL
             </button>
             {step < 3 ? (
-              <button onClick={() => setStep(st => st + 1)} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={handleNext} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                 NEXT
               </button>
             ) : (

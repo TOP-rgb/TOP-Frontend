@@ -47,7 +47,7 @@ export function Modal({
 }: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={`${sizeClasses[size]} p-0 gap-0 overflow-hidden`}>
+      <DialogContent className={`${sizeClasses[size]} p-0 gap-0 max-h-[90vh] flex flex-col`}>
         {/* Custom close button */}
         <button
           onClick={onClose}
@@ -73,7 +73,7 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className={`px-6 py-5 bg-[#152035] ${contentClassName}`}>
+        <div className={`px-6 py-5 bg-[#152035] overflow-y-auto flex-1 min-h-0 hide-scrollbar ${contentClassName}`}>
           {children}
         </div>
 

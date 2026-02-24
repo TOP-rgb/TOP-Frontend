@@ -42,7 +42,7 @@ function Input({ className, type, label, error, id, leftIcon, rightIcon, ...prop
           {...props}
         />
         {rightIcon && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 flex items-center pointer-events-none">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 flex items-center">
             {rightIcon}
           </div>
         )}
