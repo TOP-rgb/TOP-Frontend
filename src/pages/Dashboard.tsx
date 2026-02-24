@@ -247,6 +247,7 @@ function ManagerDashboard() {
   const jobStats = data?.jobStats
   const revenue = data?.revenue
   const recentJobs = data?.recentJobs ?? []
+  const recentTimesheets = data?.recentTimesheets ?? []
   const teamMembers = data?.teamStats?.teamMembers ?? []
   const totalTeamHours = data?.teamStats?.totalTeamHours ?? 0
 
@@ -259,14 +260,14 @@ function ManagerDashboard() {
     { name: 'Invoiced', value: jobStats.byStatus.INVOICED, color: JOB_STATUS_COLORS.INVOICED },
   ].filter(s => s.value > 0) : []
 
-  // Revenue bar data — show revenue vs cost from API
-  const revenueBarData = revenue ? [
-    { label: 'Revenue', value: revenue.total, color: '#3b82f6' },
-    { label: 'Cost', value: revenue.cost, color: '#10b981' },
-    { label: 'Profit', value: revenue.profit, color: '#8b5cf6' },
-  ] : []
-
   const activeJobCount = (jobStats?.byStatus.OPEN ?? 0) + (jobStats?.byStatus.IN_PROGRESS ?? 0)
+
+  const tsStatusConfig: Record<string, { bg: string; color: string; label: string }> = {
+    pending_normal:   { bg: '#f1f5f9', color: '#64748b', label: 'Normal' },
+    pending_approval: { bg: '#fef3c7', color: '#d97706', label: 'Needs Approval' },
+    approved:         { bg: '#dcfce7', color: '#16a34a', label: 'Approved' },
+    rejected:         { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
+  }
 
   return (
     <div className="space-y-6">
@@ -318,37 +319,54 @@ function ManagerDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue overview */}
+        {/* Recent Time Entries */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Financial Overview</h3>
-          {revenueBarData.length === 0 || revenue?.total === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-16">No revenue data yet.</p>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Time Entries</h3>
+          {recentTimesheets.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-12">No time entries yet.</p>
           ) : (
-            <div className="space-y-4">
-              {revenueBarData.map(item => (
-                <div key={item.label} className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-400 w-20">{item.label}</span>
-                  <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-8 relative overflow-hidden">
-                    <div
-                      className="h-full rounded-full flex items-center px-3 transition-all"
-                      style={{
-                        width: `${revenueBarData[0].value > 0 ? Math.max((item.value / revenueBarData[0].value) * 100, 5) : 0}%`,
-                        backgroundColor: item.color,
-                      }}
-                    >
-                      <span className="text-xs font-bold text-white truncate">{formatCurrency(item.value)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Profit margin: <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {revenue && revenue.total > 0 ? `${Math.round((revenue.profit / revenue.total) * 100)}%` : '—'}
-                  </span>
-                  {' '}· Based on {revenue?.completedJobs ?? 0} completed job{(revenue?.completedJobs ?? 0) !== 1 ? 's' : ''}
-                </p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Employee</th>
+                    <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Job</th>
+                    <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Task</th>
+                    <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Date</th>
+                    <th className="text-right py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Hrs</th>
+                    <th className="text-right py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                  {recentTimesheets.map(ts => {
+                    const sc = tsStatusConfig[ts.status] ?? tsStatusConfig.pending_normal
+                    return (
+                      <tr key={ts.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="py-2.5 pr-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          {ts.user.firstName} {ts.user.lastName}
+                        </td>
+                        <td className="py-2.5 pr-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                          <span className="text-xs font-mono text-blue-600 dark:text-blue-400">{ts.job.jobId}</span>
+                        </td>
+                        <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-500 hidden sm:table-cell text-xs truncate max-w-[120px]">
+                          {ts.task?.title ?? '—'}
+                        </td>
+                        <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                          {new Date(ts.date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          {ts.hours}h
+                        </td>
+                        <td className="py-2.5 text-right whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: sc!.bg, color: sc!.color }}>
+                            {sc!.label}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

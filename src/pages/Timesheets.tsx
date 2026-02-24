@@ -83,7 +83,8 @@ function getMonthWeeks(d: Date): Array<{ label: string; start: Date; end: Date }
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-// ---------- ApprovalPanel (unchanged) ----------
+/* Commented out for later use
+// ---------- ApprovalPanel ----------
 function ApprovalPanel({
   entries,
   onApprove,
@@ -169,6 +170,7 @@ function ApprovalPanel({
     </div>
   )
 }
+*/
 
 // ---------- Status badge pill ----------
 function StatusPill({ status }: { status: string }) {
@@ -291,9 +293,9 @@ export function Timesheets() {
   const workDays         = activeTab === 'daily' ? 1 : activeTab === 'weekly' ? 5 : 20
   const overtimeHours    = Math.max(0, totalHoursAll - workDays * 8)
 
-  // ---------- Inline reject modal state ----------
-  const [rejectModal, setRejectModal] = useState<{ id: string } | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
+  // ---------- Inline reject modal state (commented out for later use) ----------
+  // const [rejectModal, setRejectModal] = useState<{ id: string } | null>(null)
+  // const [rejectReason, setRejectReason] = useState('')
   const [busy, setBusy] = useState(false)
 
   // ---------- Log Daily Time modal state ----------
@@ -319,6 +321,131 @@ export function Timesheets() {
     setLogDailyModal(false)
     setDailyEntries([])
     setDailyLog({ date: new Date().toISOString().split('T')[0], hours: '8', client: '', jobId: '', job: '', taskId: '', task: '',notes:'', billable: true })
+  }
+
+  // ---------- Inline draft entries (table-level, not modal) ----------
+  interface DraftEntry {
+    id: string; date: string; hours: number; jobId: string; job: string
+    taskId: string; task: string; client: string; notes: string; billable: boolean
+  }
+  const DRAFT_STORAGE_KEY = 'timesheet_drafts'
+  const [draftEntries, setDraftEntries] = useState<DraftEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY)
+      return saved ? (JSON.parse(saved) as DraftEntry[]) : []
+    } catch { return [] }
+  })
+
+  // Sync drafts to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftEntries))
+  }, [draftEntries])
+
+  const [showInlineForm, setShowInlineForm] = useState(false)
+  const [editDraftId, setEditDraftId] = useState<string | null>(null)
+  const [inlineForm, setInlineForm] = useState<Partial<DraftEntry>>({
+    date: toYMD(new Date()), hours: 8, billable: true,
+    jobId: '', job: '', taskId: '', task: '', client: '', notes: '',
+  })
+  const [draftSubmitting, setDraftSubmitting] = useState(false)
+
+  const DAILY_THRESHOLD = 8
+  const WEEKLY_THRESHOLD = 40
+
+  // Inline job list — show all accessible jobs regardless of status
+  // (employees may need to log time to completed/on-hold jobs too)
+  const inlineAvailableJobs = useMemo(() => {
+    if (isManager) return jobs
+    return jobs.filter(j => accessibleJobIds?.includes(j.id))
+  }, [jobs, isManager, accessibleJobIds])
+
+  // Inline task list for selected job
+  const inlineAvailableTasks = useMemo(() => {
+    if (!inlineForm.jobId) return []
+    const base = tasks.filter(t => t.jobId === inlineForm.jobId)
+    if (isManager) return base
+    return base.filter(t => t.assignedToIds?.includes(user?.id || ''))
+  }, [tasks, inlineForm.jobId, isManager, user?.id])
+
+  // Period-scoped draft hours
+  const periodDraftEntries = useMemo(() => {
+    if (activeTab === 'daily') {
+      const ymd = toYMD(anchorDate)
+      return draftEntries.filter(d => d.date === ymd)
+    }
+    if (activeTab === 'weekly') {
+      const start = toYMD(weekDays[0]!)
+      const end   = toYMD(weekDays[6]!)
+      return draftEntries.filter(d => d.date >= start && d.date <= end)
+    }
+    const year = anchorDate.getFullYear()
+    const month = anchorDate.getMonth()
+    return draftEntries.filter(d => {
+      const p = new Date(d.date)
+      return p.getFullYear() === year && p.getMonth() === month
+    })
+  }, [draftEntries, activeTab, anchorDate, weekDays])
+
+  const draftHoursInPeriod = periodDraftEntries.reduce((s, d) => s + d.hours, 0)
+  const submittedHoursInPeriod = periodEntries.reduce((s, e) => s + e.hours, 0)
+  const totalHoursInPeriod = submittedHoursInPeriod + draftHoursInPeriod
+  const threshold = activeTab === 'weekly' ? WEEKLY_THRESHOLD : DAILY_THRESHOLD
+  const thresholdMet = totalHoursInPeriod >= threshold
+  const thresholdExceeded = totalHoursInPeriod > threshold
+
+  const saveInlineDraft = () => {
+    if (!inlineForm.jobId || !inlineForm.hours) return
+    const job = jobs.find(j => j.id === inlineForm.jobId)
+    const task = inlineForm.taskId ? tasks.find(t => t.id === inlineForm.taskId) : null
+    // Daily view: always use anchorDate (date field is hidden)
+    const resolvedDate = activeTab === 'daily' ? toYMD(anchorDate) : (inlineForm.date ?? toYMD(new Date()))
+    const entry: DraftEntry = {
+      id: editDraftId ?? `draft-${Date.now()}`,
+      date: resolvedDate,
+      hours: Number(inlineForm.hours),
+      jobId: inlineForm.jobId,
+      job: job?.title ?? '',
+      taskId: inlineForm.taskId ?? '',
+      task: task?.name ?? '',
+      client: job?.clientName ?? '',
+      notes: inlineForm.notes ?? '',
+      billable: inlineForm.billable ?? true,
+    }
+    if (editDraftId) {
+      setDraftEntries(prev => prev.map(d => d.id === editDraftId ? entry : d))
+      setEditDraftId(null)
+    } else {
+      setDraftEntries(prev => [...prev, entry])
+    }
+    setInlineForm({ date: inlineForm.date, hours: 8, billable: true, jobId: '', job: '', taskId: '', task: '', client: '', notes: '' })
+    setShowInlineForm(false)
+  }
+
+  const editDraft = (d: DraftEntry) => {
+    setEditDraftId(d.id)
+    setInlineForm({ date: d.date, hours: d.hours, jobId: d.jobId, job: d.job, taskId: d.taskId, task: d.task, client: d.client, notes: d.notes, billable: d.billable })
+    setShowInlineForm(true)
+  }
+
+  const deleteDraft = (id: string) => setDraftEntries(prev => prev.filter(d => d.id !== id))
+
+  const handleSubmitDrafts = async () => {
+    if (!user?.id || draftEntries.length === 0) return
+    setDraftSubmitting(true)
+    for (const draft of draftEntries) {
+      await logTime({
+        userId: user.id,
+        jobId: draft.jobId,
+        taskId: draft.taskId || undefined,
+        date: draft.date,
+        hours: draft.hours,
+        description: draft.notes || undefined,
+      })
+    }
+    setDraftEntries([])
+    localStorage.removeItem(DRAFT_STORAGE_KEY)
+    setShowInlineForm(false)
+    setDraftSubmitting(false)
   }
 
   // Helper: get jobId display string
@@ -462,19 +589,19 @@ export function Timesheets() {
               </select>
             </div>
           )}
-          <button
+          {/* <button
             onClick={() => setLogDailyModal(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
           >
             <LogIn size={16} /> Log Daily Time
-          </button>
+          </button> */}
         </div>
       </div>
 
-      {/* ── Approval panel ── */}
-      {isManager && pendingEntries.length > 0 && (
+      {/* ── Approval panel (commented out for later use) ── */}
+      {/* {isManager && pendingEntries.length > 0 && (
         <ApprovalPanel entries={pendingEntries} onApprove={approveEntry} onReject={rejectEntry} />
-      )}
+      )} */}
 
       {/* ── 5 Colored Stat Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
@@ -483,7 +610,7 @@ export function Timesheets() {
           { label: 'Billable Hours', value: `${billableHours.toFixed(1)}h`,    bar: '#059669', bg: '#d1fae5', fg: '#065f46', icon: <TrendingUp size={17} /> },
           { label: 'Non-Billable',   value: `${nonBillableHours.toFixed(1)}h`, bar: '#f59e0b', bg: '#fef3c7', fg: '#92400e', icon: <Clock size={17} /> },
           { label: 'Overtime',       value: `${overtimeHours.toFixed(1)}h`,    bar: '#ef4444', bg: '#fee2e2', fg: '#991b1b', icon: <AlertCircle size={17} /> },
-          { label: 'Pending',        value: `${pendingCount}`,                  bar: '#6b7280', bg: '#f3f4f6', fg: '#374151', icon: <AlertCircle size={17} /> },
+          // { label: 'Pending',        value: `${pendingCount}`,                  bar: '#6b7280', bg: '#f3f4f6', fg: '#374151', icon: <AlertCircle size={17} /> },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.bar }} />
@@ -535,8 +662,8 @@ export function Timesheets() {
                   {[
                     'Job ID',
                     ...(isManager ? ['Employee'] : []),
-                    'Client', 'Job', 'Task', 'Task Type', 'Hours', 'Billable', 'Notes', 'Status',
-                    ...(isManager ? ['Action'] : []),
+                    'Client', 'Job', 'Task', 'Task Type', 'Hours', 'Billable', 'Notes',
+                    // ...(isManager ? ['Action'] : []), // Commented out Action column for later use
                   ].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
@@ -544,7 +671,7 @@ export function Timesheets() {
               </thead>
               <tbody>
                 {dailyViewEntries.length === 0 ? (
-                  <tr><td colSpan={isManager ? 11 : 9} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <tr><td colSpan={isManager ? 10 : 8} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
                     No entries for this day. Click "Log Daily Time" to add.
                   </td></tr>
                 ) : dailyViewEntries.map((e, i) => {
@@ -580,7 +707,7 @@ export function Timesheets() {
                           {e.description || '—'}
                         </span>
                       </td>
-                      <td style={td}>
+                      {/* <td style={td}>
                         <StatusPill status={e.status} />
                         {e.status === 'rejected' && e.rejectionNote && (
                           <div style={{ fontSize: 11, color: '#ef4444', marginTop: 3 }}>{e.rejectionNote}</div>
@@ -588,7 +715,8 @@ export function Timesheets() {
                         {e.status === 'pending_approval' && e.flagReason && (
                           <div style={{ fontSize: 11, color: '#d97706', marginTop: 3 }}>{flagLabel(e.flagReason)}</div>
                         )}
-                      </td>
+                      </td> */}
+                      {/* Action column commented out for later use
                       {isManager && (
                         <td style={td}>
                           {e.status === 'pending_approval' && (
@@ -608,6 +736,7 @@ export function Timesheets() {
                           )}
                         </td>
                       )}
+                      */}
                     </tr>
                   )
                 })}
@@ -637,7 +766,7 @@ export function Timesheets() {
                     'Client', 'Job', 'Task', 'Task Type',
                     ...weekDays.map((d, i) => `${DAY_NAMES[i]} ${d.getDate()}`),
                     'Total',
-                    ...(isManager ? ['Status'] : []),
+                    // ...(isManager ? ['Status'] : []), // Commented out Status column for later use
                   ].map(h => (
                     <th key={h} style={{ ...th, textAlign: h === 'Total' || h === 'Status' || DAY_NAMES.some(n => h.startsWith(n)) ? 'center' : 'left' }}>{h}</th>
                   ))}
@@ -645,7 +774,7 @@ export function Timesheets() {
               </thead>
               <tbody>
                 {weeklyRows.length === 0 ? (
-                  <tr><td colSpan={isManager ? 15 : 13} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <tr><td colSpan={isManager ? 14 : 12} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
                     No entries for this week. Click "Log Daily Time" to add.
                   </td></tr>
                 ) : weeklyRows.map((row, i) => (
@@ -677,6 +806,7 @@ export function Timesheets() {
                       )
                     })}
                     <td style={{ ...tdNum, color: '#2563eb', fontWeight: 700 }}>{row.total.toFixed(1)}</td>
+                    {/* Status column commented out for later use
                     {isManager && (
                       <td style={{ ...td, textAlign: 'center' }}>
                         {row.hasFlag ? (
@@ -710,6 +840,7 @@ export function Timesheets() {
                         )}
                       </td>
                     )}
+                    */}
                   </tr>
                 ))}
               </tbody>
@@ -725,7 +856,7 @@ export function Timesheets() {
                     <td style={{ ...tdNum, color: '#2563eb', fontWeight: 800 }}>
                       {weeklyRows.reduce((s, r) => s + r.total, 0).toFixed(1)}
                     </td>
-                    {isManager && <td />}
+                    {/* {isManager && <td />} */}
                   </tr>
                 </tfoot>
               )}
@@ -801,19 +932,227 @@ export function Timesheets() {
           </div>
         )}
 
-        {/* Submit / Draft buttons
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '16px 20px', borderTop: '1px solid #f1f3f9' }}>
-          <button style={{ padding: '9px 22px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            DRAFT
-          </button>
-          <button style={{ padding: '9px 22px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            Submit Weekly Timesheet
-          </button>
-        </div> */}
+        {/* ── Draft rows + Inline form ── */}
+        {(periodDraftEntries.length > 0 || showInlineForm) && (
+          <div style={{ borderTop: '2px dashed #e5e7eb', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              {periodDraftEntries.length > 0 && (
+                <tbody>
+                  {periodDraftEntries.map((d) => (
+                    <tr key={d.id} style={{ background: '#fffbeb', borderBottom: '1px dashed #fcd34d' }}>
+                      <td style={{ ...td, fontSize: 11 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e', background: '#fef3c7', padding: '2px 8px', borderRadius: 5 }}>
+                          {jobs.find(j => j.id === d.jobId)?.jobId ?? '—'}
+                        </span>
+                      </td>
+                      {isManager && <td style={td}><span style={{ fontSize: 12, color: '#6b7280' }}>You</span></td>}
+                      <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{d.client || '—'}</td>
+                      <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>{d.job}</td>
+                      <td style={{ ...td, fontSize: 12 }}>{d.task || '—'}</td>
+                      <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>—</td>
+                      <td style={{ ...tdNum, color: '#92400e' }}>{d.hours}h</td>
+                      <td style={td}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: d.billable ? '#d1fae5' : '#f3f4f6', color: d.billable ? '#065f46' : '#4b5563' }}>
+                          {d.billable ? 'Billable' : 'Non-Bill'}
+                        </span>
+                      </td>
+                      <td style={{ ...td, fontSize: 12, color: '#6b7280' }}>{d.notes || '—'}</td>
+                      <td style={td}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e' }}>Draft</span>
+                        {activeTab !== 'daily' && (
+                          <div style={{ fontSize: 10, color: '#92400e', marginTop: 2 }}>
+                            {new Date(d.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </div>
+                        )}
+                      </td>
+                      <td style={td}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={() => editDraft(d)} style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #d97706', background: '#fff', color: '#d97706', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
+                          <button onClick={() => deleteDraft(d.id)} style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #ef4444', background: '#fff', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              )}
+              {showInlineForm && activeTab !== 'monthly' && (
+                <tbody>
+                  <tr style={{ background: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                    <td style={td}>
+                      <select
+                        value={inlineForm.jobId}
+                        onChange={e => {
+                          const job = jobs.find(j => j.id === e.target.value)
+                          setInlineForm(prev => ({ ...prev, jobId: e.target.value, job: job?.title ?? '', client: job?.clientName ?? '', taskId: '', task: '' }))
+                        }}
+                        style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 140 }}
+                      >
+                        <option value="">Select Job</option>
+                        {inlineAvailableJobs.map(j => (
+                          <option key={j.id} value={j.id}>{j.jobId} — {j.title}</option>
+                        ))}
+                      </select>
+                    </td>
+                    {isManager && <td style={td}><span style={{ fontSize: 12, color: '#6b7280' }}>You</span></td>}
+                    <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{inlineForm.client || '—'}</td>
+                    <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>{inlineForm.job || '—'}</td>
+                    <td style={td}>
+                      <select
+                        value={inlineForm.taskId}
+                        onChange={e => {
+                          const task = tasks.find(t => t.id === e.target.value)
+                          setInlineForm(prev => ({ ...prev, taskId: e.target.value, task: task?.name ?? '' }))
+                        }}
+                        disabled={!inlineForm.jobId}
+                        style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 130, opacity: inlineForm.jobId ? 1 : 0.5 }}
+                      >
+                        <option value="">No task</option>
+                        {inlineAvailableTasks.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>—</td>
+                    <td style={tdNum}>
+                      <input
+                        type="number" min={0.5} max={24} step={0.5}
+                        value={inlineForm.hours}
+                        onChange={e => setInlineForm(prev => ({ ...prev, hours: parseFloat(e.target.value) || 0 }))}
+                        style={{ width: 56, fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', textAlign: 'center' }}
+                      />
+                    </td>
+                    <td style={td}>
+                      <select
+                        value={inlineForm.billable ? 'true' : 'false'}
+                        onChange={e => setInlineForm(prev => ({ ...prev, billable: e.target.value === 'true' }))}
+                        style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px' }}
+                      >
+                        <option value="true">Billable</option>
+                        <option value="false">Non-Bill</option>
+                      </select>
+                    </td>
+                    <td style={td}>
+                      <input
+                        type="text" placeholder="Notes"
+                        value={inlineForm.notes}
+                        onChange={e => setInlineForm(prev => ({ ...prev, notes: e.target.value }))}
+                        style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 160 }}
+                      />
+                    </td>
+                    {/* Date field: hidden on daily (auto = anchorDate), day-select on weekly, date-select on monthly */}
+                    {activeTab === 'daily' ? (
+                      <td style={{ ...td, fontSize: 11, color: '#6b7280' }}>
+                        {anchorDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      </td>
+                    ) : activeTab === 'weekly' ? (
+                      <td style={td}>
+                        <select
+                          value={inlineForm.date}
+                          onChange={e => setInlineForm(prev => ({ ...prev, date: e.target.value }))}
+                          style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px' }}
+                        >
+                          {weekDays.map((d, i) => (
+                            <option key={toYMD(d)} value={toYMD(d)}>
+                              {DAY_NAMES[i]} {d.getDate()}/{d.getMonth() + 1}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    ) : (
+                      <td style={td}>
+                        <input
+                          type="date"
+                          value={inlineForm.date}
+                          min={`${anchorDate.getFullYear()}-${String(anchorDate.getMonth() + 1).padStart(2, '0')}-01`}
+                          max={`${anchorDate.getFullYear()}-${String(anchorDate.getMonth() + 1).padStart(2, '0')}-${new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0).getDate()}`}
+                          onChange={e => setInlineForm(prev => ({ ...prev, date: e.target.value }))}
+                          style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px' }}
+                        />
+                      </td>
+                    )}
+                    <td style={td}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          onClick={saveInlineDraft}
+                          disabled={!inlineForm.jobId || !inlineForm.hours}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: inlineForm.jobId && inlineForm.hours ? '#059669' : '#d1d5db', color: '#fff', fontSize: 12, fontWeight: 600, cursor: inlineForm.jobId && inlineForm.hours ? 'pointer' : 'not-allowed' }}
+                        >
+                          {editDraftId ? 'Update' : 'Add'}
+                        </button>
+                        <button
+                          onClick={() => { setShowInlineForm(false); setEditDraftId(null); setInlineForm({ date: toYMD(new Date()), hours: 8, billable: true, jobId: '', job: '', taskId: '', task: '', client: '', notes: '' }) }}
+                          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer' }}
+                        >✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              )}
+            </table>
+          </div>
+        )}
+
+        {/* ── Add Entry + Threshold bar + Submit ── */}
+        <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          {activeTab !== 'monthly' && (
+            <button
+              onClick={() => {
+                // Smart default date per tab:
+                // daily  → anchorDate (auto, not shown in form)
+                // weekly → today if today falls in this week, else Monday
+                let defaultDate = toYMD(anchorDate)
+                if (activeTab === 'weekly') {
+                  const todayYMD = toYMD(new Date())
+                  const weekStart = toYMD(weekDays[0]!)
+                  const weekEnd   = toYMD(weekDays[6]!)
+                  defaultDate = (todayYMD >= weekStart && todayYMD <= weekEnd) ? todayYMD : weekStart
+                }
+                setShowInlineForm(true)
+                setEditDraftId(null)
+                setInlineForm({ date: defaultDate, hours: 8, billable: true, jobId: '', job: '', taskId: '', task: '', client: '', notes: '' })
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: '1px dashed #6b7280', borderRadius: 8, background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Plus size={14} /> Add Entry
+            </button>
+          )}
+          {activeTab === 'monthly' && <div />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
+            {/* Threshold progress */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 120, height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 99, background: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#2563eb', width: `${Math.min((totalHoursInPeriod / threshold) * 100, 100)}%`, transition: 'width 0.3s' }} />
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, color: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#374151', whiteSpace: 'nowrap' }}>
+                {totalHoursInPeriod.toFixed(1)}h / {threshold}h
+              </span>
+            </div>
+            {/* Message or Submit button */}
+            {draftEntries.length > 0 && !thresholdMet && (
+              <span style={{ fontSize: 12, color: '#d97706', fontWeight: 500 }}>
+                Add {(threshold - totalHoursInPeriod).toFixed(1)}h more to reach the {threshold}h threshold before submitting
+              </span>
+            )}
+            {draftEntries.length > 0 && thresholdExceeded && (
+              <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
+                ⚠ Exceeded {threshold}h threshold — contact your manager to submit
+              </span>
+            )}
+            {draftEntries.length > 0 && thresholdMet && !thresholdExceeded && (
+              <button
+                onClick={handleSubmitDrafts}
+                disabled={draftSubmitting}
+                style={{ padding: '8px 20px', border: 'none', borderRadius: 8, background: draftSubmitting ? '#86efac' : '#059669', color: '#fff', fontWeight: 700, fontSize: 14, cursor: draftSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {draftSubmitting ? 'Submitting…' : `Submit ${draftEntries.length} Entr${draftEntries.length === 1 ? 'y' : 'ies'}`}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Inline reject modal ── */}
-      <Modal
+      {/* ── Inline reject modal (commented out for later use) ── */}
+      {/* <Modal
         open={!!rejectModal}
         onClose={() => setRejectModal(null)}
         title="Reject Timesheet Entry"
@@ -844,7 +1183,7 @@ export function Timesheets() {
           placeholder="e.g., Hours seem incorrect. Please review and resubmit."
           className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:border-red-500 resize-none"
         />
-      </Modal>
+      </Modal> */}
 
       {/* ── Log Daily Time modal ── */}
       <Modal open={logDailyModal} onClose={resetLogModal} title="" size="xl">
@@ -967,11 +1306,9 @@ export function Timesheets() {
                   <option value="">Select job...</option>
                   {jobs
                     .filter(j => {
-                      // For managers/admins, show all active jobs
-                      if (isManager) return j.status === 'in_progress' || j.status === 'open'
-                      // For employees, only show jobs they have tasks assigned to
-                      return (j.status === 'in_progress' || j.status === 'open') && 
-                             accessibleJobIds?.includes(j.id)
+                      // Show all jobs for managers; employees see only their assigned jobs
+                      if (isManager) return true
+                      return accessibleJobIds?.includes(j.id)
                     })
                     .map(j => (
                       <option key={j.id} value={j.id}>

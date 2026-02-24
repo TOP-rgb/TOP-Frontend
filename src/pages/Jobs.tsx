@@ -123,22 +123,24 @@ export function Jobs() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Job ID', 'Client Name', ...(user?.role !== 'employee' ? ['Billing Type', 'Billing Rate'] : []), 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
+                {['Job ID', 'Job Name', 'Client Name', ...(user?.role !== 'employee' ? ['Billing Type', 'Billing Rate'] : []), 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={user?.role !== 'employee' ? 11 : 9} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
+                <tr><td colSpan={user?.role !== 'employee' ? 12 : 10} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
               ) : filtered.map((job, i) => (
                 <tr key={job.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '3px 8px', borderRadius: 5 }}>{job.jobId}</span>
                   </td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#1a1f36', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {job.title}
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36' }}>{job.clientName}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{job.title}</div>
                   </td>
                   {user?.role !== 'employee' && (
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151', textTransform: 'capitalize' }}>{job.billingType}</td>

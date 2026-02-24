@@ -75,6 +75,18 @@ export interface ManagerDashboardData {
     id: string; jobId: string; title: string; status: string; priority: string
     client: { id: string; company: string }
   }>
+  recentTimesheets: Array<{
+    id: string
+    date: string
+    hours: number
+    status: string
+    flagReason?: string | null
+    description?: string | null
+    billable: boolean
+    user: { id: string; firstName: string; lastName: string }
+    job: { id: string; jobId: string; title: string }
+    task?: { id: string; title: string } | null
+  }>
 }
 
 export function useManagerDashboard() {
