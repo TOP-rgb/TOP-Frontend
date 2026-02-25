@@ -57,10 +57,75 @@ export interface ReportPeriodHours {
 
 export interface ReportEmployeeTime {
   name: string
+  department: string
+  role: string        // EMPLOYEE | MANAGER | ADMIN
   totalHours: number
   billableHours: number
   billablePct: number
   entryCount: number
+  pendingApproval: number
+}
+
+export interface ReportJobHours {
+  title: string
+  jobId: string
+  hours: number
+}
+
+export interface ReportDayOfWeek {
+  day: string
+  hours: number
+}
+
+export interface ReportTimesheetStatus {
+  status: string
+  count: number
+  hours: number
+}
+
+export interface ReportDepartmentTime {
+  department: string
+  totalHours: number
+  billableHours: number
+  billablePct: number
+  employeeCount: number
+  entryCount: number
+  avgHoursPerEmployee: number
+}
+
+export interface ReportClientHours {
+  company: string
+  totalHours: number
+  billableHours: number
+  billablePct: number
+  jobCount: number
+}
+
+export interface ReportTaskTypeHours {
+  type: string
+  totalHours: number
+  billableHours: number
+  billablePct: number
+  entryCount: number
+}
+
+export interface ReportFlaggedReason {
+  reason: string
+  count: number
+}
+
+export interface ReportFlaggedEntries {
+  total: number
+  byReason: ReportFlaggedReason[]
+}
+
+export interface ReportQualityMetrics {
+  totalEntries: number
+  entriesWithDescription: number
+  descriptionRate: number
+  entriesWithTask: number
+  taskLinkRate: number
+  avgHoursPerEntry: number
 }
 
 export interface ReportFinanceMonth {
@@ -90,15 +155,21 @@ export interface ReportsData {
     avgMargin: number
     totalHours: number
     billableHours: number
+    billablePct: number
     totalJobs: number
     completedJobs: number
     activeClients: number
+    totalTasks: number
+    completedTasks: number
+    taskCompletionRate: number
     revenueByMonth: ReportMonthRevenue[]
     jobStatusBreakdown: ReportStatusCount[]
   }
   jobs: {
     byStatus: ReportStatusCount[]
     byPriority: ReportPriorityCount[]
+    byJobType: { type: string; count: number; revenue: number; completedCount: number }[]
+    billingTypeBreakdown: { type: string; count: number; revenue: number }[]
     topJobsByRevenue: ReportTopJob[]
     overdueJobs: ReportOverdueJob[]
     quotedVsActualHours: ReportQuotedVsActual[]
@@ -107,11 +178,39 @@ export interface ReportsData {
     totalHoursByPeriod: ReportPeriodHours[]
     billableVsNonBillable: { billable: number; nonBillable: number }
     byEmployee: ReportEmployeeTime[]
+    hoursByJob: ReportJobHours[]
+    hoursByDayOfWeek: ReportDayOfWeek[]
+    timesheetStatusBreakdown: ReportTimesheetStatus[]
     pendingApproval: number
-    approvalRate: number
+    approvalRate: number | null  // null = no entries reviewed yet
+    reviewedCount: number
     totalHours: number
     billableHours: number
     billablePct: number
+    // Detailed breakdowns
+    byDepartment: ReportDepartmentTime[]
+    hoursByClient: ReportClientHours[]
+    hoursByTaskType: ReportTaskTypeHours[]
+    flaggedEntries: ReportFlaggedEntries
+    qualityMetrics: ReportQualityMetrics
+  }
+  tasks: {
+    total: number
+    completed: number
+    inProgress: number
+    todo: number
+    completionRate: number
+    byType: { type: string; total: number; completed: number; completionRate: number; estimatedHours: number; actualHours: number }[]
+    statusBreakdown: { status: string; label: string; count: number }[]
+    taskEfficiency: { title: string; type: string; estimated: number; actual: number; variance: number; status: string }[]
+    recentlyCompleted: { title: string; type: string; job: string; completedAt: string; estimatedHours: number; actualHours: number }[]
+  }
+  clients: {
+    total: number
+    active: number
+    inactive: number
+    byIndustry: { industry: string; clientCount: number; jobCount: number; revenue: number }[]
+    topByRevenue: ReportClientRevenue[]
   }
   finance: {
     invoiced: number
@@ -119,6 +218,8 @@ export interface ReportsData {
     outstanding: number
     overdue: number
     overdueCount: number
+    totalTax: number
+    avgDaysToPay: number
     revenueByMonth: ReportFinanceMonth[]
     topClientsByRevenue: ReportClientRevenue[]
     invoiceStatusBreakdown: ReportInvoiceStatus[]

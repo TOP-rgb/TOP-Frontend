@@ -13,6 +13,7 @@ import { Tasks } from '@/pages/Tasks'
 import { Timesheets } from '@/pages/Timesheets'
 import { Placeholder } from '@/pages/Placeholder'
 import { Invoices } from '@/pages/Invoices'
+import { Reports } from '@/pages/Reports'
 import type { UserRole } from '@/types'
 
 const queryClient = new QueryClient({
@@ -65,7 +66,7 @@ export default function App() {
             <Route path="tasks" element={<Tasks />} />
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="reports" element={
-              <RequireRole roles={['manager', 'admin']}><Placeholder title="Reports & Analytics" /></RequireRole>
+              <RequireRole roles={['manager', 'admin']}><Reports /></RequireRole>
             } />
             <Route path="invoices" element={
               <RequireRole roles={['manager', 'admin']}><Invoices /></RequireRole>

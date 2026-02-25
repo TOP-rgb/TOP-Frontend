@@ -7,9 +7,9 @@ import {
 import {
   TrendingUp, DollarSign, Clock, Users, Briefcase,
   AlertCircle, CheckCircle, BarChart2, FileText, Target,
-  RefreshCw,
+  RefreshCw, Download, Flag, Activity, Layers,
 } from 'lucide-react'
-import { useReports, type DateRange } from '@/hooks/useReports'
+import { useReports, type DateRange, type ReportsData } from '@/hooks/useReports'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,99 @@ function fmtDate(d: string) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+// Safe formatter for Recharts Tooltip — ValueType can be string|number|array
+function fmtV(v: unknown): string {
+  const n = Number(v)
+  return isNaN(n) ? String(v) : fmt(n)
+}
+function fmtHours(v: unknown): string {
+  const n = Number(v)
+  return isNaN(n) ? String(v) : `${n.toFixed(1)}h`
+}
+function fmtCount(v: unknown, unit = 'jobs'): string {
+  const n = Number(v)
+  return isNaN(n) ? String(v) : `${n} ${unit}`
+}
+
+// ── CSV Download ──────────────────────────────────────────────────────────────
+
+function toCSV(rows: Record<string, unknown>[]): string {
+  if (!rows.length) return ''
+  const headers = Object.keys(rows[0])
+  const escape = (v: unknown) => {
+    const s = String(v ?? '')
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  return [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n')
+}
+
+function downloadCSV(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+type ReportTab = 'overview' | 'jobs' | 'time' | 'finance'
+
+function exportTab(tab: ReportTab, data: ReportsData, range: string) {
+  const label = range.replace(/_/g, '-')
+  if (tab === 'overview') {
+    const rows = data.overview.revenueByMonth.map(m => ({
+      Month: m.month,
+      Revenue: m.revenue,
+      Cost: m.cost,
+      Profit: m.profit,
+    }))
+    downloadCSV(`overview-${label}.csv`, rows.length ? toCSV(rows) : toCSV([{
+      'Total Revenue': data.overview.totalRevenue,
+      'Total Profit': data.overview.totalProfit,
+      'Avg Margin %': data.overview.avgMargin,
+      'Total Hours': data.overview.totalHours,
+      'Total Jobs': data.overview.totalJobs,
+      'Completed Jobs': data.overview.completedJobs,
+      'Active Clients': data.overview.activeClients,
+    }]))
+  } else if (tab === 'jobs') {
+    const rows = data.jobs.topJobsByRevenue.map(j => ({
+      'Job ID': j.jobId,
+      Title: j.title,
+      Client: j.client,
+      'Revenue (AUD)': j.revenue,
+      'Margin %': j.margin,
+      Status: j.status,
+    }))
+    downloadCSV(`jobs-${label}.csv`, toCSV(rows.length ? rows : [{ Note: 'No data' }]))
+  } else if (tab === 'time') {
+    const rows = data.time.byEmployee.map(e => ({
+      Employee: e.name,
+      'Total Hours': e.totalHours,
+      'Billable Hours': e.billableHours,
+      'Billable %': e.billablePct,
+      Entries: e.entryCount,
+    }))
+    downloadCSV(`time-${label}.csv`, toCSV(rows.length ? rows : [{ Note: 'No data' }]))
+  } else if (tab === 'finance') {
+    const rows = data.finance.topClientsByRevenue.map(c => ({
+      Client: c.company,
+      'Invoiced (AUD)': c.invoiced,
+      'Collected (AUD)': c.collected,
+      'Outstanding (AUD)': c.outstanding,
+    }))
+    downloadCSV(`finance-${label}.csv`, toCSV(rows.length ? rows : [{
+      'Total Invoiced': data.finance.invoiced,
+      'Collected': data.finance.collected,
+      'Outstanding': data.finance.outstanding,
+      'Overdue': data.finance.overdue,
+    }]))
+  }
+}
+
+// ── Style constants ───────────────────────────────────────────────────────────
 
 const CHART_TOOLTIP_STYLE = {
   borderRadius: 10,
@@ -121,10 +214,9 @@ function EmptyState({ text }: { text: string }) {
 
 // ── Tab: Overview ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>['overview'] }) {
+function OverviewTab({ d }: { d: ReportsData['overview'] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         <KpiCard label="Total Revenue" value={fmt(d.totalRevenue)} sub={`${d.totalJobs} jobs`} icon={<DollarSign size={18} />} color="#22c55e" />
         <KpiCard label="Net Profit" value={fmt(d.totalProfit)} sub={`${d.avgMargin.toFixed(1)}% avg margin`} icon={<TrendingUp size={18} />} color="#3b82f6" />
@@ -132,7 +224,6 @@ function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data
         <KpiCard label="Active Clients" value={String(d.activeClients)} sub={`${d.completedJobs}/${d.totalJobs} jobs done`} icon={<Users size={18} />} color="#a855f7" />
       </div>
 
-      {/* Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <Card title="Revenue vs Cost vs Profit">
           {d.revenueByMonth.length === 0 ? <EmptyState text="No revenue data for this period" /> : (
@@ -140,8 +231,8 @@ function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data
               <BarChart data={d.revenueByMonth} barGap={2}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => fmt(v)} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtV(v)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="cost" name="Cost" fill="#ef4444" radius={[4, 4, 0, 0]} />
@@ -156,19 +247,12 @@ function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data
             <>
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
-                  <Pie
-                    data={d.jobStatusBreakdown}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={80}
-                    paddingAngle={2}
-                  >
+                  <Pie data={d.jobStatusBreakdown} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
                     {d.jobStatusBreakdown.map((entry, i) => (
                       <Cell key={i} fill={STATUS_COLORS[entry.status] ?? '#94a3b8'} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => [`${v} jobs`, '']} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtCount(v)} />
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
@@ -192,20 +276,15 @@ function OverviewTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data
 
 // ── Tab: Jobs ─────────────────────────────────────────────────────────────────
 
-function JobsTab({ d, overview }: {
-  d: NonNullable<ReturnType<typeof useReports>['data']>['jobs']
-  overview: NonNullable<ReturnType<typeof useReports>['data']>['overview']
-}) {
+function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsData['overview'] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         <KpiCard label="Completed Jobs" value={`${overview.completedJobs}/${overview.totalJobs}`} sub="completed or invoiced" icon={<CheckCircle size={18} />} color="#22c55e" />
         <KpiCard label="Avg Job Margin" value={`${overview.avgMargin.toFixed(1)}%`} sub="across completed jobs" icon={<Target size={18} />} color="#3b82f6" />
         <KpiCard label="Overdue Jobs" value={String(d.overdueJobs.length)} sub="past deadline" icon={<AlertCircle size={18} />} color="#ef4444" />
       </div>
 
-      {/* Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Card title="Quoted vs Actual Hours">
           {d.quotedVsActualHours.length === 0 ? <EmptyState text="No jobs with hour data" /> : (
@@ -214,7 +293,7 @@ function JobsTab({ d, overview }: {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="title" width={90} tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}h`, '']} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtHours(v)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="quoted" name="Quoted" fill="#94a3b8" radius={[0, 4, 4, 0]} />
                 <Bar dataKey="actual" name="Actual" fill="#3b82f6" radius={[0, 4, 4, 0]} />
@@ -258,7 +337,6 @@ function JobsTab({ d, overview }: {
         </Card>
       </div>
 
-      {/* Overdue jobs */}
       {d.overdueJobs.length > 0 && (
         <Card
           title="Overdue Jobs"
@@ -298,17 +376,15 @@ function JobsTab({ d, overview }: {
 
 // ── Tab: Time ─────────────────────────────────────────────────────────────────
 
-function TimeTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>['time'] }) {
+function TimeTab({ d }: { d: ReportsData['time'] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         <KpiCard label="Total Hours" value={`${d.totalHours.toFixed(1)}h`} sub={`${d.byEmployee.length} employees`} icon={<Clock size={18} />} color="#3b82f6" />
         <KpiCard label="Billable Rate" value={`${d.billablePct}%`} sub={`${d.billableHours.toFixed(1)}h billable`} icon={<Target size={18} />} color="#22c55e" />
         <KpiCard label="Pending Approval" value={String(d.pendingApproval)} sub={`${d.approvalRate}% approval rate`} icon={<AlertCircle size={18} />} color="#f59e0b" />
       </div>
 
-      {/* Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <Card title="Hours Over Time">
           {d.totalHoursByPeriod.length === 0 ? <EmptyState text="No time entries for this period" /> : (
@@ -323,7 +399,7 @@ function TimeTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>[
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="period" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}h`} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}h`, 'Hours']} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => [fmtHours(v), 'Hours']} />
                 <Area type="monotone" dataKey="hours" name="Hours" stroke="#3b82f6" strokeWidth={2} fill="url(#hoursGrad)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -342,15 +418,12 @@ function TimeTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>[
                         { name: 'Billable', value: d.billableVsNonBillable.billable },
                         { name: 'Non-Billable', value: d.billableVsNonBillable.nonBillable },
                       ]}
-                      dataKey="value"
-                      cx="50%" cy="50%"
-                      innerRadius={50} outerRadius={80}
-                      paddingAngle={2}
+                      dataKey="value" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}
                     >
                       <Cell fill="#3b82f6" />
                       <Cell fill="#e2e8f0" />
                     </Pie>
-                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => [`${v.toFixed(1)}h`, '']} />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtHours(v)} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
@@ -373,7 +446,6 @@ function TimeTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>[
         </Card>
       </div>
 
-      {/* Employee breakdown table */}
       <Card title="Time by Employee">
         {d.byEmployee.length === 0 ? <EmptyState text="No time entries in this period" /> : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -413,10 +485,9 @@ function TimeTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>[
 
 // ── Tab: Finance ──────────────────────────────────────────────────────────────
 
-function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data']>['finance'] }) {
+function FinanceTab({ d }: { d: ReportsData['finance'] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         <KpiCard label="Total Invoiced" value={fmt(d.invoiced)} sub={`${d.invoiceStatusBreakdown.reduce((s, i) => s + i.count, 0)} invoices`} icon={<FileText size={18} />} color="#3b82f6" />
         <KpiCard label="Collected" value={fmt(d.collected)} sub={`${Math.round(d.invoiced > 0 ? (d.collected / d.invoiced) * 100 : 0)}% of invoiced`} icon={<CheckCircle size={18} />} color="#22c55e" />
@@ -424,7 +495,6 @@ function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data'
         <KpiCard label="Overdue" value={fmt(d.overdue)} sub={`${d.overdueCount} invoice${d.overdueCount !== 1 ? 's' : ''}`} icon={<AlertCircle size={18} />} color="#ef4444" />
       </div>
 
-      {/* Charts */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <Card title="Invoiced vs Collected by Month">
           {d.revenueByMonth.length === 0 ? <EmptyState text="No invoices in this period" /> : (
@@ -432,8 +502,8 @@ function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data'
               <BarChart data={d.revenueByMonth} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => fmt(v)} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtV(v)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="invoiced" name="Invoiced" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="collected" name="Collected" fill="#22c55e" radius={[4, 4, 0, 0]} />
@@ -447,19 +517,12 @@ function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data'
             <>
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
-                  <Pie
-                    data={d.invoiceStatusBreakdown}
-                    dataKey="amount"
-                    nameKey="status"
-                    cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={80}
-                    paddingAngle={2}
-                  >
+                  <Pie data={d.invoiceStatusBreakdown} dataKey="amount" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
                     {d.invoiceStatusBreakdown.map((entry, i) => (
                       <Cell key={i} fill={INVOICE_COLORS[entry.status] ?? '#94a3b8'} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v: number) => [fmt(v), '']} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtV(v)} />
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
@@ -478,13 +541,12 @@ function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data'
         </Card>
       </div>
 
-      {/* Top clients */}
       <Card title="Top Clients by Invoiced Amount">
         {d.topClientsByRevenue.length === 0 ? <EmptyState text="No invoice data for this period" /> : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Client', 'Invoiced', 'Collected', 'Outstanding', ''].map(h => (
+                {['Client', 'Invoiced', 'Collected', 'Outstanding', 'Paid'].map(h => (
                   <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -499,7 +561,6 @@ function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data'
                     {fmt(c.outstanding)}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
-                    {/* Payment rate bar */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 60, height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{
@@ -524,13 +585,11 @@ function FinanceTab({ d }: { d: NonNullable<ReturnType<typeof useReports>['data'
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-type ReportTab = 'overview' | 'jobs' | 'time' | 'finance'
-
 const TABS: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview', icon: <BarChart2 size={14} /> },
-  { id: 'jobs', label: 'Jobs', icon: <Briefcase size={14} /> },
-  { id: 'time', label: 'Time', icon: <Clock size={14} /> },
-  { id: 'finance', label: 'Finance', icon: <DollarSign size={14} /> },
+  { id: 'jobs',     label: 'Jobs',     icon: <Briefcase size={14} /> },
+  { id: 'time',     label: 'Time',     icon: <Clock size={14} /> },
+  { id: 'finance',  label: 'Finance',  icon: <DollarSign size={14} /> },
 ]
 
 const RANGES: DateRange[] = ['this_month', 'last_month', 'last_3_months', 'last_6_months', 'this_year', 'all']
@@ -541,6 +600,11 @@ export function Reports() {
 
   const { data, loading, error } = useReports(range)
 
+  const handleDownload = () => {
+    if (!data) return
+    exportTab(activeTab, data, range)
+  }
+
   return (
     <div style={{ fontFamily: 'inherit' }}>
       {/* Header */}
@@ -549,20 +613,38 @@ export function Reports() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Reports & Analytics</h1>
           <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>Insights across jobs, time, and finances</p>
         </div>
-        {/* Date range selector */}
-        <select
-          value={range}
-          onChange={e => setRange(e.target.value as DateRange)}
-          style={{
-            background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
-            padding: '9px 14px', fontSize: 13, fontWeight: 500, color: '#374151',
-            cursor: 'pointer', outline: 'none', appearance: 'auto',
-          }}
-        >
-          {RANGES.map(r => (
-            <option key={r} value={r}>{RANGE_LABELS[r]}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Download CSV */}
+          <button
+            onClick={handleDownload}
+            disabled={!data || loading}
+            title={`Download ${activeTab} report as CSV`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb',
+              background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13,
+              cursor: data && !loading ? 'pointer' : 'not-allowed',
+              opacity: data && !loading ? 1 : 0.5,
+            }}
+          >
+            <Download size={14} />
+            Export CSV
+          </button>
+          {/* Date range selector */}
+          <select
+            value={range}
+            onChange={e => setRange(e.target.value as DateRange)}
+            style={{
+              background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+              padding: '9px 14px', fontSize: 13, fontWeight: 500, color: '#374151',
+              cursor: 'pointer', outline: 'none',
+            }}
+          >
+            {RANGES.map(r => (
+              <option key={r} value={r}>{RANGE_LABELS[r]}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Tab bar */}
