@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
@@ -14,7 +16,20 @@ import { Timesheets } from '@/pages/Timesheets'
 import { Placeholder } from '@/pages/Placeholder'
 import { Invoices } from '@/pages/Invoices'
 import { Reports } from '@/pages/Reports'
+import { Settings } from '@/pages/Settings'
 import type { UserRole } from '@/types'
+
+/** Loads org locale settings after login so Reports picks up correct currency */
+function LoadSettings() {
+  const { isAuthenticated } = useAuthStore()
+  const { loadSettings, loaded } = useSettingsStore()
+  useEffect(() => {
+    if (isAuthenticated && !loaded) {
+      loadSettings()
+    }
+  }, [isAuthenticated, loaded, loadSettings])
+  return null
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
@@ -49,6 +64,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Toaster position="bottom-right" richColors toastOptions={{ duration: 3000 }} />
       <BrowserRouter>
+        <LoadSettings />
         <Routes>
           
           <Route path="/login" element={<Login />} />
@@ -75,7 +91,7 @@ export default function App() {
               <RequireRole roles={['admin']}><Placeholder title="Performance Dashboard" /></RequireRole>
             } />
             <Route path="settings" element={
-              <RequireRole roles={['admin']}><Placeholder title="System Settings" /></RequireRole>
+              <RequireRole roles={['admin']}><Settings /></RequireRole>
             } />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

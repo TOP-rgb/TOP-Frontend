@@ -1,13 +1,75 @@
 import { useState, useEffect } from 'react'
 import type { Job, JobStatus, Priority, BillingType } from '@/types'
 import { Modal } from '@/components/ui/Modal'
-import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils'
-import { Search, Plus, Eye, Edit2, Loader2, Check, Filter } from 'lucide-react'
+import { formatDate, formatDateForInput } from '@/lib/utils'
+import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { useSettings } from '@/hooks/useSettings'
 import { useJobs } from '@/hooks/useJobs'
 import { useClients } from '@/hooks/useClients'
 import { useTasks } from '@/hooks/useTasks'
+import { useJobLayouts } from '@/hooks/useLayouts'
+import type { LayoutField, JobLayout } from '@/hooks/useLayouts'
 import { toast } from 'sonner'
+
+// ── Currency formatter factory ────────────────────────────────────────────────
+function makeFmt(currency: string, symbol: string) {
+  return (n: number) =>
+    new Intl.NumberFormat('en-AU', { 
+      style: 'currency', 
+      currency, 
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    }).format(n).replace(currency, symbol)
+}
+
+// ── Date formatter with settings ──────────────────────────────────────────────
+function formatDateWithSettings(d: string | null | undefined, format: string): string {
+  if (!d) return '—'
+  const date = new Date(d)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  
+  switch(format) {
+    case 'MM/DD/YYYY':
+      return `${month}/${day}/${year}`
+    case 'YYYY-MM-DD':
+      return `${year}-${month}-${day}`
+    case 'DD/MM/YYYY':
+    default:
+      return `${day}/${month}/${year}`
+  }
+}
+
+// ── Round hours based on billing increment ────────────────────────────────────
+function roundHours(hours: number, increment: number): number {
+  const incrementHours = increment / 60
+  return Math.ceil(hours / incrementHours) * incrementHours
+}
+
+// ── Calculate cost based on ratio ─────────────────────────────────────────────
+function calculateCost(revenue: number, costRatio: number): number {
+  return revenue * costRatio
+}
+
+// ── Check if job is over/under hours ──────────────────────────────────────────
+function checkHourThresholds(actual: number, quoted: number, threshold: number): {
+  isUnder: boolean
+  isOver: boolean
+  message: string | null
+} {
+  const diff = actual - quoted
+  const isUnder = diff < -threshold
+  const isOver = diff > threshold
+  let message = null
+  
+  if (isUnder) message = `Under by ${Math.abs(diff)}h (threshold: ${threshold}h)`
+  if (isOver) message = `Over by ${diff}h (threshold: ${threshold}h)`
+  
+  return { isUnder, isOver, message }
+}
 
 const STATUS_FLOW: JobStatus[] = ['open', 'in_progress', 'on_hold', 'completed', 'invoiced', 'closed']
 
@@ -22,6 +84,22 @@ const priorityColor: Record<Priority, string> = {
 
 export function Jobs() {
   const { user } = useAuthStore()
+  const { data: settings } = useSettings()
+
+  // Extract all needed settings
+  const currency = settings.currency
+  const currencySymbol = settings.currencySymbol
+  const dateFormat = settings.dateFormat
+  const defaultHourlyRate = settings.defaultHourlyRate
+  const hourlyCostRatio = settings.hourlyCostRatio
+  const dailyHoursThreshold = settings.dailyHoursThreshold
+  const flagUnderHours = settings.flagUnderHours
+  const flagOverHours = settings.flagOverHours
+  const requireClientForJob = settings.requireClientForJob
+  const billingIncrement = settings.billingIncrement
+
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
+
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | JobStatus>('all')
   const [showModal, setShowModal] = useState(false)
@@ -32,12 +110,22 @@ export function Jobs() {
   const { clients } = useClients()
   const { tasks } = useTasks()
 
+  // Calculate actual hours for each job from tasks
+  const jobsWithActualHours = jobs.map(job => {
+    const jobTasks = tasks.filter(t => t.jobId === job.id)
+    const actualHours = jobTasks.reduce((sum, task) => sum + (task.actualHours || 0), 0)
+    return {
+      ...job,
+      actualHours: actualHours > 0 ? actualHours : job.actualHours // Use task hours if available, otherwise fallback to job.actualHours
+    }
+  })
+
   // For employees: only show jobs linked to tasks assigned to them
   const myTaskJobIds = user?.role === 'employee'
     ? tasks.filter(t => t.assignedToIds?.includes(user.id)).map(t => t.jobId)
     : null
 
-  const filtered = jobs.filter(j => {
+  const filtered = jobsWithActualHours.filter(j => {
     const matchSearch = j.title.toLowerCase().includes(search.toLowerCase()) ||
       j.jobId.toLowerCase().includes(search.toLowerCase()) ||
       j.clientName.toLowerCase().includes(search.toLowerCase())
@@ -124,37 +212,54 @@ export function Jobs() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Job ID', 'Job Name', 'Client Name', ...(user?.role !== 'employee' ? ['Billing Type', 'Billing Rate'] : []), 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
+                {['Job ID', 'Job Name', 'Client Name', ...(user?.role !== 'employee' ? [`Billing Rate (${currency})`] : []), 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'Actual Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={user?.role !== 'employee' ? 12 : 10} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
-              ) : filtered.map((job, i) => (
+                <tr><td colSpan={user?.role !== 'employee' ? 12 : 11} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
+              ) : filtered.map((job, i) => {
+                // Calculate hour thresholds if enabled
+                const hourCheck = (flagUnderHours || flagOverHours) 
+                  ? checkHourThresholds(job.actualHours, job.quotedHours, dailyHoursThreshold)
+                  : { isUnder: false, isOver: false, message: null }
+                
+                return (
                 <tr key={job.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '3px 8px', borderRadius: 5 }}>{job.jobId}</span>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#1a1f36', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {job.title}
+                    {hourCheck.message && (hourCheck.isUnder && flagUnderHours || hourCheck.isOver && flagOverHours) && (
+                      <span style={{ 
+                        marginLeft: 8, 
+                        fontSize: 10, 
+                        color: hourCheck.isOver ? '#ef4444' : '#f59e0b',
+                        background: hourCheck.isOver ? '#fee2e2' : '#fef3c7',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {hourCheck.isOver ? '⚠️ Over' : '⚠️ Under'}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36' }}>{job.clientName}</div>
                   </td>
                   {user?.role !== 'employee' && (
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151', textTransform: 'capitalize' }}>{job.billingType}</td>
-                  )}
-                  {user?.role !== 'employee' && (
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>
-                      {job.billingType === 'fixed' ? formatCurrency(job.billingRate) : `${formatCurrency(job.billingRate)}/hr`}
+                      {job.billingType === 'fixed' ? fmt(job.billingRate) : `${fmt(job.billingRate)}/hr`}
                     </td>
                   )}
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDate(job.quoteApprovedDate) || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDate(job.startDate) || '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.quoteApprovedDate, dateFormat)}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.startDate, dateFormat)}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{job.quotedHours}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDate(job.deadline) || '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{job.actualHours}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.deadline, dateFormat)}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: priorityColor[job.priority], textTransform: 'capitalize' }}>{job.priority}</span>
                   </td>
@@ -184,7 +289,7 @@ export function Jobs() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -203,7 +308,19 @@ export function Jobs() {
         const completedTasks = jobTasks.filter(t => t.status === 'completed').length
         const inProgressTasks = jobTasks.filter(t => t.status === 'in_progress').length
         const taskPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+        
+        // Calculate cost using ratio from settings
+        const calculatedCost = detailJob.revenue ? calculateCost(detailJob.revenue, hourlyCostRatio) : 0
+        const calculatedProfit = detailJob.revenue ? detailJob.revenue - calculatedCost : 0
+        const calculatedMargin = detailJob.revenue ? Math.round((calculatedProfit / detailJob.revenue) * 100) : 0
+        
         const sc = ({ open: { bg: '#1e3a5f', color: '#60a5fa' }, in_progress: { bg: '#14532d40', color: '#86efac' }, on_hold: { bg: '#78350f30', color: '#fcd34d' }, completed: { bg: '#14532d60', color: '#4ade80' }, invoiced: { bg: '#312e8130', color: '#a5b4fc' }, closed: { bg: '#1e293b', color: '#64748b' } } as Record<string,{bg:string;color:string}>)[detailJob.status] ?? { bg: '#1e293b', color: '#64748b' }
+        
+        // Check hour thresholds for detail view
+        const hourCheck = (flagUnderHours || flagOverHours) 
+          ? checkHourThresholds(dispActual, dispEstimated, dailyHoursThreshold)
+          : { isUnder: false, isOver: false, message: null }
+        
         return (
         <Modal open={!!detailJob} onClose={() => setDetailJob(null)} title="" size="full">
           <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, display: 'flex', overflow: 'hidden', minHeight: 460 }}>
@@ -227,12 +344,29 @@ export function Jobs() {
                 </span>
               </div>
 
+              {/* Hour warning if enabled */}
+              {(flagUnderHours || flagOverHours) && hourCheck.message && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Alert</div>
+                  <span style={{ 
+                    fontSize: 11, 
+                    color: hourCheck.isOver ? '#ef4444' : '#f59e0b',
+                    background: hourCheck.isOver ? '#451a1a' : '#422b0c',
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    display: 'inline-block'
+                  }}>
+                    {hourCheck.message}
+                  </span>
+                </div>
+              )}
+
               {/* Billing — hidden for employees */}
               {user?.role !== 'employee' && (
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Billing</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{detailJob.billingType === 'fixed' ? 'Fixed Price' : 'Hourly'}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{detailJob.billingType === 'fixed' ? formatCurrency(detailJob.billingRate) : `${formatCurrency(detailJob.billingRate)}/hr`}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{detailJob.billingType === 'fixed' ? fmt(detailJob.billingRate) : `${fmt(detailJob.billingRate)}/hr`}</div>
                 </div>
               )}
 
@@ -248,13 +382,13 @@ export function Jobs() {
               {detailJob.startDate && (
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Start Date</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDate(detailJob.startDate)}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDateWithSettings(detailJob.startDate, dateFormat)}</div>
                 </div>
               )}
               {detailJob.deadline && (
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Deadline</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDate(detailJob.deadline)}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{formatDateWithSettings(detailJob.deadline, dateFormat)}</div>
                 </div>
               )}
             </div>
@@ -335,10 +469,10 @@ export function Jobs() {
               {user?.role !== 'employee' && detailJob.revenue != null && (
                 <div className="modal-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                   {[
-                    { label: 'Revenue', value: formatCurrency(detailJob.revenue ?? 0), color: '#4ade80' },
-                    { label: 'Cost', value: formatCurrency(detailJob.totalCost ?? 0), color: '#f87171' },
-                    { label: 'Profit', value: formatCurrency(detailJob.profit ?? 0), color: '#60a5fa' },
-                    { label: 'Margin', value: `${detailJob.margin ?? 0}%`, color: '#c084fc' },
+                    { label: 'Revenue', value: fmt(detailJob.revenue ?? 0), color: '#4ade80' },
+                    { label: 'Cost', value: fmt(calculatedCost), color: '#f87171' },
+                    { label: 'Profit', value: fmt(calculatedProfit), color: '#60a5fa' },
+                    { label: 'Margin', value: `${calculatedMargin}%`, color: '#c084fc' },
                   ].map(m => (
                     <div key={m.label} style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '12px 10px', textAlign: 'center' }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: m.color }}>{m.value}</div>
@@ -369,10 +503,16 @@ export function Jobs() {
 
       {/* Create / Edit Job modal */}
       <JobModal
+        key={currency} // Add key to force re-render when currency changes
         open={showModal}
         onClose={() => setShowModal(false)}
         job={selected}
         clients={clients.map(c => ({ id: c.id, company: c.company }))}
+        currency={currency}
+        currencySymbol={currencySymbol}
+        defaultHourlyRate={defaultHourlyRate}
+        requireClientForJob={requireClientForJob}
+        billingIncrement={billingIncrement}
         onSave={async (j) => {
           if (selected) {
             const ok = await updateJob(selected.id, j)
@@ -398,81 +538,172 @@ interface JobModalProps {
   job: Job | null
   onSave: (j: Job) => void
   clients: Array<{ id: string; company: string }>
+  currency: string
+  currencySymbol: string
+  defaultHourlyRate: number | null
+  requireClientForJob: boolean
+  billingIncrement: number
 }
 
-function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
+function JobModal({ 
+  open, 
+  onClose, 
+  job, 
+  onSave, 
+  clients, 
+  currency, 
+  currencySymbol,
+  defaultHourlyRate,
+  requireClientForJob,
+  billingIncrement
+}: JobModalProps) {
+  // Create formatter INSIDE the component to use latest currency/symbol
+  const fmt = (n: number) => {
+    return new Intl.NumberFormat('en-AU', { 
+      style: 'currency', 
+      currency, 
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    }).format(n).replace(currency, currencySymbol)
+  }
+
+  const TOTAL_STEPS = job ? 3 : 4   // Edit: skip layout selection; Create: step 1 = layout
   const [step, setStep] = useState(1)
-  const [form, setForm] = useState<Partial<Job>>(job ?? {
-    title: '', clientId: '', clientName: '', jobType: '', billingType: 'hourly', billingRate: 0,
+  const [form, setForm] = useState<Partial<Job> & { layoutId?: string; customFieldValues?: Record<string, unknown> }>(job ?? {
+    title: '', clientId: '', clientName: '', jobType: '', billingType: 'hourly', billingRate: defaultHourlyRate || 0,
     quotedHours: 0, actualHours: 0, status: 'open', priority: 'medium',
     quoteApprovedDate: '', startDate: '', deadline: '', assignedManager: '',
+    layoutId: undefined, customFieldValues: {},
   })
+
+  // Layouts
+  const { layouts, loading: layoutsLoading, defaultLayout } = useJobLayouts()
+  const [selectedLayout, setSelectedLayout] = useState<JobLayout | null>(null)
+
+  // Update form when defaultHourlyRate changes
+  useEffect(() => {
+    if (!job && !form.billingRate && defaultHourlyRate) {
+      setForm(f => ({ ...f, billingRate: defaultHourlyRate }))
+    }
+  }, [defaultHourlyRate, job, form.billingRate])
 
   useEffect(() => {
     setStep(1)
-    
     if (job) {
       setForm({
-        title: job.title || '',
-        clientId: job.clientId || '',
-        clientName: job.clientName || '',
-        jobType: job.jobType || '',
-        billingType: job.billingType || 'hourly',
-        billingRate: job.billingRate || 0,
-        quotedHours: job.quotedHours || 0,
-        actualHours: job.actualHours || 0,
-        status: job.status || 'open',
+        title: job.title || '', clientId: job.clientId || '', clientName: job.clientName || '',
+        jobType: job.jobType || '', billingType: job.billingType || 'hourly',
+        billingRate: job.billingRate || defaultHourlyRate || 0, quotedHours: job.quotedHours || 0,
+        actualHours: job.actualHours || 0, status: job.status || 'open',
         priority: job.priority || 'medium',
         quoteApprovedDate: formatDateForInput(job.quoteApprovedDate),
-        startDate: formatDateForInput(job.startDate),
-        deadline: formatDateForInput(job.deadline),
+        startDate: formatDateForInput(job.startDate), deadline: formatDateForInput(job.deadline),
         assignedManager: job.assignedManager || '',
+        layoutId: (job as { layoutId?: string }).layoutId,
+        customFieldValues: (job as { customFieldValues?: Record<string, unknown> }).customFieldValues ?? {},
       })
     } else {
       setForm({
-        title: '', clientId: '', clientName: '', jobType: '', billingType: 'hourly', billingRate: 0,
+        title: '', clientId: '', clientName: '', jobType: '', billingType: 'hourly', 
+        billingRate: defaultHourlyRate || 0,
         quotedHours: 0, actualHours: 0, status: 'open', priority: 'medium',
         quoteApprovedDate: '', startDate: '', deadline: '', assignedManager: '',
+        layoutId: undefined, customFieldValues: {},
       })
+      setSelectedLayout(null)
     }
-  }, [job])
+  }, [job, defaultHourlyRate])
 
-  const s = (k: keyof Job, v: string | number) => setForm(f => ({ ...f, [k]: v }))
+  // When no layout selected yet, auto-select default
+  useEffect(() => {
+    if (!job && !selectedLayout && defaultLayout) {
+      setSelectedLayout(defaultLayout)
+      setForm(f => ({ ...f, layoutId: defaultLayout.id }))
+    }
+  }, [defaultLayout, job, selectedLayout])
 
-  const steps = [
-    { num: 1, label: 'Job Details' },
-    { num: 2, label: 'Timeline' },
-    { num: 3, label: 'Billing details' },
-  ]
+  const s = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }))
+  const setCF = (key: string, v: unknown) => setForm(f => ({ ...f, customFieldValues: { ...(f.customFieldValues ?? {}), [key]: v } }))
+
+  // Steps: for new job: 1=Layout, 2=Details, 3=Timeline, 4=Billing
+  // For edit: 1=Details, 2=Timeline, 3=Billing (same as before)
+  const steps = job
+    ? [{ num: 1, label: 'Job Details' }, { num: 2, label: 'Timeline' }, { num: 3, label: 'Billing' }]
+    : [{ num: 1, label: 'Select Layout' }, { num: 2, label: 'Job Details' }, { num: 3, label: 'Timeline' }, { num: 4, label: 'Billing' }]
 
   const darkInput: React.CSSProperties = {
     width: '100%', padding: '10px 13px', background: '#1e2d4a', border: '1px solid #2d4068',
-    borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+    borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
   }
   const lbl: React.CSSProperties = { fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }
   const req = <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>
 
   const handleClose = () => { onClose(); setStep(1) }
-  const handleCreate = () => { onSave(form as Job); setStep(1) }
+  const handleCreate = () => { onSave({ ...form, layoutId: selectedLayout?.id } as Job); setStep(1) }
+
+  const detailStep = job ? 1 : 2
+  const timelineStep = job ? 2 : 3
+  const billingStep = job ? 3 : 4
+
   const handleNext = () => {
-    if (step === 1) {
+    if (step === detailStep) {
       if (!form.title?.trim()) { toast.error('Job name is required'); return }
-      if (!form.clientId) { toast.error('Please select a client'); return }
-    }
-    if (step === 3) {
-      if (!form.billingRate && form.billingRate !== 0) { toast.error('Billing rate is required'); return }
+      if (requireClientForJob && !form.clientId) { toast.error('Please select a client'); return }
     }
     setStep(st => st + 1)
   }
 
+  // Custom fields from selected layout (only non-system ones)
+  const customFields: LayoutField[] = selectedLayout
+    ? selectedLayout.fields.filter(f => !f.system)
+    : []
+
+  const renderCustomField = (f: LayoutField) => {
+    const val = (form.customFieldValues ?? {})[f.key]
+    const inputCls = darkInput
+
+    if (f.type === 'text') return (
+      <input style={inputCls} value={(val as string) ?? ''} onChange={e => setCF(f.key, e.target.value)} placeholder={f.placeholder || f.label} />
+    )
+    if (f.type === 'number') return (
+      <input style={inputCls} type="number" value={(val as string) ?? ''} onChange={e => setCF(f.key, e.target.value)} placeholder={f.placeholder || '0'} />
+    )
+    if (f.type === 'date') return (
+      <input style={inputCls} type="date" value={(val as string) ?? ''} onChange={e => setCF(f.key, e.target.value)} />
+    )
+    if (f.type === 'textarea') return (
+      <textarea style={{ ...inputCls, resize: 'vertical', minHeight: 72 }} value={(val as string) ?? ''} onChange={e => setCF(f.key, e.target.value)} placeholder={f.placeholder || f.label} />
+    )
+    if (f.type === 'select') return (
+      <select style={{ ...inputCls, cursor: 'pointer' }} value={(val as string) ?? ''} onChange={e => setCF(f.key, e.target.value)}>
+        <option value="">Select…</option>
+        {(f.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    )
+    if (f.type === 'checkbox') return (
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#e2e8f0', fontSize: 14 }}>
+        <input type="checkbox" checked={Boolean(val)} onChange={e => setCF(f.key, e.target.checked)} />
+        {f.label}
+      </label>
+    )
+    return null
+  }
+
   return (
     <Modal open={open} onClose={handleClose} title="" size="xl">
-      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 380, overflow: 'hidden' }}>
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 420, overflow: 'hidden' }}>
         {/* Left step sidebar */}
-        <div className="modal-sidebar" style={{ width: 190, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>
+        <div className="modal-sidebar" style={{ width: 200, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>
           <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 32 }}>
             {job ? 'Edit Job' : 'Create Job'}
           </h2>
+          {selectedLayout && !job && (
+            <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 8, padding: '8px 10px', marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Layout</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{selectedLayout.name}</div>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             {steps.map(st => (
               <div key={st.num} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -480,8 +711,7 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
                   width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, fontSize: 13, fontWeight: 700,
                   background: step > st.num ? '#16a34a' : step === st.num ? '#2563eb' : '#1e2d4a',
-                  color: '#fff',
-                  border: step === st.num ? '2px solid #3b82f6' : 'none',
+                  color: '#fff', border: step === st.num ? '2px solid #3b82f6' : 'none',
                 }}>
                   {step > st.num ? <Check size={14} /> : st.num}
                 </div>
@@ -494,9 +724,57 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
         </div>
 
         {/* Right form area */}
-        <div style={{ flex: 1, padding: '32px 28px' }}>
-          {/* Step 1 — Job Details */}
-          {step === 1 && (
+        <div style={{ flex: 1, padding: '32px 28px', display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 560 }}>
+
+          {/* Step 1 (new only) — Layout Selection */}
+          {!job && step === 1 && (
+            <div>
+              <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 6 }}>Select a Layout</h3>
+              <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>Choose which form template to use for this job. Layout adds custom fields on top of system fields.</p>
+              {layoutsLoading ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite', margin: '0 auto' }} />
+                </div>
+              ) : layouts.length === 0 ? (
+                <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+                  No layouts configured yet. Go to Settings → Jobs & Tasks → Job Layouts to create one.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {layouts.map(l => (
+                    <div
+                      key={l.id}
+                      onClick={() => { setSelectedLayout(l); setForm(f => ({ ...f, layoutId: l.id })) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+                        borderRadius: 10, cursor: 'pointer',
+                        border: selectedLayout?.id === l.id ? '2px solid #3b82f6' : '1px solid #2d4068',
+                        background: selectedLayout?.id === l.id ? '#1e3a5f' : '#1e2d4a',
+                        transition: 'all .15s',
+                      }}
+                    >
+                      <div style={{ width: 36, height: 36, borderRadius: 9, background: selectedLayout?.id === l.id ? '#1d4ed8' : '#152035', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Layout size={16} color={selectedLayout?.id === l.id ? '#93c5fd' : '#475569'} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>{l.name}</span>
+                          {l.isDefault && <Star size={12} style={{ color: '#f59e0b', fill: '#f59e0b' }} />}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                          {l.fields.filter(f => f.system).length} system + {l.fields.filter(f => !f.system).length} custom fields
+                        </div>
+                      </div>
+                      {selectedLayout?.id === l.id && <Check size={16} style={{ color: '#3b82f6' }} />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Job Details step */}
+          {step === detailStep && (
             <div>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Job Details</h3>
               <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -509,7 +787,10 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
                   <input style={darkInput} value={form.jobType ?? ''} onChange={e => s('jobType', e.target.value)} placeholder="Tax Return" />
                 </div>
                 <div>
-                  <label style={lbl}>Assigned Client {req}</label>
+                  <label style={lbl}>
+                    Assigned Client 
+                    {requireClientForJob && req}
+                  </label>
                   <select style={{ ...darkInput, cursor: 'pointer' }} value={form.clientId ?? ''} onChange={e => { s('clientId', e.target.value); s('clientName', clients.find(c => c.id === e.target.value)?.company ?? '') }}>
                     <option value="">Select client</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.company}</option>)}
@@ -532,12 +813,33 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
                     ))}
                   </select>
                 </div>
+
+                {/* Custom fields from layout — rendered inline in Job Details step */}
+                {customFields.length > 0 && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ height: 1, background: '#2d4068', margin: '8px 0 14px' }} />
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Layout size={10} /> Custom Fields from Layout
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                      {customFields.map(f => (
+                        <div key={f.key} style={f.type === 'textarea' ? { gridColumn: '1 / -1' } : {}}>
+                          <label style={lbl}>
+                            {f.label}
+                            {f.required && req}
+                          </label>
+                          {renderCustomField(f)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 2 — Timeline */}
-          {step === 2 && (
+          {/* Timeline step */}
+          {step === timelineStep && (
             <div>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Timeline</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -559,8 +861,8 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
             </div>
           )}
 
-          {/* Step 3 — Billing Details */}
-          {step === 3 && (
+          {/* Billing step */}
+          {step === billingStep && (
             <div>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Billing Details</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -573,20 +875,40 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
                     </select>
                   </div>
                   <div>
-                    <label style={lbl}>Billing Rate ($)</label>
-                    <input style={darkInput} type="number" value={String(form.billingRate ?? '')} onChange={e => s('billingRate', Number(e.target.value))} placeholder="0.00" />
+                    <label style={lbl}>Billing Rate ({currency})</label>
+                    <input 
+                      style={darkInput} 
+                      type="number" 
+                      step="0.01"
+                      value={String(form.billingRate ?? '')} 
+                      onChange={e => s('billingRate', Number(e.target.value))} 
+                      placeholder={defaultHourlyRate?.toString() || "0.00"} 
+                    />
+                    {defaultHourlyRate && !form.billingRate && (
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Default: {fmt(defaultHourlyRate)}/hr</div>
+                    )}
                   </div>
                 </div>
                 <div>
                   <label style={lbl}>Quoted Billable Hours</label>
-                  <input style={darkInput} type="number" value={String(form.quotedHours ?? '')} onChange={e => s('quotedHours', Number(e.target.value))} placeholder="0" />
+                  <input 
+                    style={darkInput} 
+                    type="number" 
+                    step="0.25"
+                    value={String(form.quotedHours ?? '')} 
+                    onChange={e => s('quotedHours', Number(e.target.value))} 
+                    placeholder="0" 
+                  />
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                    Billing increment: {billingIncrement} minutes
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Nav buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 'auto', paddingTop: 28 }}>
             {step > 1 && (
               <button onClick={() => setStep(st => st - 1)} style={{ padding: '10px 22px', border: '1px solid #2d4068', borderRadius: 8, background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
                 BACK
@@ -595,7 +917,7 @@ function JobModal({ open, onClose, job, onSave, clients }: JobModalProps) {
             <button onClick={handleClose} style={{ padding: '10px 22px', border: '1px solid #2d4068', borderRadius: 8, background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
               CANCEL
             </button>
-            {step < 3 ? (
+            {step < TOTAL_STEPS ? (
               <button onClick={handleNext} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                 NEXT
               </button>

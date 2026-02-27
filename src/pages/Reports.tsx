@@ -10,11 +10,18 @@ import {
   RefreshCw, Download, Flag, Activity, Layers,
 } from 'lucide-react'
 import { useReports, type DateRange, type ReportsData } from '@/hooks/useReports'
+import { useSettingsStore } from '@/store/settingsStore'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n)
+// ── Currency formatter factory (matching Invoices component pattern) ─────────
+function makeFmt(currency: string, symbol: string) {
+  return (n: number) =>
+    new Intl.NumberFormat('en-AU', { 
+      style: 'currency', 
+      currency, 
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    }).format(n).replace(currency, symbol)
 }
 
 function fmtDate(d: string) {
@@ -23,7 +30,8 @@ function fmtDate(d: string) {
 }
 
 // Safe formatter for Recharts Tooltip — ValueType can be string|number|array
-function fmtV(v: unknown): string {
+// Takes the fmt function as argument
+function fmtV(v: unknown, fmt: (n: number) => string): string {
   const n = Number(v)
   return isNaN(n) ? String(v) : fmt(n)
 }
@@ -60,8 +68,10 @@ function downloadCSV(filename: string, csv: string) {
 
 type ReportTab = 'overview' | 'jobs' | 'time' | 'finance'
 
-function exportTab(tab: ReportTab, data: ReportsData, range: string) {
+function exportTab(tab: ReportTab, data: ReportsData, range: string, currency = 'AUD', symbol = '$') {
+  const fmt = (n: number) => makeFmt(currency, symbol)(n)
   const label = range.replace(/_/g, '-')
+  
   if (tab === 'overview') {
     const rows = data.overview.revenueByMonth.map(m => ({
       Month: m.month,
@@ -83,7 +93,7 @@ function exportTab(tab: ReportTab, data: ReportsData, range: string) {
       'Job ID': j.jobId,
       Title: j.title,
       Client: j.client,
-      'Revenue (AUD)': j.revenue,
+      [`Revenue (${currency})`]: fmt(j.revenue),
       'Margin %': j.margin,
       Status: j.status,
     }))
@@ -100,15 +110,15 @@ function exportTab(tab: ReportTab, data: ReportsData, range: string) {
   } else if (tab === 'finance') {
     const rows = data.finance.topClientsByRevenue.map(c => ({
       Client: c.company,
-      'Invoiced (AUD)': c.invoiced,
-      'Collected (AUD)': c.collected,
-      'Outstanding (AUD)': c.outstanding,
+      [`Invoiced (${currency})`]: fmt(c.invoiced),
+      [`Collected (${currency})`]: fmt(c.collected),
+      [`Outstanding (${currency})`]: fmt(c.outstanding),
     }))
     downloadCSV(`finance-${label}.csv`, toCSV(rows.length ? rows : [{
-      'Total Invoiced': data.finance.invoiced,
-      'Collected': data.finance.collected,
-      'Outstanding': data.finance.outstanding,
-      'Overdue': data.finance.overdue,
+      'Total Invoiced': fmt(data.finance.invoiced),
+      'Collected': fmt(data.finance.collected),
+      'Outstanding': fmt(data.finance.outstanding),
+      'Overdue': fmt(data.finance.overdue),
     }]))
   }
 }
@@ -215,6 +225,9 @@ function EmptyState({ text }: { text: string }) {
 // ── Tab: Overview ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ d }: { d: ReportsData['overview'] }) {
+  const { currency, currencySymbol } = useSettingsStore()
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
@@ -231,8 +244,8 @@ function OverviewTab({ d }: { d: ReportsData['overview'] }) {
               <BarChart data={d.revenueByMonth} barGap={2}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtV(v)} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => fmt(Number(v)).replace(/\.00$/, '')} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => fmtV(v, fmt)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="cost" name="Cost" fill="#ef4444" radius={[4, 4, 0, 0]} />
@@ -277,6 +290,9 @@ function OverviewTab({ d }: { d: ReportsData['overview'] }) {
 // ── Tab: Jobs ─────────────────────────────────────────────────────────────────
 
 function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsData['overview'] }) {
+  const { currency, currencySymbol } = useSettingsStore()
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
@@ -308,7 +324,7 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f9fafb' }}>
-                    {['Job', 'Client', 'Revenue', 'Margin', 'Status'].map(h => (
+                    {['Job', 'Client', `Revenue (${currency})`, 'Margin', 'Status'].map(h => (
                       <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -486,6 +502,9 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
 // ── Tab: Finance ──────────────────────────────────────────────────────────────
 
 function FinanceTab({ d }: { d: ReportsData['finance'] }) {
+  const { currency, currencySymbol } = useSettingsStore()
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
@@ -502,8 +521,8 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
               <BarChart data={d.revenueByMonth} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtV(v)} />
+                <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => fmt(Number(v)).replace(/\.00$/, '')} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => fmtV(v, fmt)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="invoiced" name="Invoiced" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="collected" name="Collected" fill="#22c55e" radius={[4, 4, 0, 0]} />
@@ -522,7 +541,7 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
                       <Cell key={i} fill={INVOICE_COLORS[entry.status] ?? '#94a3b8'} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtV(v)} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(v) => fmtV(v, fmt)} />
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
@@ -546,7 +565,7 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Client', 'Invoiced', 'Collected', 'Outstanding', 'Paid'].map(h => (
+                {['Client', `Invoiced (${currency})`, `Collected (${currency})`, `Outstanding (${currency})`, 'Paid %'].map(h => (
                   <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -599,10 +618,11 @@ export function Reports() {
   const [range, setRange] = useState<DateRange>('this_month')
 
   const { data, loading, error } = useReports(range)
+  const { currency, currencySymbol } = useSettingsStore()
 
   const handleDownload = () => {
     if (!data) return
-    exportTab(activeTab, data, range)
+    exportTab(activeTab, data, range, currency, currencySymbol)
   }
 
   return (

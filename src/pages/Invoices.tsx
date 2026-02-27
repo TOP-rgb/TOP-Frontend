@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas'
 import { useInvoices } from '@/hooks/useInvoices'
 import { useJobs } from '@/hooks/useJobs'
 import { useAuthStore } from '@/store/authStore'
+import { useSettings } from '@/hooks/useSettings' // Replace with useSettings
 import { Modal } from '@/components/ui/Modal'
 import { toast } from 'sonner'
 import {
@@ -14,13 +15,34 @@ import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(n)
+// Make formatter factory function that takes currency and symbol
+function makeFmt(currency: string, symbol: string) {
+  return (n: number) =>
+    new Intl.NumberFormat('en-AU', { 
+      style: 'currency', 
+      currency, 
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    }).format(n).replace(currency, symbol)
 }
 
-function fmtDate(d: string) {
+function fmtDate(d: string, format: string = 'DD/MM/YYYY') {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
+  const date = new Date(d)
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  
+  switch(format) {
+    case 'MM/DD/YYYY':
+      return `${month}/${day}/${year}`
+    case 'YYYY-MM-DD':
+      return `${year}-${month}-${day}`
+    case 'DD/MM/YYYY':
+    default:
+      return `${day}/${month}/${year}`
+  }
 }
 
 function isOverdue(inv: Invoice) {
@@ -67,12 +89,48 @@ function StatCard({ label, value, sub, icon, color }: { label: string; value: st
   )
 }
 
+// ── Generate Invoice Number ──────────────────────────────────────────────────
+
+function generateInvoiceNumber(prefix: string, lastNumber: number): string {
+  const nextNumber = (lastNumber + 1).toString().padStart(5, '0')
+  return `${prefix}-${nextNumber}`
+}
+
+// ── Calculate Due Date ───────────────────────────────────────────────────────
+
+function calculateDueDate(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+// ── Round Hours Based on Billing Increment ───────────────────────────────────
+
+function roundHours(hours: number, increment: number): number {
+  const incrementHours = increment / 60
+  return Math.ceil(hours / incrementHours) * incrementHours
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function Invoices() {
   const { invoices, loading, refetch, createInvoice, updateInvoice, updateStatus, deleteInvoice } = useInvoices()
   const { jobs } = useJobs()
   const { user } = useAuthStore()
+  const { data: settings } = useSettings() // Get all settings
+
+  // Extract all needed settings
+  const currency = settings.currency
+  const currencySymbol = settings.currencySymbol
+  const dateFormat = settings.dateFormat
+  const defaultTaxRate = settings.defaultTaxRate
+  const invoicePrefix = settings.invoicePrefix
+  const paymentTermsDays = settings.invoicePaymentTermsDays
+  const billingIncrement = settings.billingIncrement
+  const defaultHourlyRate = settings.defaultHourlyRate
+
+  // Create currency formatter with symbol
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
 
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
@@ -187,7 +245,7 @@ export function Invoices() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Invoice #', 'Client', 'Job', 'Issue Date', 'Due Date', 'Amount', 'Status', 'Actions'].map(h => (
+                {['Invoice #', 'Client', 'Job', 'Issue Date', 'Due Date', `Amount (${currency})`, 'Status', 'Actions'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -213,9 +271,9 @@ export function Invoices() {
                     <div style={{ fontSize: 13, color: '#374151' }}>{inv.jobTitle}</div>
                     <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{inv.jobRef}</div>
                   </td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(inv.issueDate)}</td>
+                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(inv.issueDate, dateFormat)}</td>
                   <td style={{ padding: '13px 18px', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontSize: 13, color: inv.status === 'overdue' ? '#dc2626' : '#6b7280', fontWeight: inv.status === 'overdue' ? 600 : 400 }}>{fmtDate(inv.dueDate)}</span>
+                    <span style={{ fontSize: 13, color: inv.status === 'overdue' ? '#dc2626' : '#6b7280', fontWeight: inv.status === 'overdue' ? 600 : 400 }}>{fmtDate(inv.dueDate, dateFormat)}</span>
                   </td>
                   <td style={{ padding: '13px 18px', whiteSpace: 'nowrap' }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1f36' }}>{fmt(inv.total)}</div>
@@ -266,6 +324,13 @@ export function Invoices() {
           open={showCreate}
           onClose={() => setShowCreate(false)}
           jobs={jobs}
+          currency={currency}
+          currencySymbol={currencySymbol}
+          defaultTaxRate={defaultTaxRate}
+          defaultDueDate={calculateDueDate(paymentTermsDays)}
+          invoicePrefix={invoicePrefix}
+          billingIncrement={billingIncrement}
+          defaultHourlyRate={defaultHourlyRate}
           onCreated={async (data) => {
             const inv = await createInvoice(data)
             if (inv) { toast.success(`Invoice ${inv.invoiceNumber} created`); setShowCreate(false); setViewInvoice(inv) }
@@ -278,6 +343,9 @@ export function Invoices() {
         <InvoicePreviewModal
           open={!!viewInvoice}
           invoice={viewInvoice}
+          currency={currency}
+          currencySymbol={currencySymbol}
+          dateFormat={dateFormat}
           onClose={() => setViewInvoice(null)}
           onStatusChange={async (status) => {
             const ok = await updateStatus(viewInvoice.id, status)
@@ -293,6 +361,9 @@ export function Invoices() {
         <EditInvoiceModal
           open={!!editInvoice}
           invoice={editInvoice}
+          currency={currency}
+          currencySymbol={currencySymbol}
+          dateFormat={dateFormat}
           onClose={() => setEditInvoice(null)}
           onSave={async (data) => {
             const ok = await updateInvoice(editInvoice.id, data)
@@ -316,34 +387,65 @@ interface CreateInvoiceModalProps {
   open: boolean
   onClose: () => void
   jobs: Array<{ id: string; jobId: string; title: string; clientName: string; status: string; billingType: string; billingRate: number; actualHours: number; revenue?: number }>
+  currency: string
+  currencySymbol: string
+  defaultTaxRate: number
+  defaultDueDate: string
+  invoicePrefix: string
+  billingIncrement: number
+  defaultHourlyRate: number | null
   onCreated: (data: { jobId: string; taxRate: number; dueDate: string; notes: string; lineItems: InvoiceLineItem[] }) => void
 }
 
-function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceModalProps) {
+function CreateInvoiceModal({ 
+  open, 
+  onClose, 
+  jobs, 
+  currency, 
+  currencySymbol,
+  defaultTaxRate,
+  defaultDueDate,
+  invoicePrefix,
+  billingIncrement,
+  defaultHourlyRate,
+  onCreated 
+}: CreateInvoiceModalProps) {
   const [step, setStep] = useState(1)
   const [jobId, setJobId] = useState('')
-  const [taxRate, setTaxRate] = useState(10)
-  const [dueDate, setDueDateVal] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]
-  })
-  const [notes, setNotes] = useState('Payment is due within 30 days of issue. Please include the invoice number on your payment.')
+  const [taxRate, setTaxRate] = useState(defaultTaxRate)
+  const [dueDate, setDueDateVal] = useState(defaultDueDate)
+  const [notes, setNotes] = useState(`Payment is due within ${defaultDueDate} days of issue. Please include the invoice number on your payment.`)
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([])
+
+  // Create currency formatter
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
 
   const availableJobs = jobs.filter(j => j.status !== 'invoiced' && j.status !== 'closed' && j.status !== 'cancelled')
   const selectedJob = jobs.find(j => j.id === jobId)
 
   const autoLineItems = (): InvoiceLineItem[] => {
     if (!selectedJob) return []
+    
+    // Round hours based on billing increment if hourly
+    const qty = selectedJob.billingType === 'fixed' 
+      ? 1 
+      : roundHours(selectedJob.actualHours, billingIncrement)
+    
+    const rate = selectedJob.billingType === 'fixed'
+      ? selectedJob.billingRate
+      : (defaultHourlyRate || selectedJob.billingRate)
+    
     const amount = selectedJob.billingType === 'fixed'
       ? selectedJob.billingRate
-      : (selectedJob.revenue ?? selectedJob.billingRate * selectedJob.actualHours)
+      : qty * rate
+
     return [{
       description: selectedJob.billingType === 'fixed'
         ? `${selectedJob.title} – Fixed Price`
         : `${selectedJob.title} – Hourly Service`,
-      qty: selectedJob.billingType === 'fixed' ? 1 : selectedJob.actualHours,
-      rate: selectedJob.billingRate,
-      amount: amount ?? 0,
+      qty,
+      rate,
+      amount,
     }]
   }
 
@@ -371,7 +473,7 @@ function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceMod
     }))
   }
 
-  const addLine = () => setLineItems(prev => [...prev, { description: '', qty: 1, rate: 0, amount: 0 }])
+  const addLine = () => setLineItems(prev => [...prev, { description: '', qty: 1, rate: defaultHourlyRate || 0, amount: defaultHourlyRate || 0 }])
   const removeLine = (i: number) => setLineItems(prev => prev.filter((_, idx) => idx !== i))
 
   const handleCreate = () => {
@@ -433,8 +535,8 @@ function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceMod
                       {[
                         { label: 'Client', value: selectedJob.clientName },
                         { label: 'Billing Type', value: selectedJob.billingType === 'fixed' ? 'Fixed Price' : 'Hourly' },
-                        { label: 'Rate', value: `$${selectedJob.billingRate}/hr` },
-                        { label: 'Hours', value: `${selectedJob.actualHours}h` },
+                        { label: 'Rate', value: `${selectedJob.billingRate}/hr` },
+                        { label: 'Hours', value: `${selectedJob.actualHours}h (rounded to ${billingIncrement}min)` },
                       ].map(({ label, value }) => (
                         <div key={label}>
                           <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>{label}</div>
@@ -467,7 +569,7 @@ function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceMod
                 </div>
                 <div>
                   <label style={lbl}>Tax Rate (%)</label>
-                  <input style={darkInput} type="number" min={0} max={100} value={taxRate} onChange={e => setTaxRate(Number(e.target.value))} placeholder="10" />
+                  <input style={darkInput} type="number" min={0} max={100} value={taxRate} onChange={e => setTaxRate(Number(e.target.value))} placeholder={defaultTaxRate.toString()} />
                 </div>
               </div>
 
@@ -483,7 +585,7 @@ function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceMod
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: '#172236' }}>
-                        {['Description', 'Qty', 'Rate ($)', 'Amount ($)', ''].map(h => (
+                        {['Description', 'Qty', `Rate (${currency})`, `Amount (${currency})`, ''].map(h => (
                           <th key={h} style={{ padding: '8px 10px', fontSize: 10, fontWeight: 700, color: '#64748b', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                         ))}
                       </tr>
@@ -496,11 +598,11 @@ function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceMod
                               style={{ ...darkInput, padding: '6px 8px', fontSize: 12, background: 'transparent', border: 'none', borderRadius: 4 }} />
                           </td>
                           <td style={{ padding: '6px 8px', width: 70 }}>
-                            <input type="number" value={line.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))}
+                            <input type="number" step="0.25" value={line.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))}
                               style={{ ...darkInput, padding: '6px 8px', fontSize: 12, background: 'transparent', border: 'none', width: 60 }} />
                           </td>
                           <td style={{ padding: '6px 8px', width: 90 }}>
-                            <input type="number" value={line.rate} onChange={e => updateLine(i, 'rate', Number(e.target.value))}
+                            <input type="number" step="0.01" value={line.rate} onChange={e => updateLine(i, 'rate', Number(e.target.value))}
                               style={{ ...darkInput, padding: '6px 8px', fontSize: 12, background: 'transparent', border: 'none', width: 80 }} />
                           </td>
                           <td style={{ padding: '6px 8px', fontSize: 13, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap' }}>{fmt(line.amount)}</td>
@@ -556,13 +658,19 @@ function CreateInvoiceModal({ open, onClose, jobs, onCreated }: CreateInvoiceMod
 interface InvoicePreviewModalProps {
   open: boolean
   invoice: Invoice
+  currency: string
+  currencySymbol: string
+  dateFormat: string
   onClose: () => void
   onStatusChange: (status: InvoiceStatus) => void
 }
 
-function InvoicePreviewModal({ open, invoice, onClose, onStatusChange }: InvoicePreviewModalProps) {
+function InvoicePreviewModal({ open, invoice, currency, currencySymbol, dateFormat, onClose, onStatusChange }: InvoicePreviewModalProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const [downloading, setDownloading] = useState(false)
+
+  // Create currency formatter
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
 
   const handleDownloadPDF = async () => {
     if (!printRef.current) return
@@ -660,8 +768,8 @@ function InvoicePreviewModal({ open, invoice, onClose, onStatusChange }: Invoice
                 <div style={{ fontSize: 32, fontWeight: 800, color: '#2563eb', letterSpacing: '1px', marginBottom: 10 }}>INVOICE</div>
                 <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.8 }}>
                   <div><span style={{ color: '#9ca3af' }}>Invoice No:</span> <strong>{inv.invoiceNumber}</strong></div>
-                  <div><span style={{ color: '#9ca3af' }}>Issued:</span> {fmtDate(inv.issueDate)}</div>
-                  <div><span style={{ color: '#9ca3af' }}>Due:</span> <span style={{ color: inv.status === 'overdue' ? '#dc2626' : '#374151', fontWeight: inv.status === 'overdue' ? 700 : 400 }}>{fmtDate(inv.dueDate)}</span></div>
+                  <div><span style={{ color: '#9ca3af' }}>Issued:</span> {fmtDate(inv.issueDate, dateFormat)}</div>
+                  <div><span style={{ color: '#9ca3af' }}>Due:</span> <span style={{ color: inv.status === 'overdue' ? '#dc2626' : '#374151', fontWeight: inv.status === 'overdue' ? 700 : 400 }}>{fmtDate(inv.dueDate, dateFormat)}</span></div>
                 </div>
               </div>
             </div>
@@ -678,7 +786,7 @@ function InvoicePreviewModal({ open, invoice, onClose, onStatusChange }: Invoice
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 32 }}>
               <thead>
                 <tr style={{ background: '#1a1f36', borderRadius: 6 }}>
-                  {['Description', 'Qty', 'Rate', 'Amount'].map((h, i) => (
+                  {['Description', 'Qty', `Rate (${currency})`, `Amount (${currency})`].map((h, i) => (
                     <th key={h} style={{
                       padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#e2e8f0',
                       textAlign: i === 0 ? 'left' : 'right', textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -754,15 +862,21 @@ function previewBtn(bg: string): React.CSSProperties {
 interface EditInvoiceModalProps {
   open: boolean
   invoice: Invoice
+  currency: string
+  currencySymbol: string
+  dateFormat: string
   onClose: () => void
   onSave: (data: Partial<{ taxRate: number; dueDate: string; notes: string; lineItems: InvoiceLineItem[] }>) => void
 }
 
-function EditInvoiceModal({ open, invoice, onClose, onSave }: EditInvoiceModalProps) {
+function EditInvoiceModal({ open, invoice, currency, currencySymbol, dateFormat, onClose, onSave }: EditInvoiceModalProps) {
   const [taxRate, setTaxRate] = useState(invoice.taxRate)
   const [dueDate, setDueDateVal] = useState(invoice.dueDate?.split('T')[0] ?? '')
   const [notes, setNotes] = useState(invoice.notes ?? '')
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>(invoice.lineItems)
+
+  // Create currency formatter
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
 
   const subtotal = lineItems.reduce((s, l) => s + l.amount, 0)
   const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100
@@ -811,7 +925,7 @@ function EditInvoiceModal({ open, invoice, onClose, onSave }: EditInvoiceModalPr
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#172236' }}>
-                    {['Description', 'Qty', 'Rate ($)', 'Amount ($)', ''].map(h => (
+                    {['Description', 'Qty', `Rate (${currency})`, `Amount (${currency})`, ''].map(h => (
                       <th key={h} style={{ padding: '8px 10px', fontSize: 10, fontWeight: 700, color: '#64748b', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                     ))}
                   </tr>
@@ -824,11 +938,11 @@ function EditInvoiceModal({ open, invoice, onClose, onSave }: EditInvoiceModalPr
                           style={{ ...darkInput, padding: '6px 8px', fontSize: 12, background: 'transparent', border: 'none' }} />
                       </td>
                       <td style={{ padding: '6px 8px', width: 70 }}>
-                        <input type="number" value={line.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))}
+                        <input type="number" step="0.25" value={line.qty} onChange={e => updateLine(i, 'qty', Number(e.target.value))}
                           style={{ ...darkInput, padding: '6px 8px', fontSize: 12, background: 'transparent', border: 'none', width: 60 }} />
                       </td>
                       <td style={{ padding: '6px 8px', width: 90 }}>
-                        <input type="number" value={line.rate} onChange={e => updateLine(i, 'rate', Number(e.target.value))}
+                        <input type="number" step="0.01" value={line.rate} onChange={e => updateLine(i, 'rate', Number(e.target.value))}
                           style={{ ...darkInput, padding: '6px 8px', fontSize: 12, background: 'transparent', border: 'none', width: 80 }} />
                       </td>
                       <td style={{ padding: '6px 8px', fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{fmt(line.amount)}</td>

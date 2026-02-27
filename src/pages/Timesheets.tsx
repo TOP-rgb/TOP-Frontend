@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/store/authStore'
 import { Avatar } from '@/components/ui/Avatar'
-import { Check, X, Clock, TrendingUp, AlertCircle, Plus, ChevronLeft, ChevronRight, LogIn, Users } from 'lucide-react'
+import { Check, X, Clock, TrendingUp, AlertCircle, Plus, ChevronLeft, ChevronRight, LogIn, Users, Bell, BellOff } from 'lucide-react'
 import { useTimesheets } from '@/hooks/useTimesheets'
 import type { TimesheetEntry } from '@/hooks/useTimesheets'
 import { useJobs } from '@/hooks/useJobs'
 import { useTasks } from '@/hooks/useTasks'
 import { useUsers } from '@/hooks/useUsers'
+import { useSettings } from '@/hooks/useSettings'
 
 // ---------- Status config ----------
 type EntryStatus = 'pending_normal' | 'pending_approval' | 'approved' | 'rejected'
@@ -21,10 +22,10 @@ const statusConfig: Record<string, { variant: 'secondary' | 'warning' | 'success
   rejected:         { variant: 'danger',    label: 'Rejected' },
 }
 
-function flagLabel(reason?: string) {
+function flagLabel(reason?: string, threshold: number = 8) {
   switch (reason) {
-    case 'UNDER_HOURS':  return 'Day total under 8 hours'
-    case 'OVER_HOURS':   return 'Day total over 8 hours'
+    case 'UNDER_HOURS':  return `Day total under ${threshold} hours`
+    case 'OVER_HOURS':   return `Day total over ${threshold} hours`
     case 'JOB_OVERTIME': return 'Job has exceeded quoted hours'
     case 'MULTIPLE':     return 'Multiple flags: hours + job overtime'
     default: return 'Flagged for review'
@@ -48,7 +49,6 @@ function addDays(d: Date, n: number): Date {
 }
 
 function toYMD(d: Date): string {
-  // Use local date parts to avoid UTC timezone shift (e.g. AEST = UTC+10)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
@@ -83,20 +83,25 @@ function getMonthWeeks(d: Date): Array<{ label: string; start: Date; end: Date }
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-/* Commented out for later use
-// ---------- ApprovalPanel ----------
+// ---------- ApprovalPanel with notifications ----------
 function ApprovalPanel({
   entries,
   onApprove,
   onReject,
+  settings,
 }: {
   entries: TimesheetEntry[]
   onApprove: (id: string) => Promise<boolean>
   onReject: (id: string, note: string) => Promise<boolean>
+  settings?: any
 }) {
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [rejectNote, setRejectNote] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Check notification settings
+  const notifyApproval = settings?.notifyTimesheetApproval
+  const notifyFlagged = settings?.notifyFlaggedTimesheets
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 mb-6">
@@ -105,35 +110,53 @@ function ApprovalPanel({
         <p className="text-sm font-semibold text-amber-800">
           {entries.length} timesheet {entries.length === 1 ? 'entry needs' : 'entries need'} your approval
         </p>
+        <div className="ml-auto flex items-center gap-2">
+          {notifyApproval && (
+            <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full flex items-center gap-1">
+              <Bell size={12} /> Approval notifications on
+            </span>
+          )}
+          {notifyFlagged && (
+            <span className="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full flex items-center gap-1">
+              <Bell size={12} /> Flag notifications on
+            </span>
+          )}
+        </div>
       </div>
       <div className="space-y-2">
-        {entries.map(e => (
-          <div key={e.id} className="flex items-center justify-between gap-3 bg-white rounded-xl border border-amber-200 px-4 py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800">{e.userName}</p>
-              <p className="text-xs text-slate-500">
-                {e.date} &bull; {e.jobTitle}{e.taskName ? ` • ${e.taskName}` : ''} &bull; <strong>{e.hours}h</strong>
-              </p>
-              <p className="text-xs text-amber-600 mt-0.5">{flagLabel(e.flagReason)}</p>
+        {entries.map(e => {
+          const isFlagged = e.flagReason && notifyFlagged
+          return (
+            <div key={e.id} className="flex items-center justify-between gap-3 bg-white rounded-xl border border-amber-200 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800">{e.userName}</p>
+                <p className="text-xs text-slate-500">
+                  {e.date} &bull; {e.jobTitle}{e.taskName ? ` • ${e.taskName}` : ''} &bull; <strong>{e.hours}h</strong>
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                  {flagLabel(e.flagReason, settings?.dailyHoursThreshold)}
+                  {isFlagged && <Bell size={10} className="text-amber-500" />}
+                </p>
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
+                <button
+                  onClick={async () => { setBusy(true); await onApprove(e.id); setBusy(false) }}
+                  disabled={busy}
+                  className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Check size={12} className="inline mr-1" />Approve
+                </button>
+                <button
+                  onClick={() => setRejectTarget(e.id)}
+                  disabled={busy}
+                  className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <X size={12} className="inline mr-1" />Reject
+                </button>
+              </div>
             </div>
-            <div className="flex gap-1 flex-shrink-0">
-              <button
-                onClick={async () => { setBusy(true); await onApprove(e.id); setBusy(false) }}
-                disabled={busy}
-                className="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Check size={12} className="inline mr-1" />Approve
-              </button>
-              <button
-                onClick={() => setRejectTarget(e.id)}
-                disabled={busy}
-                className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                <X size={12} className="inline mr-1" />Reject
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <Modal
         open={!!rejectTarget}
@@ -170,7 +193,6 @@ function ApprovalPanel({
     </div>
   )
 }
-*/
 
 // ---------- Status badge pill ----------
 function StatusPill({ status }: { status: string }) {
@@ -191,7 +213,10 @@ function StatusPill({ status }: { status: string }) {
 
 // ---------- Main component ----------
 export function Timesheets() {
+  // All hooks MUST be called unconditionally and in the same order on every render
   const { user } = useAuthStore()
+  const { data: settings, loading: settingsLoading } = useSettings()
+  
   const isManager = user?.role !== 'employee'
 
   // Manager can filter by employee; '' = all users
@@ -214,13 +239,22 @@ export function Timesheets() {
   const { tasks } = useTasks()
   const { users } = useUsers()
 
+  // ───── Apply notification settings ─────
+  const notifyTimesheetApproval = settings?.notifyTimesheetApproval ?? true
+  const notifyFlaggedTimesheets = settings?.notifyFlaggedTimesheets ?? true
+  const notifyJobDeadline = settings?.notifyJobDeadline ?? true
+
+  // ───── HOURS THRESHOLD ─────
+  const DAILY_THRESHOLD = settings?.dailyHoursThreshold ?? 8
+  const WEEKLY_THRESHOLD = DAILY_THRESHOLD * 5
+
   // Get job IDs that the employee has access to (through assigned tasks)
   const accessibleJobIds = useMemo(() => {
-    if (isManager) return null // Managers see all jobs
+    if (isManager) return null
     return tasks
       .filter(t => t.assignedToIds?.includes(user?.id || ''))
       .map(t => t.jobId)
-      .filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
+      .filter((v, i, a) => a.indexOf(v) === i)
   }, [tasks, user?.id, isManager])
 
   // Only employees — for the filter dropdown
@@ -233,9 +267,9 @@ export function Timesheets() {
     return rawEntriesAll.filter(e => e.userId === selectedUserId)
   }, [rawEntriesAll, isManager, selectedUserId])
 
-  // Show inline entry controls (Add Entry, threshold bar, Submit) only when:
+  // Show inline entry controls only when:
   // - user is an employee (always), OR
-  // - manager/admin has selected their own user ID from the filter dropdown
+  // - manager/admin has selected their own user ID
   const showEmployeeControls = !isManager || selectedUserId === user?.id
 
   // ---------- Tab + date navigation ----------
@@ -251,14 +285,12 @@ export function Timesheets() {
     setAnchorDate(prev => {
       if (activeTab === 'daily')   return addDays(prev, dir)
       if (activeTab === 'weekly')  return addDays(prev, dir * 7)
-      // monthly
       const d = new Date(prev)
       d.setMonth(d.getMonth() + dir)
       return d
     })
   }
 
-  // Date range label for navigator
   const navLabel = useMemo(() => {
     if (activeTab === 'daily') {
       return anchorDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
@@ -282,7 +314,6 @@ export function Timesheets() {
       const end   = toYMD(weekDays[6]!)
       return rawEntries.filter(e => e.date >= start && e.date <= end)
     }
-    // monthly
     const year = anchorDate.getFullYear()
     const month = anchorDate.getMonth()
     return rawEntries.filter(e => {
@@ -291,16 +322,23 @@ export function Timesheets() {
     })
   }, [rawEntries, activeTab, anchorDate, weekDays])
 
+  // Filter flagged entries based on notification settings
+  const flaggedEntries = useMemo(() => {
+    if (!notifyFlaggedTimesheets) return []
+    return periodEntries.filter(e => e.flagReason && e.status === 'pending_approval')
+  }, [periodEntries, notifyFlaggedTimesheets])
+
   const totalHoursAll    = periodEntries.reduce((s, e) => s + e.hours, 0)
   const billableHours    = periodEntries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0)
   const nonBillableHours = totalHoursAll - billableHours
   const pendingCount     = periodEntries.filter(e => e.status === 'pending_approval').length
-  const workDays         = activeTab === 'daily' ? 1 : activeTab === 'weekly' ? 5 : 20
-  const overtimeHours    = Math.max(0, totalHoursAll - workDays * 8)
+  const flaggedCount     = flaggedEntries.length
+  const workDays = activeTab === 'daily' ? 1 : activeTab === 'weekly' ? 5 : 20
+  const overtimeHours = Math.max(0, totalHoursAll - workDays * DAILY_THRESHOLD)
 
-  // ---------- Inline reject modal state (commented out for later use) ----------
-  // const [rejectModal, setRejectModal] = useState<{ id: string } | null>(null)
-  // const [rejectReason, setRejectReason] = useState('')
+  // ---------- Inline reject modal state ----------
+  const [rejectModal, setRejectModal] = useState<{ id: string } | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
   const [busy, setBusy] = useState(false)
 
   // ---------- Log Daily Time modal state ----------
@@ -318,7 +356,7 @@ export function Timesheets() {
   })
   const [dailyEntries, setDailyEntries] = useState<Array<{
     id: string; date: string; hours: number; client: string
-    jobId: string; job: string; taskId: string; task: string;   notes: string; billable: boolean
+    jobId: string; job: string; taskId: string; task: string; notes: string; billable: boolean
   }>>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -328,7 +366,7 @@ export function Timesheets() {
     setDailyLog({ date: new Date().toISOString().split('T')[0], hours: '8', client: '', jobId: '', job: '', taskId: '', task: '',notes:'', billable: true })
   }
 
-  // ---------- Inline draft entries (table-level, not modal) ----------
+  // ---------- Inline draft entries ----------
   interface DraftEntry {
     id: string; date: string; hours: number; jobId: string; job: string
     taskId: string; task: string; client: string; notes: string; billable: boolean
@@ -341,7 +379,6 @@ export function Timesheets() {
     } catch { return [] }
   })
 
-  // Sync drafts to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftEntries))
   }, [draftEntries])
@@ -354,17 +391,11 @@ export function Timesheets() {
   })
   const [draftSubmitting, setDraftSubmitting] = useState(false)
 
-  const DAILY_THRESHOLD = 8
-  const WEEKLY_THRESHOLD = 40
-
-  // Inline job list — show all accessible jobs regardless of status
-  // (employees may need to log time to completed/on-hold jobs too)
   const inlineAvailableJobs = useMemo(() => {
     if (isManager) return jobs
     return jobs.filter(j => accessibleJobIds?.includes(j.id))
   }, [jobs, isManager, accessibleJobIds])
 
-  // Inline task list for selected job
   const inlineAvailableTasks = useMemo(() => {
     if (!inlineForm.jobId) return []
     const base = tasks.filter(t => t.jobId === inlineForm.jobId)
@@ -372,7 +403,6 @@ export function Timesheets() {
     return base.filter(t => t.assignedToIds?.includes(user?.id || ''))
   }, [tasks, inlineForm.jobId, isManager, user?.id])
 
-  // Period-scoped draft hours
   const periodDraftEntries = useMemo(() => {
     if (activeTab === 'daily') {
       const ymd = toYMD(anchorDate)
@@ -402,7 +432,6 @@ export function Timesheets() {
     if (!inlineForm.jobId || !inlineForm.hours) return
     const job = jobs.find(j => j.id === inlineForm.jobId)
     const task = inlineForm.taskId ? tasks.find(t => t.id === inlineForm.taskId) : null
-    // Daily view: always use anchorDate (date field is hidden)
     const resolvedDate = activeTab === 'daily' ? toYMD(anchorDate) : (inlineForm.date ?? toYMD(new Date()))
     const entry: DraftEntry = {
       id: editDraftId ?? `draft-${Date.now()}`,
@@ -453,7 +482,6 @@ export function Timesheets() {
     setDraftSubmitting(false)
   }
 
-  // Helper: get jobId display string
   const getJobIdDisplay = (dbJobId: string) => {
     const j = jobs.find(j => j.id === dbJobId)
     return j?.jobId ?? '—'
@@ -466,7 +494,6 @@ export function Timesheets() {
   }, [rawEntries, anchorDate])
 
   // ---------- WEEKLY view data ----------
-  // Rows = unique userId+jobId+taskId combinations; columns = Mon-Sun
   interface WeekRow {
     jobDbId: string
     jobIdDisplay: string
@@ -475,7 +502,7 @@ export function Timesheets() {
     taskName: string
     taskType: string
     userName: string
-    dayHours: Record<string, number>  // key: YYYY-MM-DD
+    dayHours: Record<string, number>
     total: number
     hasFlag: boolean
     entries: TimesheetEntry[]
@@ -488,7 +515,6 @@ export function Timesheets() {
     const map: Record<string, WeekRow> = {}
 
     for (const e of inWeek) {
-      // Key includes userId so each employee's rows are separate
       const key = `${e.userId}::${e.jobId}::${e.taskId ?? ''}`
       if (!map[key]) {
         const task = tasks.find(t => t.id === e.taskId)
@@ -508,7 +534,7 @@ export function Timesheets() {
       }
       map[key].dayHours[e.date] = (map[key].dayHours[e.date] ?? 0) + e.hours
       map[key].total += e.hours
-      if (e.status === 'pending_approval') map[key].hasFlag = true
+      if (e.status === 'pending_approval' && e.flagReason) map[key].hasFlag = true
       map[key].entries.push(e)
     }
     return Object.values(map)
@@ -523,7 +549,7 @@ export function Timesheets() {
     taskName: string
     taskType: string
     userName: string
-    weekHours: number[]  // one per week in month
+    weekHours: number[]
     total: number
   }
 
@@ -537,7 +563,6 @@ export function Timesheets() {
     const map: Record<string, MonthRow> = {}
 
     for (const e of inMonth) {
-      // Key includes userId so each employee's rows are separate
       const key = `${e.userId}::${e.jobId}::${e.taskId ?? ''}`
       if (!map[key]) {
         const task = tasks.find(t => t.id === e.taskId)
@@ -561,24 +586,43 @@ export function Timesheets() {
     return Object.values(map)
   }, [rawEntries, anchorDate, tasks, jobs, monthWeeks])
 
-  // ---------- Table shared styles ----------
   const th: React.CSSProperties = { padding: '10px 12px', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }
   const td: React.CSSProperties = { padding: '11px 12px', fontSize: 13, color: '#374151', borderBottom: '1px solid #f1f3f9', verticalAlign: 'middle' }
   const tdNum: React.CSSProperties = { ...td, fontWeight: 600, color: '#1e293b', textAlign: 'center' }
 
+  if (settingsLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <div style={{ color: '#6b7280' }}>Loading settings...</div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ fontFamily: 'inherit' }}>
 
-      {/* ── Header ── */}
+      {/* ── Header with notification status ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Time Sheet</h1>
-          <p style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: '#6b7280', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
             {isManager ? 'Review and approve team daily timesheets' : 'Log and track your daily time entries'}
+            {isManager && (
+              <span className="flex items-center gap-2 ml-2">
+                {notifyTimesheetApproval ? (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Bell size={12} /> Approval notifications
+                  </span>
+                ) : (
+                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <BellOff size={12} /> Approval notifications off
+                  </span>
+                )}
+              </span>
+            )}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Employee filter — managers/admins only */}
           {isManager && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', fontSize: 13 }}>
               <Users size={14} style={{ color: '#6b7280', flexShrink: 0 }} />
@@ -603,19 +647,37 @@ export function Timesheets() {
         </div>
       </div>
 
-      {/* ── Approval panel (commented out for later use) ── */}
-      {/* {isManager && pendingEntries.length > 0 && (
-        <ApprovalPanel entries={pendingEntries} onApprove={approveEntry} onReject={rejectEntry} />
-      )} */}
+      {/* ── Approval panel with notifications ── */}
+      {isManager && pendingEntries.length > 0 && notifyTimesheetApproval && (
+        <ApprovalPanel entries={pendingEntries} onApprove={approveEntry} onReject={rejectEntry} settings={settings} />
+      )}
 
-      {/* ── 5 Colored Stat Cards ── */}
+      {/* ── Flagged entries notification (if enabled) ── */}
+      {isManager && flaggedEntries.length > 0 && notifyFlaggedTimesheets && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AlertCircle size={18} color="#d97706" />
+          <span style={{ fontSize: 13, color: '#92400e', fontWeight: 500 }}>
+            {flaggedEntries.length} flagged timesheet{flaggedEntries.length === 1 ? '' : 's'} require attention
+          </span>
+        </div>
+      )}
+
+      {/* ── 5 Colored Stat Cards with notification indicators ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Total Hours',    value: `${totalHoursAll.toFixed(1)}h`,    bar: '#2563eb', bg: '#dbeafe', fg: '#1d4ed8', icon: <Clock size={17} /> },
           { label: 'Billable Hours', value: `${billableHours.toFixed(1)}h`,    bar: '#059669', bg: '#d1fae5', fg: '#065f46', icon: <TrendingUp size={17} /> },
           { label: 'Non-Billable',   value: `${nonBillableHours.toFixed(1)}h`, bar: '#f59e0b', bg: '#fef3c7', fg: '#92400e', icon: <Clock size={17} /> },
           { label: 'Overtime',       value: `${overtimeHours.toFixed(1)}h`,    bar: '#ef4444', bg: '#fee2e2', fg: '#991b1b', icon: <AlertCircle size={17} /> },
-          // { label: 'Pending',        value: `${pendingCount}`,                  bar: '#6b7280', bg: '#f3f4f6', fg: '#374151', icon: <AlertCircle size={17} /> },
+          { 
+            label: 'Pending',        
+            value: `${pendingCount}`,                  
+            bar: '#6b7280', 
+            bg: '#f3f4f6', 
+            fg: '#374151', 
+            icon: notifyTimesheetApproval ? <Bell size={17} /> : <AlertCircle size={17} />,
+            badge: notifyTimesheetApproval ? '🔔' : undefined
+          },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.bar }} />
@@ -623,7 +685,10 @@ export function Timesheets() {
               {s.icon}
             </div>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1f36', lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, marginTop: 4 }}>{s.label}</div>
+            <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+              {s.label}
+              {s.badge && <span style={{ fontSize: 10 }}>{s.badge}</span>}
+            </div>
           </div>
         ))}
       </div>
@@ -633,7 +698,6 @@ export function Timesheets() {
 
         {/* Toolbar: tabs + date navigator */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 8 }}>
-          {/* Tab pills */}
           <div style={{ display: 'flex' }}>
             {(['daily', 'weekly', 'monthly'] as const).map(tab => (
               <button
@@ -646,7 +710,6 @@ export function Timesheets() {
             ))}
           </div>
 
-          {/* Date navigator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
             <button onClick={() => navigate(-1)} style={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#374151' }}>
               <ChevronLeft size={14} />
@@ -668,7 +731,7 @@ export function Timesheets() {
                     'Job ID',
                     ...(isManager ? ['Employee'] : []),
                     'Client', 'Job', 'Task', 'Task Type', 'Hours', 'Billable', 'Notes',
-                    // ...(isManager ? ['Action'] : []), // Commented out Action column for later use
+                    // ...(isManager ? ['Action'] : []),
                   ].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
@@ -682,6 +745,7 @@ export function Timesheets() {
                 ) : dailyViewEntries.map((e, i) => {
                   const task = tasks.find(t => t.id === e.taskId)
                   const isBillable = e.billable
+                  const isFlagged = e.flagReason && notifyFlaggedTimesheets
                   return (
                     <tr key={e.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                       <td style={td}>
@@ -699,7 +763,10 @@ export function Timesheets() {
                       )}
                       <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{e.clientName}</td>
                       <td style={{ ...td, fontWeight: 600 }}>{e.jobTitle}</td>
-                      <td style={td}>{e.taskName ?? <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>{e.description || '—'}</span>}</td>
+                      <td style={td}>
+                        {e.taskName ?? <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>{e.description || '—'}</span>}
+                        {isFlagged && <Bell size={10} className="inline ml-1 text-amber-500" />}
+                      </td>
                       <td style={{ ...td, color: '#6b7280' }}>{task?.type ?? '—'}</td>
                       <td style={{ ...tdNum }}>{e.hours}h</td>
                       <td style={td}>
@@ -712,19 +779,9 @@ export function Timesheets() {
                           {e.description || '—'}
                         </span>
                       </td>
-                      {/* <td style={td}>
-                        <StatusPill status={e.status} />
-                        {e.status === 'rejected' && e.rejectionNote && (
-                          <div style={{ fontSize: 11, color: '#ef4444', marginTop: 3 }}>{e.rejectionNote}</div>
-                        )}
-                        {e.status === 'pending_approval' && e.flagReason && (
-                          <div style={{ fontSize: 11, color: '#d97706', marginTop: 3 }}>{flagLabel(e.flagReason)}</div>
-                        )}
-                      </td> */}
-                      {/* Action column commented out for later use
-                      {isManager && (
+                      {/* {isManager && (
                         <td style={td}>
-                          {e.status === 'pending_approval' && (
+                          {e.status === 'pending_approval' ? (
                             <div style={{ display: 'flex', gap: 4 }}>
                               <button onClick={async () => { setBusy(true); await approveEntry(e.id); setBusy(false) }} disabled={busy}
                                 style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: '#d1fae5', color: '#065f46', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -735,13 +792,11 @@ export function Timesheets() {
                                 <X size={11} /> Reject
                               </button>
                             </div>
-                          )}
-                          {e.status !== 'pending_approval' && (
+                          ) : (
                             <StatusPill status={e.status} />
                           )}
                         </td>
-                      )}
-                      */}
+                      )} */}
                     </tr>
                   )
                 })}
@@ -771,7 +826,7 @@ export function Timesheets() {
                     'Client', 'Job', 'Task', 'Task Type',
                     ...weekDays.map((d, i) => `${DAY_NAMES[i]} ${d.getDate()}`),
                     'Total',
-                    // ...(isManager ? ['Status'] : []), // Commented out Status column for later use
+                    // ...(isManager ? ['Status'] : []),
                   ].map(h => (
                     <th key={h} style={{ ...th, textAlign: h === 'Total' || h === 'Status' || DAY_NAMES.some(n => h.startsWith(n)) ? 'center' : 'left' }}>{h}</th>
                   ))}
@@ -799,7 +854,10 @@ export function Timesheets() {
                     )}
                     <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{row.clientName}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{row.jobTitle}</td>
-                    <td style={td}>{row.taskName}</td>
+                    <td style={td}>
+                      {row.taskName}
+                      {row.hasFlag && notifyFlaggedTimesheets && <Bell size={10} className="inline ml-1 text-amber-500" />}
+                    </td>
                     <td style={{ ...td, color: '#6b7280' }}>{row.taskType}</td>
                     {weekDays.map(day => {
                       const ymd = toYMD(day)
@@ -811,8 +869,7 @@ export function Timesheets() {
                       )
                     })}
                     <td style={{ ...tdNum, color: '#2563eb', fontWeight: 700 }}>{row.total.toFixed(1)}</td>
-                    {/* Status column commented out for later use
-                    {isManager && (
+                    {/* {isManager && (
                       <td style={{ ...td, textAlign: 'center' }}>
                         {row.hasFlag ? (
                           <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
@@ -844,8 +901,7 @@ export function Timesheets() {
                           <StatusPill status={row.entries[0]?.status ?? 'pending_normal'} />
                         )}
                       </td>
-                    )}
-                    */}
+                    )} */}
                   </tr>
                 ))}
               </tbody>
@@ -861,7 +917,7 @@ export function Timesheets() {
                     <td style={{ ...tdNum, color: '#2563eb', fontWeight: 800 }}>
                       {weeklyRows.reduce((s, r) => s + r.total, 0).toFixed(1)}
                     </td>
-                    {/* {isManager && <td />} */}
+                    {isManager && <td />}
                   </tr>
                 </tfoot>
               )}
@@ -1044,7 +1100,6 @@ export function Timesheets() {
                         style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 160 }}
                       />
                     </td>
-                    {/* Date field: hidden on daily (auto = anchorDate), day-select on weekly, date-select on monthly */}
                     {activeTab === 'daily' ? (
                       <td style={{ ...td, fontSize: 11, color: '#6b7280' }}>
                         {anchorDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
@@ -1102,9 +1157,6 @@ export function Timesheets() {
           {showEmployeeControls && activeTab !== 'monthly' && (
             <button
               onClick={() => {
-                // Smart default date per tab:
-                // daily  → anchorDate (auto, not shown in form)
-                // weekly → today if today falls in this week, else Monday
                 let defaultDate = toYMD(anchorDate)
                 if (activeTab === 'weekly') {
                   const todayYMD = toYMD(new Date())
@@ -1124,7 +1176,6 @@ export function Timesheets() {
           {activeTab === 'monthly' && <div />}
           {showEmployeeControls && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
-              {/* Threshold progress */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 120, height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 99, background: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#2563eb', width: `${Math.min((totalHoursInPeriod / threshold) * 100, 100)}%`, transition: 'width 0.3s' }} />
@@ -1133,8 +1184,7 @@ export function Timesheets() {
                   {totalHoursInPeriod.toFixed(1)}h / {threshold}h
                 </span>
               </div>
-              {/* Message or Submit button */}
-              {/* {draftEntries.length > 0 && !thresholdMet && (
+              {draftEntries.length > 0 && !thresholdMet && (
                 <span style={{ fontSize: 12, color: '#d97706', fontWeight: 500 }}>
                   Add {(threshold - totalHoursInPeriod).toFixed(1)}h more to reach the {threshold}h threshold before submitting
                 </span>
@@ -1143,8 +1193,8 @@ export function Timesheets() {
                 <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
                   ⚠ Exceeded {threshold}h threshold — contact your manager to submit
                 </span>
-              )} */}
-              {/* {draftEntries.length > 0 && thresholdMet && !thresholdExceeded && (
+              )}
+              {draftEntries.length > 0 && thresholdMet && !thresholdExceeded && (
                 <button
                   onClick={handleSubmitDrafts}
                   disabled={draftSubmitting}
@@ -1152,14 +1202,14 @@ export function Timesheets() {
                 >
                   {draftSubmitting ? 'Submitting…' : `Submit ${draftEntries.length} Entr${draftEntries.length === 1 ? 'y' : 'ies'}`}
                 </button>
-              )} */}
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Inline reject modal (commented out for later use) ── */}
-      {/* <Modal
+      {/* ── Inline reject modal ── */}
+      <Modal
         open={!!rejectModal}
         onClose={() => setRejectModal(null)}
         title="Reject Timesheet Entry"
@@ -1190,7 +1240,7 @@ export function Timesheets() {
           placeholder="e.g., Hours seem incorrect. Please review and resubmit."
           className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:border-red-500 resize-none"
         />
-      </Modal> */}
+      </Modal>
 
       {/* ── Log Daily Time modal ── */}
       <Modal open={logDailyModal} onClose={resetLogModal} title="" size="xl">
@@ -1201,20 +1251,26 @@ export function Timesheets() {
             <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 6 }}>Log Daily Time</h2>
             <p style={{ color: '#64748b', fontSize: 12, marginBottom: 28, lineHeight: 1.5 }}>Add time entries — multiple per day supported</p>
 
-            {/* Hour warning */}
+            {/* Hour warning with notification indicator */}
             {(() => {
               const selDate = dailyLog.date
               const existingHours = rawEntries.filter(e => e.userId === user?.id && e.date === selDate).reduce((s, e) => s + e.hours, 0)
               const addedHours = dailyEntries.filter(e => e.date === selDate).reduce((s, e) => s + e.hours, 0)
               const projected = Math.round((existingHours + addedHours) * 100) / 100
               if (projected === 0) return null
-              const isUnder = projected < 8
-              const isOver = projected > 8
+              const threshold = settings?.dailyHoursThreshold ?? 8
+
+              const isUnder = settings?.flagUnderHours && projected < threshold
+              const isOver = settings?.flagOverHours && projected > threshold
+              const willNotify = (isUnder || isOver) && notifyFlaggedTimesheets
               return (
                 <div style={{ background: isOver ? '#7c1d1d30' : isUnder ? '#78350f30' : '#14532d30', border: `1px solid ${isOver ? '#ef444440' : isUnder ? '#f59e0b40' : '#22c55e40'}`, borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: isOver ? '#fca5a5' : isUnder ? '#fcd34d' : '#86efac' }}>{projected}h</div>
-                  <div style={{ fontSize: 11, color: isOver ? '#fca5a5' : isUnder ? '#fcd34d' : '#86efac', marginTop: 2 }}>
-                    {isOver ? 'Over 8h — needs approval' : isUnder ? 'Under 8h — needs approval' : 'On track'}
+                  <div style={{ fontSize: 20, fontWeight: 700, color: isOver ? '#fca5a5' : isUnder ? '#fcd34d' : '#86efac' }}>{projected}h / {threshold}h</div>
+                  <div style={{ fontSize: 11, color: isOver ? '#fca5a5' : isUnder ? '#fcd34d' : '#86efac', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {isOver ? `Over ${threshold}h — needs approval`
+                     : isUnder ? `Under ${threshold}h — needs approval`
+                     : 'On track'}
+                    {willNotify && <Bell size={10} className="text-amber-400" />}
                   </div>
                 </div>
               )
@@ -1313,7 +1369,6 @@ export function Timesheets() {
                   <option value="">Select job...</option>
                   {jobs
                     .filter(j => {
-                      // Show all jobs for managers; employees see only their assigned jobs
                       if (isManager) return true
                       return accessibleJobIds?.includes(j.id)
                     })
@@ -1325,55 +1380,50 @@ export function Timesheets() {
                 </select>
               </div>
 
-            
-             {/* Task + Client (auto) */}
-<div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-  <div>
-    <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Task (optional)</label>
-    <select
-      value={dailyLog.taskId}
-      disabled={!dailyLog.jobId}
-      onChange={e => {
-        const sel = tasks.find(t => t.id === e.target.value)
-        setDailyLog({ ...dailyLog, taskId: e.target.value, task: sel?.name ?? '' })
-      }}
-      style={{ width: '100%', padding: '10px 13px', background: dailyLog.jobId ? '#1e2d4a' : '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.jobId ? '#fff' : '#475569', fontSize: 14, outline: 'none', boxSizing: 'border-box', cursor: dailyLog.jobId ? 'pointer' : 'not-allowed' }}
-    >
-      <option value="">{dailyLog.jobId ? 'Select task...' : 'Select a job first'}</option>
-      {tasks
-        .filter(t => {
-          // First filter by job
-          if (t.jobId !== dailyLog.jobId) return false
-          
-          // For managers, show all tasks for this job
-          if (isManager) return true
-          
-          // For employees, only show tasks assigned to them
-          return t.assignedToIds?.includes(user?.id || '')
-        })
-        .map(t => (
-          <option key={t.id} value={t.id}>{t.name}</option>
-        ))}
-    </select>
-  </div>
-  <div>
-    <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Client (auto-filled)</label>
-    <div style={{ width: '100%', padding: '10px 13px', background: '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.client ? '#94a3b8' : '#475569', fontSize: 14, boxSizing: 'border-box', minHeight: 42 }}>
-      {dailyLog.client || 'Auto-filled from job'}
-    </div>
-  </div>
-</div>
-             {/* Notes */}
-<div>
-  <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Notes (optional)</label>
-  <input
-    type="text"
-    placeholder="Add any notes..."
-    value={dailyLog.notes || ''}
-    onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })}
-    style={{ width: '100%', padding: '10px 13px', background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
-  />
-</div>
+              {/* Task + Client (auto) */}
+              <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Task (optional)</label>
+                  <select
+                    value={dailyLog.taskId}
+                    disabled={!dailyLog.jobId}
+                    onChange={e => {
+                      const sel = tasks.find(t => t.id === e.target.value)
+                      setDailyLog({ ...dailyLog, taskId: e.target.value, task: sel?.name ?? '' })
+                    }}
+                    style={{ width: '100%', padding: '10px 13px', background: dailyLog.jobId ? '#1e2d4a' : '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.jobId ? '#fff' : '#475569', fontSize: 14, outline: 'none', boxSizing: 'border-box', cursor: dailyLog.jobId ? 'pointer' : 'not-allowed' }}
+                  >
+                    <option value="">{dailyLog.jobId ? 'Select task...' : 'Select a job first'}</option>
+                    {tasks
+                      .filter(t => {
+                        if (t.jobId !== dailyLog.jobId) return false
+                        if (isManager) return true
+                        return t.assignedToIds?.includes(user?.id || '')
+                      })
+                      .map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Client (auto-filled)</label>
+                  <div style={{ width: '100%', padding: '10px 13px', background: '#1a2540', border: '1px solid #2d4068', borderRadius: 8, color: dailyLog.client ? '#94a3b8' : '#475569', fontSize: 14, boxSizing: 'border-box', minHeight: 42 }}>
+                    {dailyLog.client || 'Auto-filled from job'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginBottom: 5, display: 'block' }}>Notes (optional)</label>
+                <input
+                  type="text"
+                  placeholder="Add any notes..."
+                  value={dailyLog.notes || ''}
+                  onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })}
+                  style={{ width: '100%', padding: '10px 13px', background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 8, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
 
             {/* Footer buttons */}
@@ -1399,10 +1449,10 @@ export function Timesheets() {
                       notes: dailyLog.notes,
                       billable: dailyLog.billable,
                     }])
-                    setDailyLog(prev => ({ ...prev, jobId: '', job: '', client: '', taskId: '', task: '',  notes: '', hours: '8' }))
+                    setDailyLog(prev => ({ ...prev, jobId: '', job: '', client: '', taskId: '', task: '', notes: '', hours: '8' }))
                   }
                 }}
-                style={{ padding: '10px 22px', borderRadius: 8, background: '#1e2d4a', color: '#60a5fa', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #2d4068' } as React.CSSProperties}
+                style={{ padding: '10px 22px', borderRadius: 8, background: '#1e2d4a', color: '#60a5fa', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #2d4068' }}
               >
                 <Plus size={15} /> ADD ENTRY
               </button>
@@ -1421,7 +1471,7 @@ export function Timesheets() {
                             taskId: entry.taskId || undefined,
                             date: entry.date,
                             hours: entry.hours,
-                            description: entry.notes ||entry.task || entry.job,
+                            description: entry.notes || entry.task || entry.job,
                             billable: entry.billable,
                           } as any)
                         }

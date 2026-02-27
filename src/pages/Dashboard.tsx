@@ -1,8 +1,8 @@
 import { useAuthStore } from '@/store/authStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { StatCard } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
-import { formatCurrency } from '@/lib/utils'
 import { useTasks } from '@/hooks/useTasks'
 import { useEmployeeDashboard, useManagerDashboard, useAdminDashboard } from '@/hooks/useDashboard'
 import { useLocation } from 'react-router-dom'
@@ -15,6 +15,18 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend
 } from 'recharts'
+
+// ── Currency formatter factory (matching Invoices component pattern) ─────────
+function makeFmt(currency: string, symbol: string) {
+  return (n: number) =>
+    new Intl.NumberFormat('en-AU', { 
+      style: 'currency', 
+      currency, 
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    }).format(n).replace(currency, symbol)
+}
 
 const JOB_STATUS_COLORS: Record<string, string> = {
   OPEN: '#64748b',
@@ -67,6 +79,8 @@ export function Dashboard() {
 
 function EmployeeDashboard() {
   const { user } = useAuthStore()
+  const { currency, currencySymbol } = useSettingsStore() // Get both currency and symbol
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n) // Create formatter with both params
   const { data, loading, refetch } = useEmployeeDashboard()
   const { tasks } = useTasks()
   const myTasks = tasks.filter(t => t.assignedToIds?.includes(user?.id ?? ''))
@@ -228,6 +242,8 @@ function EmployeeDashboard() {
 // ── Manager Dashboard ─────────────────────────────────────────────────────────
 
 function ManagerDashboard() {
+  const { currency, currencySymbol } = useSettingsStore() // Get both currency and symbol
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n) // Create formatter with both params
   const { data, loading, error, refetch } = useManagerDashboard()
   const location = useLocation()
 
@@ -304,7 +320,7 @@ function ManagerDashboard() {
         />
         <StatCard
           title="Revenue"
-          value={formatCurrency(revenue?.total ?? 0)}
+          value={fmt(revenue?.total ?? 0)} // Use currency formatter
           subtitle="completed + invoiced"
           icon={<DollarSign size={18} />}
           color="purple"
@@ -476,6 +492,8 @@ function ManagerDashboard() {
 // ── Admin Dashboard ────────────────────────────────────────────────────────────
 
 function AdminDashboard() {
+  const { currency, currencySymbol } = useSettingsStore() // Get both currency and symbol
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n) // Create formatter with both params
   const { data, loading, error, refetch } = useAdminDashboard()
   const location = useLocation()
 
@@ -539,7 +557,7 @@ function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Revenue"
-          value={formatCurrency(financial?.totalRevenue ?? 0)}
+          value={fmt(financial?.totalRevenue ?? 0)} // Use currency formatter
           subtitle={`${financial?.completedJobs ?? 0} completed job${(financial?.completedJobs ?? 0) !== 1 ? 's' : ''}`}
           icon={<DollarSign size={18} />}
           color="emerald"
@@ -584,7 +602,7 @@ function AdminDashboard() {
                   <div key={item.label}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{item.label}</span>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(item.value)}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{fmt(item.value)}</span>
                     </div>
                     <div className="bg-slate-100 dark:bg-slate-800 rounded-full h-3">
                       <div
@@ -616,7 +634,7 @@ function AdminDashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{client.company}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {formatCurrency(client.revenue)} · <span className="font-medium text-slate-600 dark:text-slate-300">{client.jobs} job{client.jobs !== 1 ? 's' : ''}</span>
+                        {fmt(client.revenue)} · <span className="font-medium text-slate-600 dark:text-slate-300">{client.jobs} job{client.jobs !== 1 ? 's' : ''}</span>
                       </p>
                     </div>
                   </div>
@@ -654,7 +672,7 @@ function AdminDashboard() {
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all p-5">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Net Profit</p>
-          <p className="text-2xl font-bold mb-2 text-emerald-600 dark:text-emerald-400">{formatCurrency(financial?.totalProfit ?? 0)}</p>
+          <p className="text-2xl font-bold mb-2 text-emerald-600 dark:text-emerald-400">{fmt(financial?.totalProfit ?? 0)}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">across completed jobs</p>
         </div>
       </div>
