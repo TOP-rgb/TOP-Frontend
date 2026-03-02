@@ -1,13 +1,18 @@
 import { Bell, Search, LogOut, Building2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
-import { cn } from '@/lib/utils'
+import { cn, formatDateWithSettings } from '@/lib/utils'
 import type { UserRole } from '@/types'
+import { useJobs } from '@/hooks/useJobs'
+import { useInvoices } from '@/hooks/useInvoices'
+import { useUsers } from '@/hooks/useUsers'
+import { useTimesheets } from '@/hooks/useTimesheets'
+import { useTasks } from '@/hooks/useTasks'
 
 const roleLabels: Record<UserRole, string> = {
   employee: 'Processor',
@@ -21,40 +26,155 @@ const roleBadgeVariants: Record<UserRole, 'secondary' | 'default' | 'danger'> = 
   admin:    'danger',
 }
 
-// Notification types tied to settings flags
 const notifIcons: Record<string, string> = {
-  approval: '⏳',
-  alert:    '⚠️',
-  invoice:  '📄',
-  user:     '👤',
-  timesheet:'🕐',
+  approval:  '⏳',
+  alert:     '⚠️',
+  invoice:   '📄',
+  user:      '👤',
+  timesheet: '🕐',
 }
 
 export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const { user, logout } = useAuthStore()
   const { sidebarCollapsed } = useUIStore()
   const {
-    orgName,
-    notifyTimesheetApproval,
-    notifyInvoiceOverdue,
-    notifyFlaggedTimesheets,
-    notifyJobDeadline,
-    notifyNewUser,
+    orgName, dateFormat,
+    notifyTimesheetApproval, notifyInvoiceOverdue,
+    notifyFlaggedTimesheets, notifyJobDeadline,
+    notifyNewUser, overdueInvoiceDays,
   } = useSettingsStore()
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [search,    setSearch]    = useState('')
 
   const sidebarW = sidebarCollapsed ? 76 : 260
+  const isManager = user?.role !== 'employee'
 
-  // Build notification list dynamically based on enabled flags
-  const allNotifications = [
-    notifyTimesheetApproval  && { id: 1, text: 'Timesheet from Sarah Chen pending approval', time: '5m ago',  unread: true,  type: 'approval' },
-    notifyJobDeadline        && { id: 2, text: 'Job deadline approaching in 3 days',          time: '1h ago',  unread: true,  type: 'alert' },
-    notifyInvoiceOverdue     && { id: 3, text: 'Invoice for Harrington Constructions overdue', time: '2h ago', unread: false, type: 'invoice' },
-    notifyFlaggedTimesheets  && { id: 4, text: 'Timesheet flagged for over-hours',             time: '3h ago', unread: false, type: 'timesheet' },
-    notifyNewUser            && { id: 5, text: 'New user joined the organisation',             time: '1d ago', unread: false, type: 'user' },
-  ].filter(Boolean) as { id: number; text: string; time: string; unread: boolean; type: string }[]
+  // ── Real data hooks ───────────────────────────────────────────────────────
+  const { jobs }                          = useJobs()
+  const { tasks }                         = useTasks()
+  const { entries: allEntries, pendingEntries } = useTimesheets(isManager ? {} : { userId: user?.id })
+  // Invoices + users only fetched/used for managers — but hooks must be called unconditionally (React rules)
+  const { invoices }  = useInvoices()
+  const { users }     = useUsers()
+
+  // For employees: only show jobs linked to their assigned tasks
+  const myJobIds = !isManager
+    ? tasks.filter(t => t.assignedToIds?.includes(user?.id ?? '')).map(t => t.jobId)
+    : null
+
+  // ── Build real notification items ─────────────────────────────────────────
+  const allNotifications = useMemo(() => {
+    const items: { id: string; text: string; time: string; unread: boolean; type: string }[] = []
+
+    // Pending timesheet approvals — managers/admins only
+    if (isManager && notifyTimesheetApproval) {
+      pendingEntries.slice(0, 5).forEach(e => {
+        items.push({
+          id:     `ts-${e.id}`,
+          text:   `${e.userName} · ${e.hours}h on "${e.jobTitle}" pending approval`,
+          time:   formatDateWithSettings(e.date, dateFormat),
+          unread: true,
+          type:   'approval',
+        })
+      })
+    }
+
+    // Flagged timesheets — managers/admins only
+    if (isManager && notifyFlaggedTimesheets) {
+      allEntries
+        .filter(e => e.flagReason && e.status === 'pending_approval')
+        .slice(0, 3)
+        .forEach(e => {
+          const label =
+            e.flagReason === 'OVER_HOURS'   ? 'over daily hours' :
+            e.flagReason === 'UNDER_HOURS'  ? 'under daily hours' :
+            e.flagReason === 'JOB_OVERTIME' ? 'job overtime' : 'flagged'
+          items.push({
+            id:     `flag-${e.id}`,
+            text:   `${e.userName} timesheet flagged (${label}) · ${e.hours}h`,
+            time:   formatDateWithSettings(e.date, dateFormat),
+            unread: false,
+            type:   'timesheet',
+          })
+        })
+    }
+
+    // Job deadlines — all roles, but employees only see their assigned jobs
+    if (notifyJobDeadline) {
+      const visibleJobs = myJobIds
+        ? jobs.filter(j => myJobIds.includes(j.id))
+        : jobs
+      visibleJobs
+        .filter(j => {
+          if (!j.deadline) return false
+          if (['completed', 'invoiced', 'closed'].includes(j.status)) return false
+          const diff = Math.ceil((new Date(j.deadline).getTime() - Date.now()) / 86_400_000)
+          return diff <= 7
+        })
+        .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+        .slice(0, 4)
+        .forEach(j => {
+          const diff = Math.ceil((new Date(j.deadline!).getTime() - Date.now()) / 86_400_000)
+          const isOD = diff < 0
+          items.push({
+            id:     `job-${j.id}`,
+            text:   `${j.title} — ${isOD ? `overdue by ${Math.abs(diff)}d` : diff === 0 ? 'due today' : `due in ${diff}d`}`,
+            time:   formatDateWithSettings(j.deadline!, dateFormat),
+            unread: isOD,
+            type:   'alert',
+          })
+        })
+    }
+
+    // Overdue invoices — managers/admins only
+    if (isManager && notifyInvoiceOverdue) {
+      invoices
+        .filter(inv => {
+          if (inv.status === 'paid' || inv.status === 'cancelled') return false
+          const cutoff = new Date(inv.dueDate)
+          cutoff.setDate(cutoff.getDate() + (overdueInvoiceDays ?? 0))
+          return cutoff < new Date()
+        })
+        .slice(0, 3)
+        .forEach(inv => {
+          const diff = Math.abs(Math.ceil((new Date(inv.dueDate).getTime() - Date.now()) / 86_400_000))
+          items.push({
+            id:     `inv-${inv.id}`,
+            text:   `Invoice ${inv.invoiceNumber} overdue ${diff}d · ${inv.clientCompany}`,
+            time:   formatDateWithSettings(inv.dueDate, dateFormat),
+            unread: true,
+            type:   'invoice',
+          })
+        })
+    }
+
+    // New users — managers/admins only
+    if (isManager && notifyNewUser) {
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      users
+        .filter(u => u.joinedDate && new Date(u.joinedDate) >= sevenDaysAgo)
+        .slice(0, 3)
+        .forEach(u => {
+          items.push({
+            id:     `user-${u.id}`,
+            text:   `${u.name} joined as ${u.role}`,
+            time:   u.joinedDate ?? '',
+            unread: false,
+            type:   'user',
+          })
+        })
+    }
+
+    return items
+  }, [
+    pendingEntries, allEntries, jobs, invoices, users, tasks,
+    isManager, myJobIds,
+    notifyTimesheetApproval, notifyFlaggedTimesheets, notifyJobDeadline,
+    notifyInvoiceOverdue, notifyNewUser, overdueInvoiceDays,
+    dateFormat,
+  ])
 
   const unreadCount = allNotifications.filter(n => n.unread).length
 
@@ -100,30 +220,37 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
         />
       </div>
 
-      {/* Notifications — only shown if at least one type is enabled */}
-      {allNotifications.length > 0 && (
-        <div className="relative">
-          <button
-            onClick={() => setNotifOpen(v => !v)}
-            aria-label={`${unreadCount} unread notifications`}
-            className="relative w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            <Bell size={18} />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          {notifOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-[calc(100%+8px)] z-20 bg-white rounded-xl border border-slate-200 shadow-xl w-80 ring-1 ring-black/5 overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-                  <p className="font-semibold text-sm text-slate-800">Notifications</p>
-                  {unreadCount > 0 && <Badge variant="danger" dot>{unreadCount} new</Badge>}
+      {/* Notifications bell — shown if any type is enabled */}
+      <div className="relative">
+        <button
+          onClick={() => setNotifOpen(v => !v)}
+          aria-label={`${unreadCount} unread notifications`}
+          className="relative w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          <Bell size={18} />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none ring-2 ring-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+
+        {notifOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
+            <div className="absolute right-0 top-[calc(100%+8px)] z-20 bg-white rounded-xl border border-slate-200 shadow-xl w-80 ring-1 ring-black/5 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+                <p className="font-semibold text-sm text-slate-800">Notifications</p>
+                {unreadCount > 0 && <Badge variant="danger" dot>{unreadCount} new</Badge>}
+              </div>
+
+              {allNotifications.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-slate-400">
+                  <Bell size={22} className="opacity-30" />
+                  <span className="text-xs font-medium">No active notifications</span>
                 </div>
-                <div className="divide-y divide-slate-50">
+              ) : (
+                <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
                   {allNotifications.map(n => (
                     <div key={n.id} className={cn(
                       'flex gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors',
@@ -138,14 +265,20 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
                     </div>
                   ))}
                 </div>
-                <div className="px-4 py-2.5 border-t border-slate-100 text-center">
-                  <button className="text-xs text-blue-600 font-semibold hover:text-blue-700">View all notifications</button>
-                </div>
+              )}
+
+              <div className="px-4 py-2.5 border-t border-slate-100 text-center">
+                <button
+                  onClick={() => { setNotifOpen(false); navigate('/notifications') }}
+                  className="text-xs text-blue-600 font-semibold hover:text-blue-700"
+                >
+                  View all notifications →
+                </button>
               </div>
-            </>
-          )}
-        </div>
-      )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* User + Logout */}
       {user && (

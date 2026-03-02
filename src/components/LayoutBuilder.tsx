@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { LayoutField, JobLayout, TaskLayout } from '@/hooks/useLayouts'
+import type { SystemFieldOverride } from '@/hooks/useLayouts'
 
 type AnyLayout = JobLayout | TaskLayout
 
@@ -48,13 +49,117 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box', background: '#fff',
 }
 
+// ── Options Editor ────────────────────────────────────────────────────────────
+// Tag/chip-based editor for dropdown options. Replaces the comma-separated input.
+
+/** Format a raw stored value (e.g. "in_progress") for human display ("In Progress") */
+function fmtOptLabel(val: string): string {
+  return val.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function OptionsEditor({
+  options,
+  onChange,
+  placeholder = 'Type an option and press Enter or +',
+}: {
+  options: string[]
+  onChange: (options: string[]) => void
+  placeholder?: string
+}) {
+  const [draft, setDraft] = useState('')
+
+  const add = () => {
+    const val = draft.trim()
+    if (!val) return
+    if (options.map(o => o.toLowerCase()).includes(val.toLowerCase())) {
+      toast.error('That option already exists')
+      return
+    }
+    onChange([...options, val])
+    setDraft('')
+  }
+
+  const remove = (idx: number) => {
+    onChange(options.filter((_, i) => i !== idx))
+  }
+
+  return (
+    <div>
+      {/* Option chips — show human-readable label, store raw value */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8, minHeight: 28 }}>
+        {options.length === 0 ? (
+          <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', lineHeight: '24px' }}>
+            No options yet — add your first option below
+          </span>
+        ) : (
+          options.map((opt, i) => (
+            <span
+              key={i}
+              title={`Value stored: "${opt}"`}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 12, padding: '3px 10px', borderRadius: 20,
+                background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                fontWeight: 500,
+              }}
+            >
+              {fmtOptLabel(opt)}
+              <button
+                onClick={() => remove(i)}
+                title={`Remove "${opt}"`}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#93c5fd', padding: 0, lineHeight: 1,
+                  display: 'flex', alignItems: 'center',
+                }}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+
+      {/* Add input */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          style={{ ...inputStyle, flex: 1, padding: '6px 10px', fontSize: 13 }}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); add() }
+          }}
+          placeholder={placeholder}
+        />
+        <button
+          onClick={add}
+          style={{
+            padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 8,
+            background: '#fff', cursor: 'pointer', color: '#374151', fontSize: 13,
+            fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
+            flexShrink: 0,
+          }}
+        >
+          <Plus size={12} /> Add
+        </button>
+      </div>
+
+      {options.length > 0 && (
+        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+          {options.length} option{options.length !== 1 ? 's' : ''} · hover chip to see stored value · click × to remove
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Custom Field Form ─────────────────────────────────────────────────────────
 
 interface NewFieldState {
   label: string
   type: FieldType
   required: boolean
-  options: string    // comma-separated for select type
+  options: string[]   // list of option strings for select type
   placeholder: string
 }
 
@@ -66,17 +171,20 @@ function CustomFieldForm({
   onCancel: () => void
 }) {
   const [f, setF] = useState<NewFieldState>({
-    label: '', type: 'text', required: false, options: '', placeholder: '',
+    label: '', type: 'text', required: false, options: [], placeholder: '',
   })
 
   const handleAdd = () => {
     if (!f.label.trim()) { toast.error('Field label is required'); return }
-    if (f.type === 'select' && !f.options.trim()) { toast.error('Please provide dropdown options'); return }
+    if (f.type === 'select' && f.options.length === 0) {
+      toast.error('Please add at least one dropdown option')
+      return
+    }
     onAdd({
       label: f.label.trim(),
       type: f.type,
       required: f.required,
-      options: f.type === 'select' ? f.options.split(',').map(o => o.trim()).filter(Boolean) : undefined,
+      options: f.type === 'select' ? f.options : undefined,
       placeholder: f.placeholder.trim() || undefined,
     })
   }
@@ -93,16 +201,26 @@ function CustomFieldForm({
         </div>
         <div>
           <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Field Type *</label>
-          <select style={{ ...inputStyle, cursor: 'pointer' }} value={f.type} onChange={e => setF(p => ({ ...p, type: e.target.value as FieldType }))}>
+          <select
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            value={f.type}
+            onChange={e => setF(p => ({ ...p, type: e.target.value as FieldType, options: [] }))}
+          >
             {CUSTOM_FIELD_TYPES.map(t => <option key={t} value={t}>{FIELD_TYPE_LABELS[t]}</option>)}
           </select>
         </div>
       </div>
 
+      {/* Dropdown options editor */}
       {f.type === 'select' && (
         <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Options (comma-separated) *</label>
-          <input style={inputStyle} value={f.options} onChange={e => setF(p => ({ ...p, options: e.target.value }))} placeholder="Option 1, Option 2, Option 3" />
+          <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+            Dropdown Options *
+          </label>
+          <OptionsEditor
+            options={f.options}
+            onChange={opts => setF(p => ({ ...p, options: opts }))}
+          />
         </div>
       )}
 
@@ -139,15 +257,28 @@ function LayoutEditor({
   onCancel,
 }: {
   layout: AnyLayout | null  // null = creating new
-  onSave: (name: string, customFields: LayoutField[], isDefault: boolean) => Promise<boolean>
+  onSave: (name: string, customFields: LayoutField[], isDefault: boolean, systemFieldOverrides: SystemFieldOverride[]) => Promise<boolean>
   onCancel: () => void
 }) {
   const existingCustomFields = layout ? layout.fields.filter(f => !f.system) : []
+
   const [name, setName] = useState(layout?.name ?? '')
   const [isDefault, setIsDefault] = useState(layout?.isDefault ?? false)
   const [customFields, setCustomFields] = useState<LayoutField[]>(existingCustomFields)
   const [addingField, setAddingField] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // System fields from the layout (existing) or empty for new layouts
+  const systemFields = layout ? layout.fields.filter(f => f.system) : []
+
+  // Track option overrides for system select fields
+  const [systemOptionOverrides, setSystemOptionOverrides] = useState<Record<string, string[]>>(() => {
+    const result: Record<string, string[]> = {}
+    systemFields
+      .filter(f => f.type === 'select')
+      .forEach(f => { result[f.key] = f.options ?? [] })
+    return result
+  })
 
   const handleAddField = (fieldDef: Omit<LayoutField, 'key' | 'order' | 'system'>) => {
     const key = `custom_${fieldDef.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`
@@ -169,7 +300,10 @@ function LayoutEditor({
   const handleSave = async () => {
     if (!name.trim()) { toast.error('Layout name is required'); return }
     setSaving(true)
-    const ok = await onSave(name.trim(), customFields, isDefault)
+    const systemFieldOverrides: SystemFieldOverride[] = Object.entries(systemOptionOverrides)
+      .filter(([, opts]) => opts.length > 0)
+      .map(([key, options]) => ({ key, options }))
+    const ok = await onSave(name.trim(), customFields, isDefault, systemFieldOverrides)
     setSaving(false)
     if (ok) {
       toast.success(layout ? 'Layout updated' : 'Layout created')
@@ -179,8 +313,10 @@ function LayoutEditor({
     }
   }
 
-  // System fields from the layout (read-only display)
-  const systemFields = layout ? layout.fields.filter(f => f.system) : []
+  // Non-select system fields are read-only chips; select system fields get an options editor.
+  // Exclude 'billable' (maps to a boolean checkbox in the form, not a user-facing dropdown).
+  const systemSelectFields = systemFields.filter(f => f.type === 'select' && f.key !== 'billable')
+  const systemOtherFields  = systemFields.filter(f => f.type !== 'select' || f.key === 'billable')
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24 }}>
@@ -203,23 +339,62 @@ function LayoutEditor({
         </label>
       </div>
 
-      {/* System Fields — read-only */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Lock size={11} /> System Fields (always included, cannot be removed)
+      {/* ── System Fields — read-only fixed fields ── */}
+      {systemOtherFields.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Lock size={11} /> System Fields (always included, cannot be removed)
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {systemOtherFields.map(f => (
+              <span key={f.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' }}>
+                <Lock size={10} />
+                {f.label}
+                {f.required && <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>}
+              </span>
+            ))}
+          </div>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {systemFields.map(f => (
-            <span key={f.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb' }}>
-              <Lock size={10} />
-              {f.label}
-              {f.required && <span style={{ color: '#ef4444', marginLeft: 2 }}>*</span>}
-            </span>
-          ))}
-        </div>
-      </div>
+      )}
 
-      {/* Custom Fields */}
+      {/* ── System Dropdown Fields — editable options ── */}
+      {systemSelectFields.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Lock size={11} /> System Dropdown Fields
+            <span style={{ fontSize: 11, fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: '#9ca3af' }}>
+              — customise the available options for each dropdown
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {systemSelectFields.map(f => {
+              const currentOpts = systemOptionOverrides[f.key] ?? f.options ?? []
+              return (
+                <div key={f.key} style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 14px', background: '#fafafa' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                    <Lock size={10} style={{ color: '#94a3b8' }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{f.label}</span>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>· System Dropdown</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
+                      background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', marginLeft: 'auto',
+                    }}>
+                      {currentOpts.length} option{currentOpts.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <OptionsEditor
+                    options={currentOpts}
+                    onChange={newOpts => setSystemOptionOverrides(prev => ({ ...prev, [f.key]: newOpts }))}
+                    placeholder={`Add ${f.label} option…`}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Fields ── */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Settings2 size={11} /> Custom Fields ({customFields.length})</span>
@@ -249,7 +424,9 @@ function LayoutEditor({
                   <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>{FIELD_TYPE_LABELS[f.type]}</span>
                   {f.required && <span style={{ fontSize: 11, color: '#ef4444', marginLeft: 6 }}>required</span>}
                   {f.options && f.options.length > 0 && (
-                    <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 6 }}>({f.options.join(', ')})</span>
+                    <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 6 }}>
+                      ({f.options.length} option{f.options.length !== 1 ? 's' : ''}: {f.options.slice(0, 3).join(', ')}{f.options.length > 3 ? '…' : ''})
+                    </span>
                   )}
                 </div>
                 <button onClick={() => handleRemoveCustomField(f.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fca5a5', padding: 4 }}>
@@ -361,6 +538,9 @@ function LayoutCard({
                 {f.system && <Lock size={10} />}
                 {f.label}
                 {f.required && !f.system && <span style={{ color: '#ef4444' }}>*</span>}
+                {f.type === 'select' && f.options && f.options.length > 0 && (
+                  <span style={{ opacity: 0.7 }}>({f.options.length})</span>
+                )}
               </span>
             ))}
           </div>
@@ -377,8 +557,8 @@ interface LayoutBuilderProps {
   subtitle: string
   layouts: AnyLayout[]
   loading: boolean
-  onCreate: (name: string, customFields: LayoutField[], isDefault: boolean) => Promise<boolean>
-  onUpdate: (id: string, payload: { name?: string; customFields?: LayoutField[]; isDefault?: boolean }) => Promise<boolean>
+  onCreate: (name: string, customFields: LayoutField[], isDefault: boolean, systemFieldOverrides: SystemFieldOverride[]) => Promise<boolean>
+  onUpdate: (id: string, payload: { name?: string; customFields?: LayoutField[]; isDefault?: boolean; systemFieldOverrides?: SystemFieldOverride[] }) => Promise<boolean>
   onDelete: (id: string) => Promise<boolean>
   onSetDefault: (id: string) => Promise<boolean>
 }
@@ -390,13 +570,13 @@ export function LayoutBuilder({
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list')
   const [editingLayout, setEditingLayout] = useState<AnyLayout | null>(null)
 
-  const handleCreate = async (name: string, customFields: LayoutField[], isDefault: boolean): Promise<boolean> => {
-    return onCreate(name, customFields, isDefault)
+  const handleCreate = async (name: string, customFields: LayoutField[], isDefault: boolean, systemFieldOverrides: SystemFieldOverride[]): Promise<boolean> => {
+    return onCreate(name, customFields, isDefault, systemFieldOverrides)
   }
 
-  const handleUpdate = async (name: string, customFields: LayoutField[], isDefault: boolean): Promise<boolean> => {
+  const handleUpdate = async (name: string, customFields: LayoutField[], isDefault: boolean, systemFieldOverrides: SystemFieldOverride[]): Promise<boolean> => {
     if (!editingLayout) return false
-    return onUpdate(editingLayout.id, { name, customFields, isDefault })
+    return onUpdate(editingLayout.id, { name, customFields, isDefault, systemFieldOverrides })
   }
 
   const handleDelete = async (layout: AnyLayout) => {

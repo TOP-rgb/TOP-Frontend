@@ -6,8 +6,9 @@ import { Avatar } from '@/components/ui/Avatar'
 import {
   LayoutDashboard, Building2, Briefcase, CheckSquare,
   Clock, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
-  Calendar, FolderOpen, HeadphonesIcon, Receipt, UserCog
+  Calendar, FolderOpen, HeadphonesIcon, Receipt, UserCog, Bell
 } from 'lucide-react'
+import { useSettingsStore } from '@/store/settingsStore'
 import type { UserRole } from '@/types'
 
 interface NavItem {
@@ -19,18 +20,19 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard',           icon: <LayoutDashboard size={20} />, path: '/dashboard',  roles: ['employee', 'manager', 'admin'] },
-  { label: 'User Management',     icon: <UserCog size={20} />,         path: '/users',       roles: ['manager', 'admin'] },
-  { label: 'Client Management',   icon: <Building2 size={20} />,       path: '/clients',     roles: ['manager', 'admin'] },
-  { label: 'Jobs',                icon: <Briefcase size={20} />,       path: '/jobs',        roles: ['employee', 'manager', 'admin'] },
-  { label: 'Tasks',               icon: <CheckSquare size={20} />,     path: '/tasks',       roles: ['employee', 'manager', 'admin'] },
-  { label: 'Time Sheets', icon: <Clock size={20} />,           path: '/timesheets',  roles: ['employee', 'manager', 'admin'] },
-  { label: 'Billing or Invoice',  icon: <Receipt size={20} />,         path: '/invoices',    roles: ['manager', 'admin'] },
-  { label: 'Reports',             icon: <BarChart3 size={20} />,       path: '/reports',     roles: ['manager', 'admin'] },
-  { label: 'Calendar',            icon: <Calendar size={20} />,        path: '/calendar',    roles: ['employee', 'manager', 'admin'] },
-  { label: 'Documents',           icon: <FolderOpen size={20} />,      path: '/documents',   roles: ['employee', 'manager', 'admin'] },
-  { label: 'Settings',            icon: <Settings size={20} />,        path: '/settings',    roles: ['admin'] },
-  { label: 'Support',             icon: <HeadphonesIcon size={20} />,  path: '/support',     roles: ['employee', 'manager', 'admin'] },
+  { label: 'Dashboard',           icon: <LayoutDashboard size={20} />, path: '/dashboard',       roles: ['employee', 'manager', 'admin'] },
+  { label: 'User Management',     icon: <UserCog size={20} />,         path: '/users',            roles: ['manager', 'admin'] },
+  { label: 'Client Management',   icon: <Building2 size={20} />,       path: '/clients',          roles: ['manager', 'admin'] },
+  { label: 'Jobs',                icon: <Briefcase size={20} />,       path: '/jobs',             roles: ['employee', 'manager', 'admin'] },
+  { label: 'Tasks',               icon: <CheckSquare size={20} />,     path: '/tasks',            roles: ['employee', 'manager', 'admin'] },
+  { label: 'Time Sheets',         icon: <Clock size={20} />,           path: '/timesheets',       roles: ['employee', 'manager', 'admin'] },
+  { label: 'Billing or Invoice',  icon: <Receipt size={20} />,         path: '/invoices',         roles: ['manager', 'admin'] },
+  { label: 'Reports',             icon: <BarChart3 size={20} />,       path: '/reports',          roles: ['manager', 'admin'] },
+  { label: 'Notifications',       icon: <Bell size={20} />,            path: '/notifications',    roles: ['employee', 'manager', 'admin'] },
+  { label: 'Calendar',            icon: <Calendar size={20} />,        path: '/calendar',         roles: ['employee', 'manager', 'admin'] },
+  { label: 'Documents',           icon: <FolderOpen size={20} />,      path: '/documents',        roles: ['employee', 'manager', 'admin'] },
+  { label: 'Settings',            icon: <Settings size={20} />,        path: '/settings',         roles: ['admin'] },
+  { label: 'Support',             icon: <HeadphonesIcon size={20} />,  path: '/support',          roles: ['employee', 'manager', 'admin'] },
 ]
 
 const SIDEBAR_BG = '#0f172a'
@@ -40,7 +42,17 @@ const ICON_BG_ACTIVE = '#3b82f6'   // blue-500
 export function Sidebar() {
   const { user, logout } = useAuthStore()
   const { sidebarCollapsed, toggleCollapsed } = useUIStore()
+  const {
+    notifyTimesheetApproval, notifyFlaggedTimesheets,
+    notifyJobDeadline, notifyInvoiceOverdue, notifyNewUser,
+  } = useSettingsStore()
   const navigate = useNavigate()
+
+  // Count how many notification types are currently enabled (for badge on sidebar link)
+  const enabledNotifCount = [
+    notifyTimesheetApproval, notifyFlaggedTimesheets,
+    notifyJobDeadline, notifyInvoiceOverdue, notifyNewUser,
+  ].filter(Boolean).length
 
   const filtered = navItems.filter(item => user?.role && item.roles.includes(user.role))
 
@@ -117,7 +129,17 @@ export function Sidebar() {
             </div>
 
             {!sidebarCollapsed && (
-              <span className="truncate">{item.label}</span>
+              <span className="truncate flex-1">{item.label}</span>
+            )}
+            {/* Badge for Notifications showing active notification types */}
+            {item.path === '/notifications' && enabledNotifCount > 0 && (
+              <span className={cn(
+                'flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none',
+                'bg-blue-500 text-white',
+                sidebarCollapsed && 'absolute top-1.5 right-1.5 w-4 h-4 flex items-center justify-center p-0'
+              )}>
+                {enabledNotifCount}
+              </span>
             )}
           </NavLink>
         ))}

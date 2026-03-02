@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import type { User, UserRole } from '@/types'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
-import { Search, Plus, Edit2, UserX, UserCheck, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Search, Plus, Edit2, UserX, UserCheck, Loader2, Check, Trash2, Eye, EyeOff, Bell, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { useUsers } from '@/hooks/useUsers'
 import { toast } from 'sonner'
 
@@ -16,6 +17,7 @@ const roleTabs: { key: 'all' | UserRole; label: string }[] = [
 
 export function Users() {
   const { user: currentUser } = useAuthStore()
+  const { notifyNewUser } = useSettingsStore()
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | UserRole>('all')
   const [showModal, setShowModal] = useState(false)
@@ -51,6 +53,12 @@ export function Users() {
     manager: users.filter(u => u.role === 'manager').length,
     admin: users.filter(u => u.role === 'admin').length,
   }
+
+  // Users joined within the last 7 days (requires joinedDate field from API)
+  const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const recentUsers = notifyNewUser
+    ? users.filter(u => u.joinedDate && new Date(u.joinedDate) >= sevenDaysAgo)
+    : []
 
   const toggleStatus = async (id: string) => {
     const u = users.find(u => u.id === id)
@@ -88,6 +96,29 @@ export function Users() {
           </button>
         )}
       </div>
+
+      {/* ── New user notification banner ──────────────────────────────── */}
+      {recentUsers.length > 0 && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 34, height: 34, background: '#dcfce7', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <UserPlus size={17} color="#16a34a" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d' }}>
+              {recentUsers.length} new team member{recentUsers.length > 1 ? 's' : ''} joined in the last 7 days
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {recentUsers.map(u => (
+                <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, background: '#fff', border: '1px solid #86efac', fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+                  <Bell size={9} />
+                  {u.name}
+                  <span style={{ fontWeight: 400, color: '#4ade80', fontSize: 11 }}>{u.joinedDate}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table Card */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>

@@ -156,9 +156,10 @@ function StatCard({ icon, label, value, color }: {
   )
 }
 
-function StatusDot({ status }: { status: TaskStatus }) {
-  const colors: Record<TaskStatus, string> = { todo: '#94a3b8', in_progress: '#2563eb', completed: '#059669' }
-  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors[status], display: 'inline-block', flexShrink: 0 }} />
+function StatusDot({ status }: { status: string }) {
+  const colors: Record<string, string> = { todo: '#94a3b8', in_progress: '#2563eb', completed: '#059669' }
+  const dot = colors[status] ?? '#94a3b8'
+  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot, display: 'inline-block', flexShrink: 0 }} />
 }
 
 function BillablePill({ billable }: { billable: boolean }) {
@@ -247,17 +248,17 @@ function TaskDetailModal({
   taskTypes: Array<{ name: string; color: string }>
   dateFormat: string
 }) {
-  const statusLabel: Record<TaskStatus, string> = {
+  const statusLabel: Record<string, string> = {
     todo: 'To Do',
     in_progress: 'In Progress',
     completed: 'Completed',
   }
-  const statusColors: Record<TaskStatus, { bg: string; color: string; dot: string }> = {
+  const statusColors: Record<string, { bg: string; color: string; dot: string }> = {
     todo:        { bg: '#1e293b', color: '#94a3b8', dot: '#64748b' },
     in_progress: { bg: '#1e3a5f', color: '#60a5fa', dot: '#2563eb' },
     completed:   { bg: '#14532d40', color: '#86efac', dot: '#22c55e' },
   }
-  const sc = statusColors[task.status]
+  const sc = statusColors[task.status] ?? { bg: '#1e293b', color: '#94a3b8', dot: '#64748b' }
   const assignedUsers = users.filter(u => (task.assignedToIds || []).includes(u.id))
   const taskTypeColor = getTaskTypeColor(task.type, taskTypes)
   
@@ -283,7 +284,7 @@ function TaskDetailModal({
             <div style={{ ...secLabel }}><Tag size={10} /> Status</div>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: sc.color, background: sc.bg, padding: '4px 12px', borderRadius: 20 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: sc.dot, display: 'inline-block' }} />
-              {statusLabel[task.status]}
+              {statusLabel[task.status] ?? task.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
             </span>
           </div>
 
@@ -368,10 +369,12 @@ function TaskDetailModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
               <div>
                 <div style={{ fontSize: 28, fontFamily: 'monospace', fontWeight: 700, color: task.timerRunning ? '#60a5fa' : '#e2e8f0', letterSpacing: 2 }}>
-                  {task.timerRunning ? formatTime(task.timerSeconds) : `${task.actualHours}h`}
+                  {task.timerRunning || task.timerSeconds > 0
+                    ? formatTime(task.timerSeconds)
+                    : `${task.actualHours}h`}
                 </div>
                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-                  {task.timerRunning ? 'Timer running' : 'Actual hours logged'}
+                  {task.timerRunning ? 'Timer running' : task.timerSeconds > 0 ? 'Timer paused' : 'Actual hours logged'}
                 </div>
               </div>
               <div style={{ width: 1, height: 40, background: '#2d4068' }} />
@@ -432,7 +435,7 @@ function TaskDetailModal({
 export function Tasks() {
   const { user } = useAuthStore()
   const { dateFormat } = useSettingsStore()
-  const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [detailTask, setDetailTask] = useState<Task | null>(null)
@@ -444,6 +447,10 @@ export function Tasks() {
   const { users } = useUsers({ status: 'active' })
   const { taskTypes } = useSettings()
   const activeTaskTypes = taskTypes?.filter(t => t.isActive) || []
+
+  // Page-level layout — drives the status tab/filter options in the table
+  const { defaultLayout: pageTaskLayout } = useTaskLayouts()
+  const pageTaskStatusOpts: string[] = pageTaskLayout?.fields.find(f => f.key === 'status')?.options ?? ['todo', 'in_progress', 'completed']
 
   // Tick running timers locally every second
   useEffect(() => {
@@ -488,11 +495,14 @@ export function Tasks() {
 
   const canEdit = isManager
   const activeTask = tasks.find(t => t.timerRunning && canControlTimer(t))
-  const statusTabs = [
-    { key: 'all' as const,         label: 'All',         count: userTasks.length },
-    { key: 'todo' as const,        label: 'To Do',       count: userTasks.filter(t => t.status === 'todo').length },
-    { key: 'in_progress' as const, label: 'In Progress', count: userTasks.filter(t => t.status === 'in_progress').length },
-    { key: 'completed' as const,   label: 'Completed',   count: userTasks.filter(t => t.status === 'completed').length },
+  // Build status tabs from the default layout's status options so custom statuses appear automatically
+  const statusTabs: { key: string; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: userTasks.length },
+    ...pageTaskStatusOpts.map(s => ({
+      key: s,
+      label: s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      count: userTasks.filter(t => t.status === s).length,
+    })),
   ]
 
   if (loading) return (
@@ -714,14 +724,34 @@ export function Tasks() {
                       <td style={{ padding: '13px 16px' }}>
                         <BillablePill billable={task.billable} />
                       </td>
-                      {/* Task Status */}
+                      {/* Task Status — inline dropdown for managers, badge for employees */}
                       <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                        {task.status === 'completed' ? (
-                          <span style={{ color: '#16a34a', fontWeight: 600, fontSize: 12 }}>COMPLETED</span>
-                        ) : task.status === 'in_progress' ? (
-                          <span style={{ color: '#2563eb', fontWeight: 600, fontSize: 12 }}>IN PROGRESS</span>
+                        {canEdit ? (
+                          <select
+                            value={task.status}
+                            onChange={e => updateStatus(task.id, e.target.value as TaskStatus)}
+                            style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                          >
+                            {pageTaskStatusOpts.map(s => (
+                              <option key={s} value={s}>
+                                {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                              </option>
+                            ))}
+                          </select>
                         ) : (
-                          <span style={{ color: '#6b7280', fontWeight: 600, fontSize: 12 }}>TO DO</span>
+                          (() => {
+                            const statusColorMap: Record<string, { color: string; bg: string }> = {
+                              completed:   { color: '#16a34a', bg: '#dcfce7' },
+                              in_progress: { color: '#2563eb', bg: '#dbeafe' },
+                              todo:        { color: '#6b7280', bg: '#f1f5f9' },
+                            }
+                            const sc = statusColorMap[task.status] ?? { color: '#6b7280', bg: '#f1f5f9' }
+                            return (
+                              <span style={{ color: sc.color, background: sc.bg, fontWeight: 600, fontSize: 11, padding: '3px 8px', borderRadius: 6 }}>
+                                {task.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                              </span>
+                            )
+                          })()
                         )}
                       </td>
                       {/* Time Tracking */}
@@ -730,6 +760,11 @@ export function Tasks() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
                             <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#2563eb', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
+                          </div>
+                        ) : task.timerSeconds > 0 ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Pause size={11} color="#94a3b8" style={{ flexShrink: 0 }} />
+                            <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
                           </div>
                         ) : (
                           <span style={{ fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
@@ -839,6 +874,12 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
 
   const { layouts: taskLayouts, loading: layoutsLoading, defaultLayout } = useTaskLayouts()
   const [selectedLayout, setSelectedLayout] = useState<TaskLayout | null>(null)
+
+  // Derive status options from the layout active for this task/form.
+  const activeTaskLayout = task
+    ? (taskLayouts.find(l => l.id === (form as { layoutId?: string }).layoutId) ?? defaultLayout)
+    : (selectedLayout ?? defaultLayout)
+  const layoutTaskStatusOpts: string[] = activeTaskLayout?.fields.find(f => f.key === 'status')?.options ?? ['todo', 'in_progress', 'completed']
 
   useEffect(() => {
     setStep(1)
@@ -1084,10 +1125,10 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
                   </div>
                   <div>
                     <label style={lbl}>Task Status</label>
-                    <select style={{ ...darkInput, cursor: 'pointer' }} value={form.status ?? 'todo'} onChange={e => s('status', e.target.value as TaskStatus)}>
-                      <option value="todo">To Do</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
+                    <select style={{ ...darkInput, cursor: 'pointer' }} value={form.status ?? layoutTaskStatusOpts[0] ?? 'todo'} onChange={e => s('status', e.target.value as TaskStatus)}>
+                      {layoutTaskStatusOpts.map(st => (
+                        <option key={st} value={st}>{st.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

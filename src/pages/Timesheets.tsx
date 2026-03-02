@@ -247,6 +247,8 @@ export function Timesheets() {
   // ───── HOURS THRESHOLD ─────
   const DAILY_THRESHOLD = settings?.dailyHoursThreshold ?? 8
   const WEEKLY_THRESHOLD = DAILY_THRESHOLD * 5
+  const blockSubmitUnderThreshold = settings?.blockSubmitUnderThreshold ?? true
+  const blockSubmitOverThreshold  = settings?.blockSubmitOverThreshold  ?? true
 
   // Get job IDs that the employee has access to (through assigned tasks)
   const accessibleJobIds = useMemo(() => {
@@ -427,6 +429,15 @@ export function Timesheets() {
   const threshold = activeTab === 'weekly' ? WEEKLY_THRESHOLD : DAILY_THRESHOLD
   const thresholdMet = totalHoursInPeriod >= threshold
   const thresholdExceeded = totalHoursInPeriod > threshold
+
+  // Inline form: detect job overtime so we can warn the user before they submit
+  const inlineJobOvertimeWarning = settings?.flagJobOvertime && inlineForm.jobId && inlineForm.hours
+    ? (() => {
+        const job = jobs.find(j => j.id === inlineForm.jobId)
+        if (!job || !job.quotedHours) return false
+        return (job.actualHours + Number(inlineForm.hours)) > job.quotedHours
+      })()
+    : false
 
   const saveInlineDraft = () => {
     if (!inlineForm.jobId || !inlineForm.hours) return
@@ -1132,6 +1143,11 @@ export function Timesheets() {
                     )}
                     <td style={td}>
                       <div style={{ display: 'flex', gap: 4 }}>
+                        {inlineJobOvertimeWarning && (
+                          <span title="This entry will exceed the job's quoted hours" style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: '#fee2e2', color: '#b91c1c', whiteSpace: 'nowrap' }}>
+                            Job OT
+                          </span>
+                        )}
                         <button
                           onClick={saveInlineDraft}
                           disabled={!inlineForm.jobId || !inlineForm.hours}
@@ -1184,17 +1200,30 @@ export function Timesheets() {
                   {totalHoursInPeriod.toFixed(1)}h / {threshold}h
                 </span>
               </div>
-              {draftEntries.length > 0 && !thresholdMet && (
+              {/* Under-threshold message */}
+              {draftEntries.length > 0 && !thresholdMet && blockSubmitUnderThreshold && (
                 <span style={{ fontSize: 12, color: '#d97706', fontWeight: 500 }}>
                   Add {(threshold - totalHoursInPeriod).toFixed(1)}h more to reach the {threshold}h threshold before submitting
                 </span>
               )}
-              {draftEntries.length > 0 && thresholdExceeded && (
+              {draftEntries.length > 0 && !thresholdMet && !blockSubmitUnderThreshold && (
+                <span style={{ fontSize: 12, color: '#d97706', fontWeight: 500 }}>
+                  ⚠ Under {threshold}h threshold
+                </span>
+              )}
+              {/* Over-threshold message */}
+              {draftEntries.length > 0 && thresholdExceeded && blockSubmitOverThreshold && (
                 <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
                   ⚠ Exceeded {threshold}h threshold — contact your manager to submit
                 </span>
               )}
-              {draftEntries.length > 0 && thresholdMet && !thresholdExceeded && (
+              {draftEntries.length > 0 && thresholdExceeded && !blockSubmitOverThreshold && (
+                <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500 }}>
+                  ⚠ Exceeded {threshold}h threshold
+                </span>
+              )}
+              {/* Submit button — shown unless blocked by a threshold setting */}
+              {draftEntries.length > 0 && !(blockSubmitUnderThreshold && !thresholdMet) && !(blockSubmitOverThreshold && thresholdExceeded) && (
                 <button
                   onClick={handleSubmitDrafts}
                   disabled={draftSubmitting}
@@ -1262,7 +1291,12 @@ export function Timesheets() {
 
               const isUnder = settings?.flagUnderHours && projected < threshold
               const isOver = settings?.flagOverHours && projected > threshold
-              const willNotify = (isUnder || isOver) && notifyFlaggedTimesheets
+              // Check job overtime flag — total hours on selected job vs quoted hours
+              const selectedJobForModal = jobs.find(j => j.id === dailyLog.jobId)
+              const isJobOvertime = settings?.flagJobOvertime && selectedJobForModal &&
+                selectedJobForModal.quotedHours > 0 &&
+                (selectedJobForModal.actualHours + addedHours) > selectedJobForModal.quotedHours
+              const willNotify = (isUnder || isOver || isJobOvertime) && notifyFlaggedTimesheets
               return (
                 <div style={{ background: isOver ? '#7c1d1d30' : isUnder ? '#78350f30' : '#14532d30', border: `1px solid ${isOver ? '#ef444440' : isUnder ? '#f59e0b40' : '#22c55e40'}`, borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}>
                   <div style={{ fontSize: 20, fontWeight: 700, color: isOver ? '#fca5a5' : isUnder ? '#fcd34d' : '#86efac' }}>{projected}h / {threshold}h</div>

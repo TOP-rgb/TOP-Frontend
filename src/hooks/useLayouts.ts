@@ -16,6 +16,11 @@ export interface LayoutField {
   placeholder?: string
 }
 
+export interface SystemFieldOverride {
+  key: string
+  options: string[]
+}
+
 export interface JobLayout {
   id: string
   name: string
@@ -65,9 +70,9 @@ export function useJobLayouts() {
 
   useEffect(() => { fetch() }, [fetch])
 
-  const create = useCallback(async (name: string, customFields: LayoutField[], isDefault = false): Promise<JobLayout | null> => {
+  const create = useCallback(async (name: string, customFields: LayoutField[], isDefault = false, systemFieldOverrides?: SystemFieldOverride[]): Promise<JobLayout | null> => {
     try {
-      const res = await api.post<ApiResponse<JobLayout>>('/layouts/jobs', { name, customFields, isDefault })
+      const res = await api.post<ApiResponse<JobLayout>>('/layouts/jobs', { name, customFields, isDefault, systemFieldOverrides })
       if (res.success && res.data) {
         setLayouts(prev => [...prev, res.data!])
         return res.data
@@ -76,7 +81,7 @@ export function useJobLayouts() {
     } catch { return null }
   }, [])
 
-  const update = useCallback(async (id: string, payload: { name?: string; customFields?: LayoutField[]; isDefault?: boolean }): Promise<boolean> => {
+  const update = useCallback(async (id: string, payload: { name?: string; customFields?: LayoutField[]; isDefault?: boolean; systemFieldOverrides?: SystemFieldOverride[] }): Promise<boolean> => {
     try {
       const res = await api.put<ApiResponse<JobLayout>>(`/layouts/jobs/${id}`, payload)
       if (res.success && res.data) {
@@ -139,9 +144,9 @@ export function useTaskLayouts() {
 
   useEffect(() => { fetch() }, [fetch])
 
-  const create = useCallback(async (name: string, customFields: LayoutField[], isDefault = false): Promise<TaskLayout | null> => {
+  const create = useCallback(async (name: string, customFields: LayoutField[], isDefault = false, systemFieldOverrides?: SystemFieldOverride[]): Promise<TaskLayout | null> => {
     try {
-      const res = await api.post<ApiResponse<TaskLayout>>('/layouts/tasks', { name, customFields, isDefault })
+      const res = await api.post<ApiResponse<TaskLayout>>('/layouts/tasks', { name, customFields, isDefault, systemFieldOverrides })
       if (res.success && res.data) {
         setLayouts(prev => [...prev, res.data!])
         return res.data
@@ -150,7 +155,7 @@ export function useTaskLayouts() {
     } catch { return null }
   }, [])
 
-  const update = useCallback(async (id: string, payload: { name?: string; customFields?: LayoutField[]; isDefault?: boolean }): Promise<boolean> => {
+  const update = useCallback(async (id: string, payload: { name?: string; customFields?: LayoutField[]; isDefault?: boolean; systemFieldOverrides?: SystemFieldOverride[] }): Promise<boolean> => {
     try {
       const res = await api.put<ApiResponse<TaskLayout>>(`/layouts/tasks/${id}`, payload)
       if (res.success && res.data) {

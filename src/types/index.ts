@@ -88,6 +88,7 @@ export interface Job {
 export type TaskStatus = 'todo' | 'in_progress' | 'completed'
 
 export interface Task {
+  priority: string | null | undefined
   id: string
   name: string
   type: string

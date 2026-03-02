@@ -37,6 +37,26 @@ export function formatDate(date: string | Date | null | undefined) {
   }
 }
 
+// ✅ Format date using the org's configured dateFormat setting
+export function formatDateWithSettings(d: string | Date | null | undefined, format: string): string {
+  if (!d) return '—'
+  try {
+    const date = new Date(d)
+    if (isNaN(date.getTime())) return '—'
+    const day   = date.getDate().toString().padStart(2, '0')
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const year  = date.getFullYear()
+    switch (format) {
+      case 'MM/DD/YYYY': return `${month}/${day}/${year}`
+      case 'YYYY-MM-DD': return `${year}-${month}-${day}`
+      case 'DD/MM/YYYY':
+      default:           return `${day}/${month}/${year}`
+    }
+  } catch {
+    return '—'
+  }
+}
+
 // ✅ NEW: Format date for input fields (YYYY-MM-DD)
 export function formatDateForInput(date: string | Date | null | undefined): string {
   if (!date) return ""

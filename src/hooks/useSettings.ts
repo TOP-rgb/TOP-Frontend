@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, getToken } from '@/lib/api'
+import { useSettingsStore } from '@/store/settingsStore'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,8 @@ export interface OrgSettings {
   flagUnderHours: boolean
   flagOverHours: boolean
   flagJobOvertime: boolean
+  blockSubmitUnderThreshold: boolean
+  blockSubmitOverThreshold: boolean
   hourlyCostRatio: number
   requireClientForJob: boolean
 }
@@ -92,6 +95,8 @@ const DEFAULTS: OrgSettings = {
   flagUnderHours: true,
   flagOverHours: true,
   flagJobOvertime: true,
+  blockSubmitUnderThreshold: true,
+  blockSubmitOverThreshold: true,
   hourlyCostRatio: 0.70,
   requireClientForJob: false,
 }
@@ -126,6 +131,8 @@ function mergeApiResponse(raw: SettingsApiResponse): OrgSettings {
     flagUnderHours: (s.flagUnderHours as boolean) ?? true,
     flagOverHours: (s.flagOverHours as boolean) ?? true,
     flagJobOvertime: (s.flagJobOvertime as boolean) ?? true,
+    blockSubmitUnderThreshold: (s.blockSubmitUnderThreshold as boolean) ?? true,
+    blockSubmitOverThreshold: (s.blockSubmitOverThreshold as boolean) ?? true,
     hourlyCostRatio: (s.hourlyCostRatio as number) ?? 0.70,
     requireClientForJob: (s.requireClientForJob as boolean) ?? false,
   }
@@ -177,6 +184,8 @@ export function useSettings() {
           // For other sections (localisation, notifications, billing, workflow) response is the flat settings object
           setData(prev => ({ ...prev, ...res.data as Partial<OrgSettings> }))
         }
+        // Sync the global settingsStore so Topbar bell + org name update immediately without page refresh
+        useSettingsStore.getState().loadSettings()
       }
       return !!res.success
     } catch {

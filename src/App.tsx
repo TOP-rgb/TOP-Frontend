@@ -17,6 +17,7 @@ import { Placeholder } from '@/pages/Placeholder'
 import { Invoices } from '@/pages/Invoices'
 import { Reports } from '@/pages/Reports'
 import { Settings } from '@/pages/Settings'
+import { Notifications } from '@/pages/Notifications'
 import type { UserRole } from '@/types'
 
 /** Loads org locale settings after login so Reports picks up correct currency */
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="settings" element={
               <RequireRole roles={['admin']}><Settings /></RequireRole>
             } />
+            <Route path="notifications" element={<Notifications />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

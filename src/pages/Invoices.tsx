@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { toast } from 'sonner'
 import {
   Plus, Search, Eye, FileText, Trash2, Check,
-  Download, Send, DollarSign, Clock, AlertCircle, X,
+  Download, Send, DollarSign, Clock, AlertCircle, X, Bell,
 } from 'lucide-react'
 import type { Invoice, InvoiceLineItem, InvoiceStatus } from '@/types'
 
@@ -45,9 +45,12 @@ function fmtDate(d: string, format: string = 'DD/MM/YYYY') {
   }
 }
 
-function isOverdue(inv: Invoice) {
+// overdueAfterDays: grace period — invoice is only "overdue" after this many days past due date
+function isOverdue(inv: Invoice, overdueAfterDays = 0) {
   if (inv.status === 'paid' || inv.status === 'cancelled') return false
-  return new Date(inv.dueDate) < new Date()
+  const cutoff = new Date(inv.dueDate)
+  cutoff.setDate(cutoff.getDate() + overdueAfterDays)
+  return cutoff < new Date()
 }
 
 const statusConfig: Record<InvoiceStatus, { label: string; color: string; bg: string; dot: string }> = {
@@ -128,6 +131,8 @@ export function Invoices() {
   const paymentTermsDays = settings.invoicePaymentTermsDays
   const billingIncrement = settings.billingIncrement
   const defaultHourlyRate = settings.defaultHourlyRate
+  const overdueInvoiceDays = settings.overdueInvoiceDays ?? 0
+  const notifyInvoiceOverdue = settings.notifyInvoiceOverdue
 
   // Create currency formatter with symbol
   const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
@@ -138,10 +143,10 @@ export function Invoices() {
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null)
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null)
 
-  // Derive effective status (check overdue)
+  // Derive effective status — uses overdueInvoiceDays grace period from settings
   const enriched = invoices.map(inv => ({
     ...inv,
-    status: (inv.status === 'sent' && isOverdue(inv) ? 'overdue' : inv.status) as InvoiceStatus,
+    status: (inv.status === 'sent' && isOverdue(inv, overdueInvoiceDays) ? 'overdue' : inv.status) as InvoiceStatus,
   }))
 
   const filtered = enriched.filter(inv => {
@@ -207,6 +212,30 @@ export function Invoices() {
         <StatCard label="Outstanding" value={fmt(totalOutstanding)} sub={`${countOutstanding} invoices`} icon={<Clock size={20} />} color="#f59e0b" />
         <StatCard label="Overdue" value={fmt(totalOverdue)} sub={`${countOverdue} overdue`} icon={<AlertCircle size={20} />} color="#dc2626" />
       </div>
+
+      {/* ── Overdue notification banner ───────────────────────────────── */}
+      {notifyInvoiceOverdue && countOverdue > 0 && (
+        <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 34, height: 34, background: '#fee2e2', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Bell size={17} color="#dc2626" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c' }}>
+              {countOverdue} invoice{countOverdue > 1 ? 's' : ''} overdue
+              {overdueInvoiceDays > 0 && ` by more than ${overdueInvoiceDays} day${overdueInvoiceDays > 1 ? 's' : ''}`}
+            </div>
+            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 3 }}>
+              {fmt(totalOverdue)} outstanding — filter by &ldquo;Overdue&rdquo; to review
+            </div>
+          </div>
+          <button
+            onClick={() => setStatusFilter('overdue')}
+            style={{ padding: '6px 14px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+          >
+            View Overdue
+          </button>
+        </div>
+      )}
 
       {/* Table card */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>

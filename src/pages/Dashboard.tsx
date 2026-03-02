@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
+import { formatDateWithSettings } from '@/lib/utils'
 import { StatCard } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
@@ -79,8 +80,8 @@ export function Dashboard() {
 
 function EmployeeDashboard() {
   const { user } = useAuthStore()
-  const { currency, currencySymbol } = useSettingsStore() // Get both currency and symbol
-  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n) // Create formatter with both params
+  const { currency, currencySymbol, dateFormat } = useSettingsStore()
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
   const { data, loading, refetch } = useEmployeeDashboard()
   const { tasks } = useTasks()
   const myTasks = tasks.filter(t => t.assignedToIds?.includes(user?.id ?? ''))
@@ -221,7 +222,7 @@ function EmployeeDashboard() {
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{entry.job?.title ?? '—'}</p>
                   <div className="flex items-center gap-4 mt-1">
                     <span className="text-xs text-slate-500 dark:text-slate-400">{entry.job?.client?.company ?? '—'}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{entry.date?.slice(0, 10)}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{formatDateWithSettings(entry.date, dateFormat)}</span>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -242,8 +243,8 @@ function EmployeeDashboard() {
 // ── Manager Dashboard ─────────────────────────────────────────────────────────
 
 function ManagerDashboard() {
-  const { currency, currencySymbol } = useSettingsStore() // Get both currency and symbol
-  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n) // Create formatter with both params
+  const { currency, currencySymbol, dateFormat } = useSettingsStore()
+  const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
   const { data, loading, error, refetch } = useManagerDashboard()
   const location = useLocation()
 
@@ -368,7 +369,7 @@ function ManagerDashboard() {
                           {ts.task?.title ?? '—'}
                         </td>
                         <td className="py-2.5 pr-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                          {new Date(ts.date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                          {formatDateWithSettings(ts.date, dateFormat)}
                         </td>
                         <td className="py-2.5 pr-3 text-right font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                           {ts.hours}h

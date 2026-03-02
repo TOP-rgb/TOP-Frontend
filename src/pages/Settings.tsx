@@ -510,10 +510,21 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
     flagUnderHours: data.flagUnderHours,
     flagOverHours: data.flagOverHours,
     flagJobOvertime: data.flagJobOvertime,
+    blockSubmitUnderThreshold: data.blockSubmitUnderThreshold,
+    blockSubmitOverThreshold: data.blockSubmitOverThreshold,
     hourlyCostRatio: data.hourlyCostRatio,
     requireClientForJob: data.requireClientForJob,
   })
-  useEffect(() => setWf({ dailyHoursThreshold: data.dailyHoursThreshold, flagUnderHours: data.flagUnderHours, flagOverHours: data.flagOverHours, flagJobOvertime: data.flagJobOvertime, hourlyCostRatio: data.hourlyCostRatio, requireClientForJob: data.requireClientForJob }), [data])
+  useEffect(() => setWf({
+    dailyHoursThreshold: data.dailyHoursThreshold,
+    flagUnderHours: data.flagUnderHours,
+    flagOverHours: data.flagOverHours,
+    flagJobOvertime: data.flagJobOvertime,
+    blockSubmitUnderThreshold: data.blockSubmitUnderThreshold,
+    blockSubmitOverThreshold: data.blockSubmitOverThreshold,
+    hourlyCostRatio: data.hourlyCostRatio,
+    requireClientForJob: data.requireClientForJob,
+  }), [data])
 
   const handleAddType = async () => {
     if (!newType.name.trim()) { toast.error('Name is required'); return }
@@ -578,11 +589,11 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
           <div style={cardBody}>
             <LayoutBuilder
               title="Job Layouts"
-              subtitle="Create reusable templates with custom fields for job creation. System fields always appear."
+              subtitle="Create reusable templates with custom fields for job creation. System dropdown options are customisable per layout."
               layouts={jobLayouts.layouts}
               loading={jobLayouts.loading}
-              onCreate={async (name, customFields, isDefault) => {
-                const r = await jobLayouts.create(name, customFields, isDefault)
+              onCreate={async (name, customFields, isDefault, systemFieldOverrides) => {
+                const r = await jobLayouts.create(name, customFields, isDefault, systemFieldOverrides)
                 return r !== null
               }}
               onUpdate={async (id, payload) => jobLayouts.update(id, payload)}
@@ -599,11 +610,11 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
           <div style={cardBody}>
             <LayoutBuilder
               title="Task Layouts"
-              subtitle="Create reusable templates with custom fields for task creation. System fields always appear."
+              subtitle="Create reusable templates with custom fields for task creation. System dropdown options are customisable per layout."
               layouts={taskLayouts.layouts}
               loading={taskLayouts.loading}
-              onCreate={async (name, customFields, isDefault) => {
-                const r = await taskLayouts.create(name, customFields, isDefault)
+              onCreate={async (name, customFields, isDefault, systemFieldOverrides) => {
+                const r = await taskLayouts.create(name, customFields, isDefault, systemFieldOverrides)
                 return r !== null
               }}
               onUpdate={async (id, payload) => taskLayouts.update(id, payload)}
@@ -741,6 +752,8 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
             <Switch checked={wf.flagUnderHours} onCheckedChange={v => setWf(f => ({ ...f, flagUnderHours: v }))} label="Flag Under-Hours" description="Flag timesheets where daily total is below the threshold" />
             <Switch checked={wf.flagOverHours} onCheckedChange={v => setWf(f => ({ ...f, flagOverHours: v }))} label="Flag Over-Hours" description="Flag timesheets where daily total exceeds the threshold" />
             <Switch checked={wf.flagJobOvertime} onCheckedChange={v => setWf(f => ({ ...f, flagJobOvertime: v }))} label="Flag Job Overtime" description="Flag when total hours logged on a job exceed quoted hours" />
+            <Switch checked={wf.blockSubmitUnderThreshold} onCheckedChange={v => setWf(f => ({ ...f, blockSubmitUnderThreshold: v }))} label="Block Submit if Under Threshold" description="Disable the timesheet submit button when hours are below the daily threshold" />
+            <Switch checked={wf.blockSubmitOverThreshold} onCheckedChange={v => setWf(f => ({ ...f, blockSubmitOverThreshold: v }))} label="Block Submit if Over Threshold" description="Disable the timesheet submit button when hours exceed the daily threshold" />
             <Switch checked={wf.requireClientForJob} onCheckedChange={v => setWf(f => ({ ...f, requireClientForJob: v }))} label="Require Client for Job" description="Jobs must be linked to a client before creation" />
           </div>
           <div style={cardFoot}><SaveButton saving={saving} section="workflow" onClick={handleWfSave} /></div>

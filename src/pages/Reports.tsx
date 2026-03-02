@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useReports, type DateRange, type ReportsData } from '@/hooks/useReports'
 import { useSettingsStore } from '@/store/settingsStore'
+import { formatDateWithSettings } from '@/lib/utils'
 
 // ── Currency formatter factory (matching Invoices component pattern) ─────────
 function makeFmt(currency: string, symbol: string) {
@@ -24,9 +25,8 @@ function makeFmt(currency: string, symbol: string) {
     }).format(n).replace(currency, symbol)
 }
 
-function fmtDate(d: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
+function fmtDate(d: string, dateFormat = 'DD/MM/YYYY') {
+  return formatDateWithSettings(d, dateFormat)
 }
 
 // Safe formatter for Recharts Tooltip — ValueType can be string|number|array
@@ -290,7 +290,7 @@ function OverviewTab({ d }: { d: ReportsData['overview'] }) {
 // ── Tab: Jobs ─────────────────────────────────────────────────────────────────
 
 function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsData['overview'] }) {
-  const { currency, currencySymbol } = useSettingsStore()
+  const { currency, currencySymbol, dateFormat } = useSettingsStore()
   const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
   
   return (
@@ -375,7 +375,7 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
                 <tr key={i} style={{ borderTop: '1px solid #fee2e2' }}>
                   <td style={{ padding: '10px 12px', fontWeight: 600, color: '#1a1f36', fontFamily: 'monospace', fontSize: 11 }}>{j.jobId}</td>
                   <td style={{ padding: '10px 12px', color: '#6b7280', fontSize: 12 }}>{j.client}</td>
-                  <td style={{ padding: '10px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(j.deadline)}</td>
+                  <td style={{ padding: '10px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(j.deadline, dateFormat)}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <span style={{ fontWeight: 700, color: '#dc2626' }}>{j.daysOverdue}d</span>
                   </td>

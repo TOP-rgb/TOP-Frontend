@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Job, JobStatus, Priority, BillingType } from '@/types'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate, formatDateForInput } from '@/lib/utils'
-import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock } from 'lucide-react'
+import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock, AlertTriangle, Clock } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useSettings } from '@/hooks/useSettings'
 import { useJobs } from '@/hooks/useJobs'
@@ -71,6 +71,17 @@ function checkHourThresholds(actual: number, quoted: number, threshold: number):
   return { isUnder, isOver, message }
 }
 
+// ── Format decimal hours as "1h 30m" ──────────────────────────────────────────
+function fmtHours(hours: number | null | undefined): string {
+  if (hours == null || isNaN(hours)) return '—'
+  if (hours === 0) return '0h'
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  if (m === 0) return `${h}h`
+  if (h === 0) return `${m}m`
+  return `${h}h ${m}m`
+}
+
 const STATUS_FLOW: JobStatus[] = ['open', 'in_progress', 'on_hold', 'completed', 'invoiced', 'closed']
 
 const statusLabel: Record<JobStatus, string> = {
@@ -97,11 +108,12 @@ export function Jobs() {
   const flagOverHours = settings.flagOverHours
   const requireClientForJob = settings.requireClientForJob
   const billingIncrement = settings.billingIncrement
+  const notifyJobDeadline = settings.notifyJobDeadline
 
   const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
 
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | JobStatus>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showModal, setShowModal] = useState(false)
   const [selected, setSelected] = useState<Job | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
@@ -109,6 +121,10 @@ export function Jobs() {
   const { jobs, loading, error, createJob, updateJob, updateStatus: apiUpdateStatus } = useJobs()
   const { clients } = useClients()
   const { tasks } = useTasks()
+
+  // Page-level layout for driving status/priority options in the table filters + inline dropdowns
+  const { defaultLayout: pageJobLayout } = useJobLayouts()
+  const pageStatusOpts: string[] = pageJobLayout?.fields.find(f => f.key === 'status')?.options ?? STATUS_FLOW
 
   // Calculate actual hours for each job from tasks
   const jobsWithActualHours = jobs.map(job => {
@@ -119,6 +135,16 @@ export function Jobs() {
       actualHours: actualHours > 0 ? actualHours : job.actualHours // Use task hours if available, otherwise fallback to job.actualHours
     }
   })
+
+  // Jobs approaching or past deadline (within 7 days, not yet closed/invoiced/completed)
+  const deadlineAlertJobs = notifyJobDeadline
+    ? jobsWithActualHours.filter(j => {
+        if (!j.deadline) return false
+        if (['completed', 'invoiced', 'closed'].includes(j.status)) return false
+        const daysUntil = Math.ceil((new Date(j.deadline).getTime() - Date.now()) / 86_400_000)
+        return daysUntil <= 7
+      }).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+    : []
 
   // For employees: only show jobs linked to tasks assigned to them
   const myTaskJobIds = user?.role === 'employee'
@@ -164,6 +190,44 @@ export function Jobs() {
         )}
       </div>
 
+      {/* ── Deadline warning banner ───────────────────────────────────── */}
+      {deadlineAlertJobs.length > 0 && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ width: 34, height: 34, background: '#ffedd5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <AlertTriangle size={17} color="#ea580c" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#9a3412', marginBottom: 8 }}>
+              {deadlineAlertJobs.filter(j => new Date(j.deadline!) < new Date()).length > 0
+                ? `${deadlineAlertJobs.length} job${deadlineAlertJobs.length > 1 ? 's' : ''} at or past deadline`
+                : `${deadlineAlertJobs.length} job${deadlineAlertJobs.length > 1 ? 's' : ''} approaching deadline`}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {deadlineAlertJobs.map(j => {
+                const daysUntil = Math.ceil((new Date(j.deadline!).getTime() - Date.now()) / 86_400_000)
+                const isOverdue = daysUntil < 0
+                return (
+                  <span key={j.id} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                    background: isOverdue ? '#fee2e2' : '#fff',
+                    color: isOverdue ? '#b91c1c' : '#92400e',
+                    border: `1px solid ${isOverdue ? '#fecaca' : '#fdba74'}`,
+                  }}>
+                    <Clock size={10} />
+                    <span style={{ fontFamily: 'monospace' }}>{j.jobId}</span>
+                    {j.title}
+                    <span style={{ fontWeight: 400, opacity: 0.8 }}>
+                      {isOverdue ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'due today' : `${daysUntil}d left`}
+                    </span>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Table Card */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
         {/* Toolbar */}
@@ -178,7 +242,7 @@ export function Jobs() {
                 color: statusFilter === 'all' ? '#fff' : '#6b7280',
               }}
             >All</button>
-            {STATUS_FLOW.map(s => (
+            {pageStatusOpts.map(s => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
@@ -187,7 +251,7 @@ export function Jobs() {
                   background: statusFilter === s ? '#2563eb' : '#f3f4f6',
                   color: statusFilter === s ? '#fff' : '#6b7280',
                 }}
-              >{statusLabel[s]}</button>
+              >{(statusLabel as Record<string, string>)[s] ?? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</button>
             ))}
           </div>
           {/* Search + filter */}
@@ -257,8 +321,8 @@ export function Jobs() {
                   )}
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.quoteApprovedDate, dateFormat)}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.startDate, dateFormat)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{job.quotedHours}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{job.actualHours}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{fmtHours(job.quotedHours)}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{fmtHours(job.actualHours)}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.deadline, dateFormat)}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: priorityColor[job.priority], textTransform: 'capitalize' }}>{job.priority}</span>
@@ -270,10 +334,16 @@ export function Jobs() {
                         onChange={e => apiUpdateStatus(job.id, e.target.value as JobStatus)}
                         style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
                       >
-                        {STATUS_FLOW.map(s => <option key={s} value={s}>{statusLabel[s]}</option>)}
+                        {pageStatusOpts.map(s => (
+                          <option key={s} value={s}>
+                            {(statusLabel as Record<string, string>)[s] ?? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          </option>
+                        ))}
                       </select>
                     ) : (
-                      <span style={{ fontSize: 13, color: '#374151' }}>{statusLabel[job.status]}</span>
+                      <span style={{ fontSize: 13, color: '#374151' }}>
+                        {(statusLabel as Record<string, string>)[job.status] ?? job.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </span>
                     )}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
@@ -413,12 +483,12 @@ export function Jobs() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginBottom: 10 }}>
                     <div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: hoursOver ? '#f87171' : '#e2e8f0', lineHeight: 1 }}>{dispActual}h</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: hoursOver ? '#f87171' : '#e2e8f0', lineHeight: 1 }}>{fmtHours(dispActual)}</div>
                       <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Actual</div>
                     </div>
                     <div style={{ width: 1, height: 28, background: '#2d4068', flexShrink: 0 }} />
                     <div>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', lineHeight: 1 }}>{dispEstimated}h</div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', lineHeight: 1 }}>{fmtHours(dispEstimated)}</div>
                       <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>Estimated</div>
                     </div>
                   </div>
@@ -580,6 +650,17 @@ function JobModal({
   // Layouts
   const { layouts, loading: layoutsLoading, defaultLayout } = useJobLayouts()
   const [selectedLayout, setSelectedLayout] = useState<JobLayout | null>(null)
+
+  // Derive dropdown options from the layout active for this job/form.
+  // When editing: use the layout that was saved on the job (fall back to default).
+  // When creating: use the layout selected in step 1 (fall back to default).
+  const activeLayout = job
+    ? (layouts.find(l => l.id === (form as { layoutId?: string }).layoutId) ?? defaultLayout)
+    : (selectedLayout ?? defaultLayout)
+
+  const layoutPriorityOpts: string[]    = activeLayout?.fields.find(f => f.key === 'priority')?.options    ?? ['low', 'medium', 'high', 'urgent']
+  const layoutStatusOpts: string[]      = activeLayout?.fields.find(f => f.key === 'status')?.options      ?? ['open', 'in_progress', 'on_hold', 'completed', 'invoiced', 'closed']
+  const layoutBillingTypeOpts: string[] = activeLayout?.fields.find(f => f.key === 'billingType')?.options ?? ['hourly', 'fixed']
 
   // Update form when defaultHourlyRate changes
   useEffect(() => {
@@ -798,18 +879,17 @@ function JobModal({
                 </div>
                 <div>
                   <label style={lbl}>Priority</label>
-                  <select style={{ ...darkInput, cursor: 'pointer' }} value={form.priority ?? 'medium'} onChange={e => s('priority', e.target.value as Priority)}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
+                  <select style={{ ...darkInput, cursor: 'pointer' }} value={form.priority ?? layoutPriorityOpts[0] ?? 'medium'} onChange={e => s('priority', e.target.value as Priority)}>
+                    {layoutPriorityOpts.map(p => (
+                      <option key={p} value={p}>{p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                    ))}
                   </select>
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={lbl}>Status</label>
-                  <select style={{ ...darkInput, cursor: 'pointer' }} value={form.status ?? 'open'} onChange={e => s('status', e.target.value as JobStatus)}>
-                    {(['open', 'in_progress', 'on_hold', 'completed', 'invoiced', 'closed'] as JobStatus[]).map(st => (
-                      <option key={st} value={st}>{st.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                  <select style={{ ...darkInput, cursor: 'pointer' }} value={form.status ?? layoutStatusOpts[0] ?? 'open'} onChange={e => s('status', e.target.value as JobStatus)}>
+                    {layoutStatusOpts.map(st => (
+                      <option key={st} value={st}>{st.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
                     ))}
                   </select>
                 </div>
@@ -869,9 +949,10 @@ function JobModal({
                 <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
                     <label style={lbl}>Billing Type</label>
-                    <select style={{ ...darkInput, cursor: 'pointer' }} value={form.billingType ?? 'hourly'} onChange={e => s('billingType', e.target.value as BillingType)}>
-                      <option value="hourly">Hourly</option>
-                      <option value="fixed">Fixed Price</option>
+                    <select style={{ ...darkInput, cursor: 'pointer' }} value={form.billingType ?? layoutBillingTypeOpts[0] ?? 'hourly'} onChange={e => s('billingType', e.target.value as BillingType)}>
+                      {layoutBillingTypeOpts.map(bt => (
+                        <option key={bt} value={bt}>{bt.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
