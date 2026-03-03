@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type Key } from 'react'
+import { useState, useEffect, useRef, useCallback, type Key } from 'react'
 import type { Task, TaskStatus } from '@/types'
 import { Modal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/store/authStore'
@@ -13,9 +13,11 @@ import {
   Play, Pause, CheckSquare, Plus, Clock, ListTodo,
   DollarSign, Timer, Square, Loader2, User, X,
   FileText, Calendar, Tag, Search, Check, Layout, Star,
+  Paperclip, Upload, Download, Trash2, Image, Film, File, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSettings } from '@/hooks/useSettings'
+import { useDocuments } from '@/hooks/useDocuments'
 
 // ── Date formatter with settings ──────────────────────────────────────────────
 function formatDateWithSettings(d: string | null | undefined, format: string): string {
@@ -229,15 +231,161 @@ function AssignedUsers({ userIds, users }: { userIds: string[]; users: Array<{ i
 
 /* ─────────────── Task Detail Modal ─────────────── */
 
-function TaskDetailModal({ 
-  task, 
-  users, 
+function getFileIcon(mimeType: string) {
+  if (mimeType.startsWith('image/')) return Image
+  if (mimeType.startsWith('video/')) return Film
+  if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) return FileText
+  return File
+}
+
+function getFileIconColor(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return '#a78bfa'
+  if (mimeType.startsWith('video/')) return '#f472b6'
+  if (mimeType.includes('pdf')) return '#ef4444'
+  if (mimeType.includes('spreadsheet') || mimeType.includes('csv') || mimeType.includes('excel')) return '#22c55e'
+  if (mimeType.includes('document') || mimeType.includes('word')) return '#3b82f6'
+  return '#64748b'
+}
+
+function FilePreviewCard({ doc, onDownload, onDelete, canDelete }: {
+  doc: { id: string; name: string; mimeType: string; sizeBytes: number; uploadedBy?: { firstName: string; lastName: string } }
+  onDownload: () => void
+  onDelete?: () => void
+  canDelete: boolean
+}) {
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://top-backend-l2ax.onrender.com/api'
+  const token = localStorage.getItem('top_jwt_token')
+  const isImage = doc.mimeType.startsWith('image/')
+  const isPdf = doc.mimeType.includes('pdf')
+  const Icon = getFileIcon(doc.mimeType)
+  const iconColor = getFileIconColor(doc.mimeType)
+  const ext = doc.name.split('.').pop()?.toUpperCase() || ''
+  const sizeStr = doc.sizeBytes < 1024 * 1024
+    ? `${(doc.sizeBytes / 1024).toFixed(0)} KB`
+    : `${(doc.sizeBytes / (1024 * 1024)).toFixed(1)} MB`
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+
+  // Load image preview thumbnail via backend proxy
+  useEffect(() => {
+    if (!isImage) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/documents/${doc.id}/download`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (res.ok && !cancelled) {
+          const blob = await res.blob()
+          setPreviewUrl(URL.createObjectURL(blob))
+        }
+      } catch { /* ignore */ }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [doc.id, isImage])
+
+  return (
+    <>
+      <div style={{
+        background: '#152035', border: '1px solid #2d4068', borderRadius: 10, overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', width: 150, flexShrink: 0,
+        transition: 'border-color 0.15s',
+      }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = '#3b82f6')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = '#2d4068')}
+      >
+        {/* Preview area */}
+        <div
+          style={{
+            height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: isImage && previewUrl ? 'transparent' : '#0f1a2e',
+            cursor: 'pointer', position: 'relative', overflow: 'hidden',
+          }}
+          onClick={() => isImage && previewUrl ? setPreviewOpen(true) : onDownload()}
+        >
+          {isImage && previewUrl ? (
+            <img src={previewUrl} alt={doc.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <Icon size={28} style={{ color: iconColor }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: iconColor, background: `${iconColor}15`, padding: '1px 6px', borderRadius: 4, letterSpacing: '0.05em' }}>{ext}</span>
+            </div>
+          )}
+          {/* Hover overlay */}
+          <div style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0,
+            transition: 'opacity 0.15s',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+          >
+            {isImage && previewUrl
+              ? <Eye size={18} style={{ color: '#fff' }} />
+              : <Download size={18} style={{ color: '#fff' }} />}
+          </div>
+        </div>
+
+        {/* Info */}
+        <div style={{ padding: '8px 10px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.name}>
+            {doc.name}
+          </div>
+          <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{sizeStr}</div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', borderTop: '1px solid #2d4068' }}>
+          <button type="button" title="Download" onClick={onDownload}
+            style={{ flex: 1, padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#3b82f6')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
+          >
+            <Download size={13} />
+          </button>
+          {canDelete && onDelete && (
+            <>
+              <div style={{ width: 1, background: '#2d4068' }} />
+              <button type="button" title="Delete" onClick={onDelete}
+                style={{ flex: 1, padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#64748b')}
+              >
+                <Trash2 size={13} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Full-size image preview modal */}
+      {previewOpen && previewUrl && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          onClick={() => setPreviewOpen(false)}
+        >
+          <button onClick={() => setPreviewOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={20} style={{ color: '#fff' }} />
+          </button>
+          <img src={previewUrl} alt={doc.name} style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }} onClick={e => e.stopPropagation()} />
+          <div style={{ position: 'absolute', bottom: 20, color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>{doc.name}</div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function TaskDetailModal({
+  task,
+  users,
   jobs,
-  onClose, 
-  onEdit, 
-  canEdit, 
-  taskTypes, 
-  dateFormat 
+  onClose,
+  onEdit,
+  canEdit,
+  taskTypes,
+  dateFormat
 }: {
   task: Task
   users: Array<{ id: string; name: string; email: string }>
@@ -261,24 +409,39 @@ function TaskDetailModal({
   const sc = statusColors[task.status] ?? { bg: '#1e293b', color: '#94a3b8', dot: '#64748b' }
   const assignedUsers = users.filter(u => (task.assignedToIds || []).includes(u.id))
   const taskTypeColor = getTaskTypeColor(task.type, taskTypes)
-  
+
   // Get priority from associated job
   const jobPriority = jobs.find(j => j.id === task.jobId)?.priority
 
+  // Attachments
+  const { documents: taskAttachments, uploading: attachUploading, uploadFile: attachUploadFile, deleteDocument: attachDeleteDoc } = useDocuments({ taskId: task.id })
+  const detailFileInputRef = useRef<HTMLInputElement>(null)
+
   const secLabel: React.CSSProperties = {
     fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase',
-    letterSpacing: '0.07em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4,
+    letterSpacing: '0.07em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4,
   }
   const card: React.CSSProperties = {
     background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: '14px 16px',
   }
 
+  const handleDownload = async (doc: { id: string; name: string }) => {
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://top-backend-l2ax.onrender.com/api'
+    const token = localStorage.getItem('top_jwt_token')
+    const res = await fetch(`${API_BASE}/documents/${doc.id}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (res.ok) {
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = doc.name; a.click(); URL.revokeObjectURL(url)
+    }
+  }
+
   return (
-    <Modal open onClose={onClose} title="" size="lg">
-      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 360 }}>
+    <Modal open onClose={onClose} title="" size="3xl">
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 420 }}>
 
         {/* Left sidebar — identity */}
-        <div className="modal-sidebar" style={{ width: 200, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="modal-sidebar" style={{ width: 220, background: '#0f1a2e', padding: '28px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
           {/* Status badge */}
           <div>
             <div style={{ ...secLabel }}><Tag size={10} /> Status</div>
@@ -351,13 +514,28 @@ function TaskDetailModal({
               </span>
             </div>
           )}
+
+          {/* Assigned users in sidebar */}
+          {assignedUsers.length > 0 && (
+            <div>
+              <div style={secLabel}><User size={10} /> Assigned To</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {assignedUsers.map(u => (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Avatar name={u.name} size="xs" />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{u.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right main content */}
-        <div style={{ flex: 1, padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ flex: 1, padding: '28px 28px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: '80vh' }}>
           {/* Title */}
           <div>
-            <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 20, margin: 0, marginBottom: 4 }}>{task.name}</h2>
+            <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 22, margin: 0, marginBottom: 4 }}>{task.name}</h2>
             <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>{task.jobTitle} · {task.clientName}</p>
           </div>
 
@@ -392,24 +570,62 @@ function TaskDetailModal({
           {task.description && (
             <div style={card}>
               <div style={secLabel}><FileText size={10} /> Description</div>
-              <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>{task.description}</p>
+              <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{task.description}</p>
             </div>
           )}
 
-          {/* Assigned users */}
-          {assignedUsers.length > 0 && (
-            <div style={card}>
-              <div style={secLabel}><User size={10} /> Assigned To</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {assignedUsers.map(u => (
-                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#152035', border: '1px solid #2d4068', borderRadius: 20, padding: '4px 12px 4px 4px' }}>
-                    <Avatar name={u.name} size="xs" />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{u.name}</span>
-                  </div>
+          {/* Attachments — grid with previews */}
+          <div style={card}>
+            <div style={{ ...secLabel, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Paperclip size={10} /> Attachments {taskAttachments.length > 0 && `(${taskAttachments.length})`}</span>
+              <button
+                type="button"
+                onClick={() => detailFileInputRef.current?.click()}
+                disabled={attachUploading}
+                style={{ fontSize: 10, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 3 }}
+              >
+                <Upload size={10} /> {attachUploading ? 'Uploading…' : 'Add'}
+              </button>
+            </div>
+            {taskAttachments.length === 0 ? (
+              <div
+                style={{ border: '1px dashed #2d4068', borderRadius: 8, padding: '20px', textAlign: 'center', cursor: 'pointer' }}
+                onClick={() => detailFileInputRef.current?.click()}
+              >
+                <Paperclip size={20} style={{ color: '#2d4068', margin: '0 auto 6px' }} />
+                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>No attachments yet</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: '#3b82f6' }}>Click to add files</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {taskAttachments.map(doc => (
+                  <FilePreviewCard
+                    key={doc.id}
+                    doc={doc}
+                    onDownload={() => handleDownload(doc)}
+                    onDelete={() => attachDeleteDoc(doc.id).then(ok => ok && toast.success('Attachment removed'))}
+                    canDelete={canEdit}
+                  />
                 ))}
               </div>
-            </div>
-          )}
+            )}
+            <input
+              ref={detailFileInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={async e => {
+                if (e.target.files) {
+                  for (const file of Array.from(e.target.files)) {
+                    const doc = await attachUploadFile(file, undefined, { taskId: task.id })
+                    if (doc) toast.success(`"${file.name}" attached`)
+                    else toast.error(`Failed to attach "${file.name}"`)
+                  }
+                }
+                e.target.value = ''
+              }}
+            />
+          </div>
 
           {/* Footer buttons */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
@@ -825,16 +1041,52 @@ export function Tasks() {
             users={users}
             taskTypes={activeTaskTypes}
             dateFormat={dateFormat}
-            onSave={async t => {
+            onSave={async (t, pendingFiles) => {
               if (selected) {
                 const ok = await updateTask(selected.id, t)
-                if (ok) toast.success('Task updated successfully')
-                else toast.error('Failed to update task')
+                if (ok) {
+                  toast.success('Task updated successfully')
+                  // Upload any newly added attachments
+                  if (pendingFiles?.length) {
+                    const API_BASE = import.meta.env.VITE_API_URL || 'https://top-backend-l2ax.onrender.com/api'
+                    const token = localStorage.getItem('top_jwt_token')
+                    for (const file of pendingFiles) {
+                      const fd = new FormData()
+                      fd.append('file', file)
+                      fd.append('taskId', selected.id)
+                      await fetch(`${API_BASE}/documents/upload`, {
+                        method: 'POST',
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        body: fd,
+                      }).catch(() => {})
+                    }
+                  }
+                } else {
+                  toast.error('Failed to update task')
+                }
               } else {
                 // For new tasks, we no longer set priority - it comes from the job
-                const ok = await createTask({ ...t, jobId: t.jobId })
-                if (ok) toast.success('Task created successfully')
-                else toast.error('Failed to create task')
+                const newTask = await createTask({ ...t, jobId: t.jobId })
+                if (newTask) {
+                  toast.success('Task created successfully')
+                  // Upload pending attachments with the new task ID
+                  if (pendingFiles?.length) {
+                    const API_BASE = import.meta.env.VITE_API_URL || 'https://top-backend-l2ax.onrender.com/api'
+                    const token = localStorage.getItem('top_jwt_token')
+                    for (const file of pendingFiles) {
+                      const fd = new FormData()
+                      fd.append('file', file)
+                      fd.append('taskId', (newTask as { id: string }).id)
+                      await fetch(`${API_BASE}/documents/upload`, {
+                        method: 'POST',
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        body: fd,
+                      }).catch(() => {})
+                    }
+                  }
+                } else {
+                  toast.error('Failed to create task')
+                }
               }
               setShowModal(false)
             }}
@@ -855,7 +1107,7 @@ interface TaskModalProps {
   users: Array<{ id: string; name: string; email: string }>
   taskTypes: Array<{ id: Key | null | undefined; name: string; color: string }>
   dateFormat: string
-  onSave: (t: Partial<Task> & { jobId: string }) => void
+  onSave: (t: Partial<Task> & { jobId: string }, pendingFiles?: File[]) => void
 }
 
 const defaultTaskForm = {
@@ -872,6 +1124,14 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
     task ? { ...task, jobId: task.jobId, assignedToIds: task.assignedToIds || [] } : { ...defaultTaskForm, customFieldValues: {} }
   )
 
+  // Attachments
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { documents: existingAttachments, uploading: _uploading, deleteDocument: _deleteAttachment } = useDocuments({
+    taskId: task?.id,
+    autoLoad: !!task?.id,
+  })
+
   const { layouts: taskLayouts, loading: layoutsLoading, defaultLayout } = useTaskLayouts()
   const [selectedLayout, setSelectedLayout] = useState<TaskLayout | null>(null)
 
@@ -883,6 +1143,7 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
 
   useEffect(() => {
     setStep(1)
+    setPendingFiles([])
     setForm(task
       ? { ...task, jobId: task.jobId, assignedToIds: task.assignedToIds || [], customFieldValues: (task as { customFieldValues?: Record<string, unknown> }).customFieldValues ?? {} }
       : { ...defaultTaskForm, customFieldValues: {} }
@@ -1233,6 +1494,89 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
                     placeholder="Brief description of the task…"
                   />
                 </div>
+
+                {/* Attachments */}
+                <div>
+                  <label style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Paperclip size={12} /> Attachments
+                  </label>
+
+                  {/* Existing attachments (edit mode) */}
+                  {task && existingAttachments.length > 0 && (
+                    <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {existingAttachments.map(doc => (
+                        <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 6, padding: '6px 10px' }}>
+                          <FileText size={12} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</span>
+                          <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0 }}>{(doc.sizeBytes / 1024).toFixed(0)} KB</span>
+                          <button
+                            type="button"
+                            title="Remove attachment"
+                            onClick={() => _deleteAttachment(doc.id).then(ok => ok && toast.success('Attachment removed'))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#64748b', lineHeight: 1 }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Pending files (new task / newly added) */}
+                  {pendingFiles.length > 0 && (
+                    <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {pendingFiles.map((file, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 6, padding: '6px 10px' }}>
+                          <Upload size={12} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontSize: 12, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                          <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0 }}>{(file.size / 1024).toFixed(0)} KB</span>
+                          <button
+                            type="button"
+                            title="Remove"
+                            onClick={() => setPendingFiles(prev => prev.filter((_, i) => i !== idx))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#64748b', lineHeight: 1 }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Drop zone / Add button */}
+                  <div
+                    style={{ border: '1px dashed #2d4068', borderRadius: 8, padding: '14px', textAlign: 'center', cursor: 'pointer', background: '#152035' }}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b82f6' }}
+                    onDragLeave={e => { e.currentTarget.style.borderColor = '#2d4068' }}
+                    onDrop={e => {
+                      e.preventDefault()
+                      e.currentTarget.style.borderColor = '#2d4068'
+                      const files = Array.from(e.dataTransfer.files)
+                      if (task) {
+                        // Edit mode: upload immediately
+                        // Handled by useDocuments — add to pendingFiles and the parent will upload
+                        setPendingFiles(prev => [...prev, ...files])
+                      } else {
+                        setPendingFiles(prev => [...prev, ...files])
+                      }
+                    }}
+                  >
+                    <Upload size={16} style={{ color: '#3b82f6', marginBottom: 4 }} />
+                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Drop files here or <span style={{ color: '#3b82f6' }}>browse</span></p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      if (e.target.files) setPendingFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                      e.target.value = ''
+                    }}
+                  />
+                </div>
+
                 {/* Summary review */}
                 <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[
@@ -1301,7 +1645,7 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
                 NEXT
               </button>
             ) : (
-              <button onClick={() => onSave(form)} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={() => onSave(form, pendingFiles)} style={{ padding: '10px 28px', border: 'none', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                 {task ? 'SAVE' : 'CREATE'}
               </button>
             )}

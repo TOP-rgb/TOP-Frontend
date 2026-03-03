@@ -8,7 +8,6 @@ import {
   Clock, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
   Calendar, FolderOpen, HeadphonesIcon, Receipt, UserCog, Bell
 } from 'lucide-react'
-import { useSettingsStore } from '@/store/settingsStore'
 import type { UserRole } from '@/types'
 
 interface NavItem {
@@ -41,18 +40,8 @@ const ICON_BG_ACTIVE = '#3b82f6'   // blue-500
 
 export function Sidebar() {
   const { user, logout } = useAuthStore()
-  const { sidebarCollapsed, toggleCollapsed } = useUIStore()
-  const {
-    notifyTimesheetApproval, notifyFlaggedTimesheets,
-    notifyJobDeadline, notifyInvoiceOverdue, notifyNewUser,
-  } = useSettingsStore()
+  const { sidebarCollapsed, toggleCollapsed, notificationCount } = useUIStore()
   const navigate = useNavigate()
-
-  // Count how many notification types are currently enabled (for badge on sidebar link)
-  const enabledNotifCount = [
-    notifyTimesheetApproval, notifyFlaggedTimesheets,
-    notifyJobDeadline, notifyInvoiceOverdue, notifyNewUser,
-  ].filter(Boolean).length
 
   const filtered = navItems.filter(item => user?.role && item.roles.includes(user.role))
 
@@ -131,14 +120,14 @@ export function Sidebar() {
             {!sidebarCollapsed && (
               <span className="truncate flex-1">{item.label}</span>
             )}
-            {/* Badge for Notifications showing active notification types */}
-            {item.path === '/notifications' && enabledNotifCount > 0 && (
+            {/* Badge showing real notification count (computed by Topbar, shared via store) */}
+            {item.path === '/notifications' && notificationCount > 0 && (
               <span className={cn(
                 'flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none',
-                'bg-blue-500 text-white',
+                'bg-red-500 text-white',
                 sidebarCollapsed && 'absolute top-1.5 right-1.5 w-4 h-4 flex items-center justify-center p-0'
               )}>
-                {enabledNotifCount}
+                {notificationCount > 99 ? '99+' : notificationCount}
               </span>
             )}
           </NavLink>

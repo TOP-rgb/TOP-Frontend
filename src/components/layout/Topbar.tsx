@@ -1,5 +1,5 @@
 import { Bell, Search, LogOut, Building2 } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -36,7 +36,7 @@ const notifIcons: Record<string, string> = {
 
 export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const { user, logout } = useAuthStore()
-  const { sidebarCollapsed } = useUIStore()
+  const { sidebarCollapsed, setNotificationCount } = useUIStore()
   const {
     orgName, dateFormat,
     notifyTimesheetApproval, notifyInvoiceOverdue,
@@ -177,6 +177,11 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
   ])
 
   const unreadCount = allNotifications.filter(n => n.unread).length
+
+  // Keep sidebar badge in sync with the real notification count
+  useEffect(() => {
+    setNotificationCount(allNotifications.length)
+  }, [allNotifications.length, setNotificationCount])
 
   const handleLogout = () => {
     logout()

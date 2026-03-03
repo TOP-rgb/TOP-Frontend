@@ -18,6 +18,8 @@ import { Invoices } from '@/pages/Invoices'
 import { Reports } from '@/pages/Reports'
 import { Settings } from '@/pages/Settings'
 import { Notifications } from '@/pages/Notifications'
+import { Documents } from '@/pages/Documents'
+import { Calendar } from '@/pages/Calendar'
 import type { UserRole } from '@/types'
 
 /** Loads org locale settings after login so Reports picks up correct currency */
@@ -95,6 +97,8 @@ export default function App() {
               <RequireRole roles={['admin']}><Settings /></RequireRole>
             } />
             <Route path="notifications" element={<Notifications />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="calendar" element={<Calendar />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

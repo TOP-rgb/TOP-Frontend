@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   Building2, Globe, Users, Briefcase, DollarSign, Bell,
@@ -917,6 +917,132 @@ function IntegrationsSection() {
 
   const regenerateKey = () => save('api_key', { apiKey: 'regenerate' })
 
+  // ── Document Storage ──────────────────────────────────────────────────────
+  const API_BASE_URL = (import.meta as { env: Record<string, string> }).env.VITE_API_URL || 'https://top-backend-l2ax.onrender.com/api'
+  const [storageBackend, setStorageBackend] = useState<'db' | 'google' | 'onedrive'>('db')
+  const [storageConnected, setStorageConnected] = useState<{ google: boolean; onedrive: boolean }>({ google: false, onedrive: false })
+  const [storageSaving, setStorageSaving] = useState(false)
+  const [storageLoading, setStorageLoading] = useState(true)
+
+  // Per-provider permission toggles
+  const [providerPerms, setProviderPerms] = useState({
+    allowUserGoogleCalendar: true,
+    allowUserMicrosoftCalendar: true,
+    allowUserGoogleDrive: false,
+    allowUserMicrosoftDrive: false,
+  })
+  const [savingPerm, setSavingPerm] = useState<string | null>(null)
+
+  type StorageSettings = {
+    storageBackend: string
+    storageConfig?: { googleTokens?: unknown; microsoftTokens?: unknown } | null
+    allowUserStorage?: boolean
+    allowUserGoogleCalendar?: boolean
+    allowUserMicrosoftCalendar?: boolean
+    allowUserGoogleDrive?: boolean
+    allowUserMicrosoftDrive?: boolean
+  }
+
+  const loadStorageSettings = useCallback(() => {
+    return api.get<{ success: boolean; data: { settings: StorageSettings } }>('/settings')
+      .then(res => {
+        if (res.success && res.data?.settings) {
+          const s = res.data.settings
+          if (s.storageBackend) setStorageBackend(s.storageBackend as 'db' | 'google' | 'onedrive')
+          setStorageConnected({
+            google: !!s.storageConfig?.googleTokens,
+            onedrive: !!s.storageConfig?.microsoftTokens,
+          })
+          setProviderPerms({
+            allowUserGoogleCalendar:    typeof s.allowUserGoogleCalendar    === 'boolean' ? s.allowUserGoogleCalendar    : true,
+            allowUserMicrosoftCalendar: typeof s.allowUserMicrosoftCalendar === 'boolean' ? s.allowUserMicrosoftCalendar : true,
+            allowUserGoogleDrive:       typeof s.allowUserGoogleDrive       === 'boolean' ? s.allowUserGoogleDrive       : false,
+            allowUserMicrosoftDrive:    typeof s.allowUserMicrosoftDrive    === 'boolean' ? s.allowUserMicrosoftDrive    : false,
+          })
+        }
+      })
+  }, [])
+
+  const togglePerm = async (key: keyof typeof providerPerms) => {
+    setSavingPerm(key)
+    try {
+      const next = !providerPerms[key]
+      const res = await api.patch<{ success: boolean }>('/settings/storage', { [key]: next })
+      if (res.success) {
+        setProviderPerms(p => ({ ...p, [key]: next }))
+        toast.success('Setting updated')
+      } else {
+        toast.error('Failed to update setting')
+      }
+    } catch { toast.error('Failed to update setting') }
+    finally { setSavingPerm(null) }
+  }
+
+  useEffect(() => {
+    loadStorageSettings().finally(() => setStorageLoading(false))
+  }, [loadStorageSettings])
+
+  // Handle redirect back from OAuth (Google/Microsoft post-connect)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const success = params.get('success')
+    const error = params.get('error')
+    if (success === 'google_drive') {
+      toast.success('Google Drive connected successfully!')
+      loadStorageSettings()
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (success === 'onedrive') {
+      toast.success('OneDrive connected successfully!')
+      loadStorageSettings()
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (error === 'oauth_failed') {
+      toast.error('OAuth connection failed. Please try again.')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [loadStorageSettings])
+
+  const saveStorageBackend = async (backend: 'db' | 'google' | 'onedrive') => {
+    setStorageSaving(true)
+    try {
+      const res = await api.put<{ success: boolean }>('/documents/storage/backend', { storageBackend: backend })
+      if (res.success) {
+        setStorageBackend(backend)
+        toast.success('Storage backend updated')
+      } else {
+        toast.error('Failed to update storage backend')
+      }
+    } catch { toast.error('Failed to update storage backend') }
+    finally { setStorageSaving(false) }
+  }
+
+  const connectGoogleDrive = () => {
+    const token = localStorage.getItem('top_jwt_token')
+    window.location.href = `${API_BASE_URL}/documents/oauth/google?token=${token}`
+  }
+
+  const connectOneDrive = () => {
+    const token = localStorage.getItem('top_jwt_token')
+    window.location.href = `${API_BASE_URL}/documents/oauth/microsoft?token=${token}`
+  }
+
+  const disconnectStorage = async (provider: 'google' | 'microsoft') => {
+    setStorageSaving(true)
+    try {
+      const res = await api.delete<{ success: boolean }>(`/documents/storage/connection/${provider}`)
+      if (res.success) {
+        setStorageBackend('db')
+        setStorageConnected(prev => ({
+          ...prev,
+          [provider === 'google' ? 'google' : 'onedrive']: false,
+        }))
+        toast.success(`${provider === 'google' ? 'Google Drive' : 'OneDrive'} disconnected`)
+      } else {
+        toast.error('Failed to disconnect')
+      }
+    } catch { toast.error('Failed to disconnect') }
+    finally { setStorageSaving(false) }
+  }
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>
 
   const serviceCards: { service: string; title: string; icon: string; description: string; hasApiKey: boolean; hasWebhook: boolean; hasLabel: boolean }[] = [
@@ -938,6 +1064,83 @@ function IntegrationsSection() {
           <button onClick={() => setRawKey(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#854d0e' }}><X size={18} /></button>
         </div>
       )}
+
+      {/* ── Document Storage card ── */}
+      <div style={card}>
+        {/* <div style={cardHead}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 24 }}>🗄️</div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Document Storage</div>
+              <div style={{ fontSize: 12, color: '#9ca3af', maxWidth: 440 }}>
+                Choose where uploaded files are stored. Google Drive and OneDrive require OAuth connection.
+              </div>
+            </div>
+          </div>
+          {storageSaving && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: '#6b7280' }} />}
+        </div> */}
+        <div style={cardBody}>
+          {storageLoading ? (
+            <div style={{ color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              
+            </div>
+          )}
+
+          {/* ── User Integration Permissions ── */}
+          {!storageLoading && (() => {
+            const permRows: { key: keyof typeof providerPerms; label: string; desc: string }[] = [
+              { key: 'allowUserGoogleCalendar',    label: 'Allow Google Calendar',    desc: 'Let users connect their personal Google Calendar to sync meetings.' },
+              { key: 'allowUserMicrosoftCalendar', label: 'Allow Microsoft Calendar', desc: 'Let users connect their Outlook/Microsoft Calendar to sync meetings.' },
+              { key: 'allowUserGoogleDrive',       label: 'Allow Google Drive',       desc: 'Let users connect their personal Google Drive for file storage.' },
+              { key: 'allowUserMicrosoftDrive',    label: 'Allow OneDrive',           desc: 'Let users connect their personal Microsoft OneDrive for file storage.' },
+            ]
+            return (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                  User Integration Permissions
+                </div>
+                {permRows.map(({ key, label, desc }) => {
+                  const enabled = providerPerms[key]
+                  const saving = savingPerm === key
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{label}</div>
+                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 1 }}>{desc}</div>
+                      </div>
+                      <button
+                        onClick={() => togglePerm(key)}
+                        disabled={saving}
+                        style={{
+                          flexShrink: 0,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '6px 14px',
+                          background: enabled ? '#6366f1' : '#f3f4f6',
+                          color: enabled ? '#fff' : '#374151',
+                          border: `1.5px solid ${enabled ? '#6366f1' : '#e5e7eb'}`,
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: saving ? 'not-allowed' : 'pointer',
+                          transition: 'background .15s, color .15s',
+                          opacity: saving ? 0.6 : 1,
+                          minWidth: 80,
+                        }}
+                      >
+                        {saving ? 'Saving…' : enabled ? '✓ Enabled' : 'Disabled'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+        </div>
+      </div>
 
       {serviceCards.map(({ service, title, icon, description, hasApiKey, hasWebhook, hasLabel }) => {
         const intg = getIntg(service)
@@ -1171,6 +1374,14 @@ function SaveButton({ saving, section, label: lbl = 'Save Changes', onClick }: {
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('organisation')
   const { data, taskTypes, loading, saving, save, createTaskType, updateTaskType, deleteTaskType, reorderTaskTypes } = useSettings()
+
+  // Auto-switch to integrations tab when redirected back from OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('section') === 'integrations') {
+      setActiveTab('integrations')
+    }
+  }, [])
 
   return (
     <div style={{ fontFamily: 'inherit' }}>
