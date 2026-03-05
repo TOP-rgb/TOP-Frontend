@@ -27,6 +27,8 @@ interface ApiJob {
   margin: number | null
   jobScore: number | null
   assignedManager: string | null
+  layoutId: string | null
+  customFieldValues: Record<string, unknown> | null
   createdAt: string
 }
 
@@ -55,6 +57,8 @@ function normaliseJob(j: ApiJob): Job {
     margin: j.margin ?? undefined,
     jobScore: j.jobScore ?? undefined,
     assignedManager: j.assignedManager ?? '',
+    layoutId: j.layoutId ?? undefined,
+    customFieldValues: j.customFieldValues ?? undefined,
   }
 }
 

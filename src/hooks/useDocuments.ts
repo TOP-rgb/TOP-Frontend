@@ -32,6 +32,7 @@ export interface OrgDocument {
   invoiceId: string | null
   uploadedById: string
   uploadedBy: DocumentUploader
+  task?: { id: string; title: string } | null
   createdAt: string
   updatedAt: string
 }

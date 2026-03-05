@@ -14,12 +14,15 @@ interface ApiTask {
   billable: boolean
   status: string
   description: string | null
+  notes: string | null
   startedAt: string | null
   completedAt: string | null
   createdAt: string
   timerRunning: boolean
   timerSeconds: number
   lastStartedAt: string | null
+  layoutId: string | null
+  customFieldValues: Record<string, unknown> | null
   job: {
     id: string
     jobId: string
@@ -67,6 +70,9 @@ function normaliseTask(t: ApiTask): Task {
     timerRunning: t.timerRunning || false,
     timerSeconds,
     description: t.description ?? undefined,
+    notes: t.notes ?? undefined,
+    layoutId: t.layoutId ?? undefined,
+    customFieldValues: t.customFieldValues ?? undefined,
   }
 }
 
@@ -245,10 +251,26 @@ export function useTasks(options: UseTasksOptions = {}) {
     }
   }
 
+  /**
+   * Update task notes (employee-only).
+   * Only assigned employees can edit notes. Managers/admins can view but not edit.
+   */
+  const updateNotes = async (id: string, notes: string): Promise<boolean> => {
+    try {
+      const res = await api.patch<ApiResponse<ApiTask>>(`/tasks/${id}/notes`, { notes })
+      const updated = normaliseTask(res.data)
+      setTasks(prev => prev.map(t => t.id === id ? { ...updated, timerRunning: t.timerRunning, timerSeconds: t.timerSeconds } : t))
+      return true
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to update notes')
+      return false
+    }
+  }
+
   return {
     tasks, setTasks, loading, error, refetch: fetchTasks,
     createTask, updateTask, updateStatus, deleteTask,
-    startTimer, pauseTimer,
+    startTimer, pauseTimer, updateNotes,
     setTimerSeconds, tickTimer, setTimerRunning, updateTimer,
   }
 }

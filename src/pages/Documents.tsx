@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
@@ -6,6 +6,7 @@ import {
   Upload, FolderPlus, Download, Trash2, X, Search,
   LayoutGrid, List, ChevronRight, HardDrive, Cloud,
   ExternalLink, MoreHorizontal, Check, Edit2, AlertTriangle, Settings,
+  ClipboardList,
 } from 'lucide-react'
 import { useDocuments, type OrgDocument, type DocumentFolder } from '@/hooks/useDocuments'
 import { api } from '@/lib/api'
@@ -364,6 +365,8 @@ const STORAGE_INFO = {
 export function Documents() {
   const navigate = useNavigate()
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [tasksExpanded, setTasksExpanded] = useState(false)
   const [selectedDoc, setSelectedDoc] = useState<OrgDocument | null>(null)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [searchQuery, setSearchQuery] = useState('')
@@ -464,12 +467,33 @@ export function Documents() {
     createFolder, renameFolder, deleteFolder,
     uploadFile, deleteDocument, downloadDocument,
     refetchDocuments,
-  } = useDocuments({ folderId: activeFolderId ?? undefined })
+  } = useDocuments({
+    folderId: activeFolderId ?? undefined,
+    taskId: activeTaskId ?? undefined,
+  })
 
-  // Re-fetch when folder changes
+  // Re-fetch when folder or task changes
   useEffect(() => {
     refetchDocuments()
-  }, [activeFolderId, refetchDocuments])
+  }, [activeFolderId, activeTaskId, refetchDocuments])
+
+  // ── Derive unique tasks from documents for sidebar ─────────────────────────
+  // We fetch ALL documents (no folder/task filter) to build the sidebar task list
+  const { documents: allDocs } = useDocuments({ autoLoad: true })
+  const taskGroups = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; count: number }>()
+    for (const doc of allDocs) {
+      if (doc.taskId && doc.task) {
+        const existing = map.get(doc.taskId)
+        if (existing) {
+          existing.count++
+        } else {
+          map.set(doc.taskId, { id: doc.task.id, title: doc.task.title, count: 1 })
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.title.localeCompare(b.title))
+  }, [allDocs])
 
   const filteredDocs = documents.filter((d) =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -522,6 +546,14 @@ export function Documents() {
 
   // Get breadcrumb path
   const getBreadcrumb = () => {
+    if (activeTaskId) {
+      const taskGroup = taskGroups.find((t) => t.id === activeTaskId)
+      return [
+        { id: null, name: 'All Files' },
+        { id: `task:${activeTaskId}`, name: `Tasks` },
+        { id: `task:${activeTaskId}`, name: taskGroup?.title ?? 'Task' },
+      ]
+    }
     if (!activeFolderId) return [{ id: null, name: 'All Files' }]
     const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'All Files' }]
     const findPath = (folders: typeof import('@/hooks/useDocuments').DocumentFolder[], targetId: string): boolean => {
@@ -558,9 +590,9 @@ export function Documents() {
           {/* All Files */}
           <div
             className={`flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm ${
-              activeFolderId === null ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-700'
+              activeFolderId === null && activeTaskId === null ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-700'
             }`}
-            onClick={() => setActiveFolderId(null)}
+            onClick={() => { setActiveFolderId(null); setActiveTaskId(null) }}
           >
             <Folder className="w-4 h-4 text-slate-400" />
             All Files
@@ -571,7 +603,7 @@ export function Documents() {
               key={folder.id}
               folder={folder}
               activeId={activeFolderId}
-              onSelect={setActiveFolderId}
+              onSelect={(id) => { setActiveFolderId(id); setActiveTaskId(null) }}
               onRename={async (id, name) => {
                 const ok = await renameFolder(id, name)
                 if (!ok) toast.error('Failed to rename folder')
@@ -580,6 +612,35 @@ export function Documents() {
               onNewChild={(parentId) => handleNewFolder(parentId)}
             />
           ))}
+
+          {/* ── Tasks virtual section ── */}
+          {taskGroups.length > 0 && (
+            <>
+              <div className="border-t border-slate-100 my-2" />
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm text-slate-500 hover:bg-slate-50 select-none"
+                onClick={() => setTasksExpanded((p) => !p)}
+              >
+                <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${tasksExpanded ? 'rotate-90' : ''}`} />
+                <ClipboardList className="w-4 h-4 text-slate-400" />
+                <span className="font-medium text-xs uppercase tracking-wider">Tasks</span>
+                <span className="ml-auto text-xs text-slate-400">{taskGroups.length}</span>
+              </div>
+              {tasksExpanded && taskGroups.map((tg) => (
+                <div
+                  key={tg.id}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm ml-4 ${
+                    activeTaskId === tg.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-600'
+                  }`}
+                  onClick={() => { setActiveTaskId(tg.id); setActiveFolderId(null) }}
+                >
+                  <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className="flex-1 min-w-0 truncate">{tg.title}</span>
+                  <span className="text-xs text-slate-400 shrink-0">{tg.count}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         {/* ── Your Storage section (shown when admin enabled at least one drive provider) ── */}
@@ -703,7 +764,11 @@ export function Documents() {
               <div key={i} className="flex items-center gap-1">
                 {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
                 <button
-                  onClick={() => setActiveFolderId(crumb.id)}
+                  onClick={() => {
+                    if (crumb.id === null) { setActiveFolderId(null); setActiveTaskId(null) }
+                    else if (typeof crumb.id === 'string' && crumb.id.startsWith('task:')) { /* already viewing task */ }
+                    else setActiveFolderId(crumb.id)
+                  }}
                   className={`hover:text-blue-600 ${i === breadcrumb.length - 1 ? 'font-medium text-slate-900' : 'text-slate-500'}`}
                 >
                   {crumb.name}
@@ -741,26 +806,30 @@ export function Documents() {
             </button>
           </div>
 
-          {/* Actions */}
-          <button
-            onClick={() => handleNewFolder(activeFolderId)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
-          >
-            <FolderPlus className="w-4 h-4" /> New Folder
-          </button>
-          <button
-            onClick={() => uploadDisabled ? toast.error(`Connect ${storageInfo.label} in Settings first`) : fileInputRef.current?.click()}
-            disabled={uploading}
-            title={uploadDisabled ? `Connect ${storageInfo.label} in Settings to enable uploads` : undefined}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg disabled:opacity-50 ${
-              uploadDisabled
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            <Upload className="w-4 h-4" />
-            {uploading ? 'Uploading…' : 'Upload'}
-          </button>
+          {/* Actions — hidden when viewing task files */}
+          {!activeTaskId && (
+            <>
+              <button
+                onClick={() => handleNewFolder(activeFolderId)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                <FolderPlus className="w-4 h-4" /> New Folder
+              </button>
+              <button
+                onClick={() => uploadDisabled ? toast.error(`Connect ${storageInfo.label} in Settings first`) : fileInputRef.current?.click()}
+                disabled={uploading}
+                title={uploadDisabled ? `Connect ${storageInfo.label} in Settings to enable uploads` : undefined}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg disabled:opacity-50 ${
+                  uploadDisabled
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                {uploading ? 'Uploading…' : 'Upload'}
+              </button>
+            </>
+          )}
           <input
             ref={fileInputRef}
             type="file"

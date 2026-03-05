@@ -83,6 +83,8 @@ export interface Job {
   profit?: number
   margin?: number
   jobScore?: number
+  layoutId?: string
+  customFieldValues?: Record<string, unknown>
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'completed'
@@ -108,6 +110,9 @@ export interface Task {
   timerRunning: boolean
   timerSeconds: number
   description?: string
+  notes?: string           // Employee notes — only assignees can edit, managers/admins can view
+  layoutId?: string
+  customFieldValues?: Record<string, unknown>
 }
 
 // ── Invoice ──────────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ import {
   DollarSign, Timer, Square, Loader2, User, X,
   FileText, Calendar, Tag, Search, Check, Layout, Star,
   Paperclip, Upload, Download, Trash2, Image, Film, File, Eye,
+  MessageSquare, Save, Columns3,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSettings } from '@/hooks/useSettings'
@@ -385,7 +386,10 @@ function TaskDetailModal({
   onEdit,
   canEdit,
   taskTypes,
-  dateFormat
+  dateFormat,
+  currentUserId,
+  currentUserRole,
+  onUpdateNotes,
 }: {
   task: Task
   users: Array<{ id: string; name: string; email: string }>
@@ -395,6 +399,9 @@ function TaskDetailModal({
   canEdit: boolean
   taskTypes: Array<{ name: string; color: string }>
   dateFormat: string
+  currentUserId: string
+  currentUserRole: string
+  onUpdateNotes: (taskId: string, notes: string) => Promise<boolean>
 }) {
   const statusLabel: Record<string, string> = {
     todo: 'To Do',
@@ -416,6 +423,25 @@ function TaskDetailModal({
   // Attachments
   const { documents: taskAttachments, uploading: attachUploading, uploadFile: attachUploadFile, deleteDocument: attachDeleteDoc } = useDocuments({ taskId: task.id })
   const detailFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Notes state
+  const isAssignee = (task.assignedToIds || []).includes(currentUserId)
+  const isManagerAdmin = ['manager', 'admin'].includes(currentUserRole)
+  const canEditNotes = isAssignee  // Only assignees can edit notes
+  const canViewNotes = isAssignee || isManagerAdmin  // Assignees + managers/admins can view
+  const [notesValue, setNotesValue] = useState(task.notes || '')
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [notesSaved, setNotesSaved] = useState(false)
+
+  const handleSaveNotes = async () => {
+    setNotesSaving(true)
+    const ok = await onUpdateNotes(task.id, notesValue)
+    setNotesSaving(false)
+    if (ok) {
+      setNotesSaved(true)
+      setTimeout(() => setNotesSaved(false), 2000)
+    }
+  }
 
   const secLabel: React.CSSProperties = {
     fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase',
@@ -627,6 +653,71 @@ function TaskDetailModal({
             />
           </div>
 
+          {/* Employee Notes */}
+          {canViewNotes && (
+            <div style={card}>
+              <div style={{ ...secLabel, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <MessageSquare size={10} /> Employee Notes
+                </span>
+                {canEditNotes && notesValue !== (task.notes || '') && (
+                  <button
+                    type="button"
+                    onClick={handleSaveNotes}
+                    disabled={notesSaving}
+                    style={{
+                      fontSize: 10, color: '#22c55e', background: 'none', border: 'none',
+                      cursor: notesSaving ? 'not-allowed' : 'pointer', padding: 0,
+                      display: 'flex', alignItems: 'center', gap: 3, fontWeight: 700,
+                    }}
+                  >
+                    <Save size={10} /> {notesSaving ? 'Saving…' : 'Save'}
+                  </button>
+                )}
+                {notesSaved && (
+                  <span style={{ fontSize: 10, color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Check size={10} /> Saved
+                  </span>
+                )}
+              </div>
+              {canEditNotes ? (
+                <div>
+                  <textarea
+                    value={notesValue}
+                    onChange={e => setNotesValue(e.target.value)}
+                    placeholder="Add your notes here… (only you and other assignees can edit)"
+                    style={{
+                      width: '100%', minHeight: 80, padding: '10px 12px',
+                      background: '#152035', border: '1px solid #2d4068', borderRadius: 8,
+                      color: '#e2e8f0', fontSize: 13, fontFamily: 'inherit', resize: 'vertical',
+                      outline: 'none', lineHeight: 1.6, boxSizing: 'border-box',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = '#3b82f6')}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = '#2d4068'
+                      // Auto-save on blur if changed
+                      if (notesValue !== (task.notes || '')) handleSaveNotes()
+                    }}
+                  />
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>
+                    Only assigned employees can edit notes. Managers and admins can view.
+                  </div>
+                </div>
+              ) : (
+                // Read-only view for managers/admins
+                notesValue ? (
+                  <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>
+                    {notesValue}
+                  </p>
+                ) : (
+                  <p style={{ fontSize: 12, color: '#475569', margin: 0, fontStyle: 'italic' }}>
+                    No notes added by the employee yet.
+                  </p>
+                )
+              )}
+            </div>
+          )}
+
           {/* Footer buttons */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 'auto', paddingTop: 8 }}>
             <button onClick={onClose}
@@ -658,15 +749,79 @@ export function Tasks() {
   const [selected, setSelected] = useState<Task | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const { tasks, loading, error, createTask, updateTask, updateStatus, tickTimer, startTimer, pauseTimer } = useTasks()
+  const { tasks, loading, error, createTask, updateTask, updateStatus, tickTimer, startTimer, pauseTimer, updateNotes } = useTasks()
   const { jobs } = useJobs()
   const { users } = useUsers({ status: 'active' })
   const { taskTypes } = useSettings()
   const activeTaskTypes = taskTypes?.filter(t => t.isActive) || []
-
+  const isManager = user?.role !== 'employee'
   // Page-level layout — drives the status tab/filter options in the table
   const { defaultLayout: pageTaskLayout } = useTaskLayouts()
   const pageTaskStatusOpts: string[] = pageTaskLayout?.fields.find(f => f.key === 'status')?.options ?? ['todo', 'in_progress', 'completed']
+
+  // ── Column visibility (including custom fields from layout) ─────────────────
+  const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const columnPickerRef = useRef<HTMLDivElement>(null)
+
+  const taskCustomFields: LayoutField[] = pageTaskLayout?.fields.filter(f => !f.system) ?? []
+
+  type TaskColumnDef = {
+    key: string
+    label: string
+    defaultVisible: boolean
+    isCustom?: boolean
+    customField?: LayoutField
+  }
+
+  const allTaskColumns: TaskColumnDef[] = [
+    { key: 'jobId',         label: 'Job ID',        defaultVisible: true },
+    { key: 'taskName',      label: 'Task Name',     defaultVisible: true },
+    { key: 'taskType',      label: 'Task Type',     defaultVisible: true },
+    { key: 'priority',      label: 'Priority',      defaultVisible: true },
+    { key: 'assignedTo',    label: isManager ? 'Assigned To' : 'Assigned By', defaultVisible: true },
+    { key: 'estHours',      label: 'Est. Hours',    defaultVisible: true },
+    { key: 'billingType',   label: 'Billing Type',  defaultVisible: true },
+    { key: 'taskStatus',    label: 'Task Status',   defaultVisible: true },
+    { key: 'timeTracking',  label: 'Time Tracking', defaultVisible: true },
+    ...taskCustomFields.map(f => ({
+      key: `cf_${f.key}`,
+      label: f.label,
+      defaultVisible: false,
+      isCustom: true,
+      customField: f,
+    })),
+  ]
+
+  const TASK_COLUMNS_KEY = 'top_tasks_visible_columns'
+  const [visibleTaskColumns, setVisibleTaskColumns] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(TASK_COLUMNS_KEY)
+      if (saved) return new Set(JSON.parse(saved))
+    } catch { /* ignore */ }
+    return new Set(allTaskColumns.filter(c => c.defaultVisible).map(c => c.key))
+  })
+
+  const toggleTaskColumn = (key: string) => {
+    setVisibleTaskColumns(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      localStorage.setItem(TASK_COLUMNS_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(e.target as Node)) {
+        setShowColumnPicker(false)
+      }
+    }
+    if (showColumnPicker) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showColumnPicker])
+
+  const activeTaskCols = allTaskColumns.filter(c => visibleTaskColumns.has(c.key))
 
   // Tick running timers locally every second
   useEffect(() => {
@@ -683,7 +838,7 @@ export function Tasks() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks.filter(t => t.timerRunning).map(t => t.id).join(',')])
 
-  const isManager = user?.role !== 'employee'
+  
   const userTasks = isManager
     ? tasks
     : tasks.filter(t => t.assignedToIds?.includes(user?.id ?? ''))
@@ -827,167 +982,255 @@ export function Tasks() {
                 <input placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)}
                   style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 180 }} />
               </div>
+
+              {/* Column picker */}
+              <div style={{ position: 'relative' }} ref={columnPickerRef}>
+                <button
+                  onClick={() => setShowColumnPicker(p => !p)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7,
+                    background: showColumnPicker ? '#f3f4f6' : '#fff',
+                    fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500,
+                  }}
+                  title="Choose columns"
+                >
+                  <Columns3 size={13} /> Columns
+                </button>
+
+                {showColumnPicker && (
+                  <div style={{
+                    position: 'absolute', right: 0, top: '100%', marginTop: 6,
+                    background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
+                    boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 240, zIndex: 50,
+                    maxHeight: 400, overflowY: 'auto',
+                  }}>
+                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        System Columns
+                      </span>
+                    </div>
+                    {allTaskColumns.filter(c => !c.isCustom).map(col => (
+                      <label
+                        key={col.key}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
+                          background: visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
+                        onMouseLeave={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={visibleTaskColumns.has(col.key)}
+                          onChange={() => toggleTaskColumn(col.key)}
+                          style={{ accentColor: '#2563eb', width: 15, height: 15 }}
+                        />
+                        {col.label}
+                      </label>
+                    ))}
+
+                    {taskCustomFields.length > 0 && (
+                      <>
+                        <div style={{ padding: '10px 14px', borderTop: '1px solid #f1f3f9', borderBottom: '1px solid #f1f3f9' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Custom Fields
+                          </span>
+                        </div>
+                        {allTaskColumns.filter(c => c.isCustom).map(col => (
+                          <label
+                            key={col.key}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
+                              background: visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
+                            onMouseLeave={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={visibleTaskColumns.has(col.key)}
+                              onChange={() => toggleTaskColumn(col.key)}
+                              style={{ accentColor: '#2563eb', width: 15, height: 15 }}
+                            />
+                            {col.label}
+                          </label>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Table with horizontal scroll */}
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1400px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${Math.max(1000, activeTaskCols.length * 140)}px` }}>
               <thead>
                 <tr style={{ background: '#f9fafb' }}>
-                  {[
-                    { label: 'Job ID', width: '100px' },
-                    { label: 'Task Name', width: '250px' },
-                    { label: 'Task Type', width: '140px' },
-                    { label: 'Priority', width: '110px' },
-                    { label: isManager ? 'Assigned To' : 'Assigned By', width: '200px' },
-                    { label: 'Est. Hours', width: '100px' },
-                    { label: 'Billing Type', width: '120px' },
-                    { label: 'Task Status', width: '120px' },
-                    { label: 'Time Tracking', width: '140px' },
-                    { label: '', width: '100px' }
-                  ].map(h => (
-                    <th key={h.label} style={{ 
-                      textAlign: 'left', 
-                      padding: '11px 16px', 
-                      fontSize: 11, 
-                      fontWeight: 600, 
-                      color: '#6b7280', 
-                      textTransform: 'uppercase', 
-                      letterSpacing: '0.05em', 
-                      whiteSpace: 'nowrap',
-                      width: h.width
+                  {activeTaskCols.map(col => (
+                    <th key={col.key} style={{
+                      textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600,
+                      color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
                     }}>
-                      {h.label}
+                      {col.label}
                     </th>
                   ))}
+                  <th style={{ padding: '11px 16px', width: '100px' }} />
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <tr><td colSpan={activeTaskCols.length + 1} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
                     {tasks.length === 0 ? 'No tasks yet. Create one to get started.' : 'No tasks match your filters.'}
                   </td></tr>
                 ) : filtered.map((task, i) => {
-                  // Get priority from associated job for display
                   const jobPriority = jobs.find(j => j.id === task.jobId)?.priority
-                  
+
+                  const renderTaskCFValue = (cf: LayoutField | undefined) => {
+                    if (!cf) return '—'
+                    const val = task.customFieldValues?.[cf.key]
+                    if (val === undefined || val === null || val === '') return '—'
+                    if (cf.type === 'checkbox') return val ? 'Yes' : 'No'
+                    if (cf.type === 'date') return formatDateWithSettings(String(val), dateFormat)
+                    if (cf.type === 'number') return String(val)
+                    return String(val)
+                  }
+
                   return (
                     <tr key={task.id} style={{ borderTop: '1px solid #f1f3f9', background: task.timerRunning ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                      {/* Job ID */}
-                      <td style={{ padding: '13px 16px' }}>
-                        {(() => { const j = jobs.find(j => j.id === task.jobId); return (
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>
-                            {j?.jobId || '—'}
-                          </span>
-                        )})()}
-                      </td>
-                      {/* Task Name */}
-                      <td style={{ padding: '13px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <StatusDot status={task.status} />
-                          <div style={{ minWidth: 0 }}>
-                            <span
-                              onClick={() => setDetailTask(task)}
-                              style={{ fontWeight: 600, fontSize: 13, color: '#1a1f36', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#d1d5db', textUnderlineOffset: 2, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
-                              title={task.name}
-                            >
-                              {task.name}
-                            </span>
-                            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={`${task.clientName} · ${task.jobTitle}`}>
-                              {task.clientName} · {task.jobTitle}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Task Type */}
-                      <td style={{ padding: '13px 16px' }}>
-                        <TaskTypeBadge type={task.type} taskTypes={activeTaskTypes} />
-                      </td>
-                      {/* Priority - Now from job */}
-                      <td style={{ padding: '13px 16px' }}>
-                        <PriorityBadge priority={jobPriority} />
-                      </td>
-                      {/* Assigned To / By */}
-                      <td style={{ padding: '13px 16px' }}>
-                        {isManager ? (
-                          <AssignedUsers userIds={task.assignedToIds || []} users={users} />
-                        ) : (
-                          task.createdByName ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                                {task.createdByName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
-                              </div>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1f36', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByName}>
-                                  {task.createdByName}
-                                </div>
-                                {task.createdByEmail && (
-                                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByEmail}>
-                                    {task.createdByEmail}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
-                          )
-                        )}
-                      </td>
-                      {/* Est. Hours */}
-                      <td style={{ padding: '13px 16px', fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{task.estimatedHours}h</td>
-                      {/* Billing Type */}
-                      <td style={{ padding: '13px 16px' }}>
-                        <BillablePill billable={task.billable} />
-                      </td>
-                      {/* Task Status — inline dropdown for managers, badge for employees */}
-                      <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                        {canEdit ? (
-                          <select
-                            value={task.status}
-                            onChange={e => updateStatus(task.id, e.target.value as TaskStatus)}
-                            style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
-                          >
-                            {pageTaskStatusOpts.map(s => (
-                              <option key={s} value={s}>
-                                {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          (() => {
-                            const statusColorMap: Record<string, { color: string; bg: string }> = {
-                              completed:   { color: '#16a34a', bg: '#dcfce7' },
-                              in_progress: { color: '#2563eb', bg: '#dbeafe' },
-                              todo:        { color: '#6b7280', bg: '#f1f5f9' },
-                            }
-                            const sc = statusColorMap[task.status] ?? { color: '#6b7280', bg: '#f1f5f9' }
+                      {activeTaskCols.map(col => {
+                        const tdStyle: React.CSSProperties = { padding: '13px 16px', fontSize: 13 }
+
+                        switch (col.key) {
+                          case 'jobId':
                             return (
-                              <span style={{ color: sc.color, background: sc.bg, fontWeight: 600, fontSize: 11, padding: '3px 8px', borderRadius: 6 }}>
-                                {task.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              </span>
+                              <td key={col.key} style={tdStyle}>
+                                {(() => { const j = jobs.find(j => j.id === task.jobId); return (
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>
+                                    {j?.jobId || '—'}
+                                  </span>
+                                )})()}
+                              </td>
                             )
-                          })()
-                        )}
-                      </td>
-                      {/* Time Tracking */}
-                      <td style={{ padding: '13px 16px' }}>
-                        {task.timerRunning ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
-                            <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#2563eb', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
-                          </div>
-                        ) : task.timerSeconds > 0 ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Pause size={11} color="#94a3b8" style={{ flexShrink: 0 }} />
-                            <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
-                            <strong>{task.actualHours}h</strong><span style={{ color: '#9ca3af' }}> / {task.estimatedHours}h</span>
-                          </span>
-                        )}
-                      </td>
+                          case 'taskName':
+                            return (
+                              <td key={col.key} style={tdStyle}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <StatusDot status={task.status} />
+                                  <div style={{ minWidth: 0 }}>
+                                    <span
+                                      onClick={() => setDetailTask(task)}
+                                      style={{ fontWeight: 600, fontSize: 13, color: '#1a1f36', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#d1d5db', textUnderlineOffset: 2, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
+                                      title={task.name}
+                                    >
+                                      {task.name}
+                                    </span>
+                                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={`${task.clientName} · ${task.jobTitle}`}>
+                                      {task.clientName} · {task.jobTitle}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            )
+                          case 'taskType':
+                            return <td key={col.key} style={tdStyle}><TaskTypeBadge type={task.type} taskTypes={activeTaskTypes} /></td>
+                          case 'priority':
+                            return <td key={col.key} style={tdStyle}><PriorityBadge priority={jobPriority} /></td>
+                          case 'assignedTo':
+                            return (
+                              <td key={col.key} style={tdStyle}>
+                                {isManager ? (
+                                  <AssignedUsers userIds={task.assignedToIds || []} users={users} />
+                                ) : (
+                                  task.createdByName ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                                        {task.createdByName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
+                                      </div>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1f36', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByName}>
+                                          {task.createdByName}
+                                        </div>
+                                        {task.createdByEmail && (
+                                          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByEmail}>
+                                            {task.createdByEmail}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
+                                  )
+                                )}
+                              </td>
+                            )
+                          case 'estHours':
+                            return <td key={col.key} style={{ ...tdStyle, color: '#374151', whiteSpace: 'nowrap' }}>{task.estimatedHours}h</td>
+                          case 'billingType':
+                            return <td key={col.key} style={tdStyle}><BillablePill billable={task.billable} /></td>
+                          case 'taskStatus':
+                            return (
+                              <td key={col.key} style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                                {canEdit ? (
+                                  <select
+                                    value={task.status}
+                                    onChange={e => updateStatus(task.id, e.target.value as TaskStatus)}
+                                    style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                  >
+                                    {pageTaskStatusOpts.map(s => (
+                                      <option key={s} value={s}>
+                                        {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  (() => {
+                                    const statusColorMap: Record<string, { color: string; bg: string }> = {
+                                      completed:   { color: '#16a34a', bg: '#dcfce7' },
+                                      in_progress: { color: '#2563eb', bg: '#dbeafe' },
+                                      todo:        { color: '#6b7280', bg: '#f1f5f9' },
+                                    }
+                                    const sc = statusColorMap[task.status] ?? { color: '#6b7280', bg: '#f1f5f9' }
+                                    return (
+                                      <span style={{ color: sc.color, background: sc.bg, fontWeight: 600, fontSize: 11, padding: '3px 8px', borderRadius: 6 }}>
+                                        {task.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                      </span>
+                                    )
+                                  })()
+                                )}
+                              </td>
+                            )
+                          case 'timeTracking':
+                            return (
+                              <td key={col.key} style={tdStyle}>
+                                {task.timerRunning ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
+                                    <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#2563eb', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
+                                  </div>
+                                ) : task.timerSeconds > 0 ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <Pause size={11} color="#94a3b8" style={{ flexShrink: 0 }} />
+                                    <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
+                                  </div>
+                                ) : (
+                                  <span style={{ fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
+                                    <strong>{task.actualHours}h</strong><span style={{ color: '#9ca3af' }}> / {task.estimatedHours}h</span>
+                                  </span>
+                                )}
+                              </td>
+                            )
+                          default:
+                            if (col.isCustom && col.customField) {
+                              return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{renderTaskCFValue(col.customField)}</td>
+                            }
+                            return <td key={col.key} style={tdStyle}>—</td>
+                        }
+                      })}
                       {/* Actions */}
                       <td style={{ padding: '13px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1028,6 +1271,9 @@ export function Tasks() {
             }}
             taskTypes={activeTaskTypes}
             dateFormat={dateFormat}
+            currentUserId={user?.id ?? ''}
+            currentUserRole={user?.role ?? 'employee'}
+            onUpdateNotes={updateNotes}
           />
         )}
 

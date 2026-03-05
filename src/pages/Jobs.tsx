@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Job, JobStatus, Priority, BillingType } from '@/types'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate, formatDateForInput } from '@/lib/utils'
-import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock, AlertTriangle, Clock } from 'lucide-react'
+import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock, AlertTriangle, Clock, Columns3 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useSettings } from '@/hooks/useSettings'
 import { useJobs } from '@/hooks/useJobs'
@@ -117,6 +117,8 @@ export function Jobs() {
   const [showModal, setShowModal] = useState(false)
   const [selected, setSelected] = useState<Job | null>(null)
   const [detailJob, setDetailJob] = useState<Job | null>(null)
+  const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const columnPickerRef = useRef<HTMLDivElement>(null)
 
   const { jobs, loading, error, createJob, updateJob, updateStatus: apiUpdateStatus } = useJobs()
   const { clients } = useClients()
@@ -125,6 +127,78 @@ export function Jobs() {
   // Page-level layout for driving status/priority options in the table filters + inline dropdowns
   const { defaultLayout: pageJobLayout } = useJobLayouts()
   const pageStatusOpts: string[] = pageJobLayout?.fields.find(f => f.key === 'status')?.options ?? STATUS_FLOW
+
+  // ── Column visibility (including custom fields from layout) ─────────────────
+  // Extract custom (non-system) fields from the default layout
+  const customFields: LayoutField[] = pageJobLayout?.fields.filter(f => !f.system) ?? []
+
+  // Define all available columns. System columns are always available; custom columns come from layout.
+  type ColumnDef = {
+    key: string
+    label: string
+    defaultVisible: boolean
+    employeeHidden?: boolean   // hidden from employees regardless
+    isCustom?: boolean
+    customField?: LayoutField
+  }
+
+  const allColumns: ColumnDef[] = [
+    { key: 'jobId',             label: 'Job ID',             defaultVisible: true },
+    { key: 'title',             label: 'Job Name',           defaultVisible: true },
+    { key: 'clientName',        label: 'Client Name',        defaultVisible: true },
+    { key: 'billingRate',       label: `Billing Rate (${currency})`, defaultVisible: true, employeeHidden: true },
+    { key: 'quoteApprovedDate', label: 'Quote Approved Date',defaultVisible: true },
+    { key: 'startDate',         label: 'Start Date',         defaultVisible: true },
+    { key: 'quotedHours',       label: 'Quoted Hours',       defaultVisible: true },
+    { key: 'actualHours',       label: 'Actual Hours',       defaultVisible: true },
+    { key: 'deadline',          label: 'End Date',           defaultVisible: true },
+    { key: 'priority',          label: 'Priority',           defaultVisible: true },
+    { key: 'status',            label: 'Status',             defaultVisible: true },
+    // Custom fields from layout
+    ...customFields.map(f => ({
+      key: `cf_${f.key}`,
+      label: f.label,
+      defaultVisible: false,
+      isCustom: true,
+      customField: f,
+    })),
+  ]
+
+  // Load saved column visibility from localStorage (per-user persistence)
+  const COLUMNS_STORAGE_KEY = 'top_jobs_visible_columns'
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(COLUMNS_STORAGE_KEY)
+      if (saved) return new Set(JSON.parse(saved))
+    } catch { /* ignore */ }
+    return new Set(allColumns.filter(c => c.defaultVisible).map(c => c.key))
+  })
+
+  // Persist column visibility changes
+  const toggleColumn = (key: string) => {
+    setVisibleColumns(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  // Close column picker on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(e.target as Node)) {
+        setShowColumnPicker(false)
+      }
+    }
+    if (showColumnPicker) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showColumnPicker])
+
+  // Columns actually shown (respecting employee visibility)
+  const isEmployee = user?.role === 'employee'
+  const activeColumns = allColumns.filter(c => visibleColumns.has(c.key) && !(c.employeeHidden && isEmployee))
 
   // Calculate actual hours for each job from tasks
   const jobsWithActualHours = jobs.map(job => {
@@ -268,6 +342,87 @@ export function Jobs() {
             <button style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500 }}>
               <Filter size={13} /> Filters
             </button>
+
+            {/* Column picker */}
+            <div style={{ position: 'relative' }} ref={columnPickerRef}>
+              <button
+                onClick={() => setShowColumnPicker(p => !p)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7,
+                  background: showColumnPicker ? '#f3f4f6' : '#fff',
+                  fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500,
+                }}
+                title="Choose columns"
+              >
+                <Columns3 size={13} /> Columns
+              </button>
+
+              {showColumnPicker && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '100%', marginTop: 6,
+                  background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 240, zIndex: 50,
+                  maxHeight: 400, overflowY: 'auto',
+                }}>
+                  <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      System Columns
+                    </span>
+                  </div>
+                  {allColumns.filter(c => !c.isCustom && !(c.employeeHidden && isEmployee)).map(col => (
+                    <label
+                      key={col.key}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
+                        background: visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
+                      onMouseLeave={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns.has(col.key)}
+                        onChange={() => toggleColumn(col.key)}
+                        style={{ accentColor: '#2563eb', width: 15, height: 15 }}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+
+                  {customFields.length > 0 && (
+                    <>
+                      <div style={{ padding: '10px 14px', borderTop: '1px solid #f1f3f9', borderBottom: '1px solid #f1f3f9' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Custom Fields
+                        </span>
+                      </div>
+                      {allColumns.filter(c => c.isCustom).map(col => (
+                        <label
+                          key={col.key}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
+                            background: visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
+                          onMouseLeave={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={visibleColumns.has(col.key)}
+                            onChange={() => toggleColumn(col.key)}
+                            style={{ accentColor: '#2563eb', width: 15, height: 15 }}
+                          />
+                          {col.label}
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -276,76 +431,112 @@ export function Jobs() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Job ID', 'Job Name', 'Client Name', ...(user?.role !== 'employee' ? [`Billing Rate (${currency})`] : []), 'Quote Approved Date', 'Start Date', 'Quoted Hours', 'Actual Hours', 'End Date', 'Priority', 'Status', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                {activeColumns.map(col => (
+                  <th key={col.key} style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                    {col.label}
+                  </th>
                 ))}
+                <th style={{ padding: '11px 16px' }} />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={user?.role !== 'employee' ? 12 : 11} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
+                <tr><td colSpan={activeColumns.length + 1} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
               ) : filtered.map((job, i) => {
                 // Calculate hour thresholds if enabled
-                const hourCheck = (flagUnderHours || flagOverHours) 
+                const hourCheck = (flagUnderHours || flagOverHours)
                   ? checkHourThresholds(job.actualHours, job.quotedHours, dailyHoursThreshold)
                   : { isUnder: false, isOver: false, message: null }
-                
+
+                // Helper to render a custom field value
+                const renderCFValue = (cf: LayoutField | undefined) => {
+                  if (!cf) return '—'
+                  const val = job.customFieldValues?.[cf.key]
+                  if (val === undefined || val === null || val === '') return '—'
+                  if (cf.type === 'checkbox') return val ? 'Yes' : 'No'
+                  if (cf.type === 'date') return formatDateWithSettings(String(val), dateFormat)
+                  if (cf.type === 'number') return String(val)
+                  return String(val)
+                }
+
                 return (
                 <tr key={job.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '3px 8px', borderRadius: 5 }}>{job.jobId}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#1a1f36', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {job.title}
-                    {hourCheck.message && (hourCheck.isUnder && flagUnderHours || hourCheck.isOver && flagOverHours) && (
-                      <span style={{ 
-                        marginLeft: 8, 
-                        fontSize: 10, 
-                        color: hourCheck.isOver ? '#ef4444' : '#f59e0b',
-                        background: hourCheck.isOver ? '#fee2e2' : '#fef3c7',
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {hourCheck.isOver ? '⚠️ Over' : '⚠️ Under'}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36' }}>{job.clientName}</div>
-                  </td>
-                  {user?.role !== 'employee' && (
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>
-                      {job.billingType === 'fixed' ? fmt(job.billingRate) : `${fmt(job.billingRate)}/hr`}
-                    </td>
-                  )}
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.quoteApprovedDate, dateFormat)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.startDate, dateFormat)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{fmtHours(job.quotedHours)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#374151' }}>{fmtHours(job.actualHours)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{formatDateWithSettings(job.deadline, dateFormat)}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: priorityColor[job.priority], textTransform: 'capitalize' }}>{job.priority}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {canEdit ? (
-                      <select
-                        value={job.status}
-                        onChange={e => apiUpdateStatus(job.id, e.target.value as JobStatus)}
-                        style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
-                      >
-                        {pageStatusOpts.map(s => (
-                          <option key={s} value={s}>
-                            {(statusLabel as Record<string, string>)[s] ?? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span style={{ fontSize: 13, color: '#374151' }}>
-                        {(statusLabel as Record<string, string>)[job.status] ?? job.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                      </span>
-                    )}
-                  </td>
+                  {activeColumns.map(col => {
+                    const tdStyle: React.CSSProperties = { padding: '12px 16px', fontSize: 13 }
+
+                    switch (col.key) {
+                      case 'jobId':
+                        return (
+                          <td key={col.key} style={tdStyle}>
+                            <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '3px 8px', borderRadius: 5 }}>{job.jobId}</span>
+                          </td>
+                        )
+                      case 'title':
+                        return (
+                          <td key={col.key} style={{ ...tdStyle, fontWeight: 600, color: '#1a1f36', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {job.title}
+                            {hourCheck.message && (hourCheck.isUnder && flagUnderHours || hourCheck.isOver && flagOverHours) && (
+                              <span style={{
+                                marginLeft: 8, fontSize: 10,
+                                color: hourCheck.isOver ? '#ef4444' : '#f59e0b',
+                                background: hourCheck.isOver ? '#fee2e2' : '#fef3c7',
+                                padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+                              }}>
+                                {hourCheck.isOver ? '⚠️ Over' : '⚠️ Under'}
+                              </span>
+                            )}
+                          </td>
+                        )
+                      case 'clientName':
+                        return <td key={col.key} style={tdStyle}><div style={{ fontWeight: 600, color: '#1a1f36' }}>{job.clientName}</div></td>
+                      case 'billingRate':
+                        return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{job.billingType === 'fixed' ? fmt(job.billingRate) : `${fmt(job.billingRate)}/hr`}</td>
+                      case 'quoteApprovedDate':
+                        return <td key={col.key} style={{ ...tdStyle, color: '#6b7280' }}>{formatDateWithSettings(job.quoteApprovedDate, dateFormat)}</td>
+                      case 'startDate':
+                        return <td key={col.key} style={{ ...tdStyle, color: '#6b7280' }}>{formatDateWithSettings(job.startDate, dateFormat)}</td>
+                      case 'quotedHours':
+                        return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{fmtHours(job.quotedHours)}</td>
+                      case 'actualHours':
+                        return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{fmtHours(job.actualHours)}</td>
+                      case 'deadline':
+                        return <td key={col.key} style={{ ...tdStyle, color: '#6b7280' }}>{formatDateWithSettings(job.deadline, dateFormat)}</td>
+                      case 'priority':
+                        return (
+                          <td key={col.key} style={tdStyle}>
+                            <span style={{ fontWeight: 600, color: priorityColor[job.priority], textTransform: 'capitalize' }}>{job.priority}</span>
+                          </td>
+                        )
+                      case 'status':
+                        return (
+                          <td key={col.key} style={tdStyle}>
+                            {canEdit ? (
+                              <select
+                                value={job.status}
+                                onChange={e => apiUpdateStatus(job.id, e.target.value as JobStatus)}
+                                style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                              >
+                                {pageStatusOpts.map(s => (
+                                  <option key={s} value={s}>
+                                    {(statusLabel as Record<string, string>)[s] ?? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span style={{ color: '#374151' }}>
+                                {(statusLabel as Record<string, string>)[job.status] ?? job.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                              </span>
+                            )}
+                          </td>
+                        )
+                      default:
+                        // Custom field columns
+                        if (col.isCustom && col.customField) {
+                          return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{renderCFValue(col.customField)}</td>
+                        }
+                        return <td key={col.key} style={tdStyle}>—</td>
+                    }
+                  })}
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button onClick={() => setDetailJob(job)} style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#6b7280' }} title="View">
