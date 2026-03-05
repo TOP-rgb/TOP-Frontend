@@ -454,22 +454,22 @@ function CreateInvoiceModal({
 
   const autoLineItems = (): InvoiceLineItem[] => {
     if (!selectedJob) return []
-    
-    // Round hours based on billing increment if hourly
-    const qty = selectedJob.billingType === 'fixed' 
-      ? 1 
-      : roundHours(selectedJob.actualHours, billingIncrement)
-    
-    const rate = selectedJob.billingType === 'fixed'
+  
+    // ✅ normalize billingType casing
+    const isFixed = selectedJob.billingType?.toLowerCase() === 'fixed'
+  
+    const qty = isFixed ? 1 : roundHours(selectedJob.actualHours || 0, billingIncrement)
+    const rate = isFixed
       ? selectedJob.billingRate
-      : (defaultHourlyRate || selectedJob.billingRate)
-    
-    const amount = selectedJob.billingType === 'fixed'
+      : (defaultHourlyRate || selectedJob.billingRate || 0)
+  
+    // ✅ for hourly: fall back to revenue if hours are 0
+    const amount = isFixed
       ? selectedJob.billingRate
-      : qty * rate
-
+      : (qty > 0 ? qty * rate : selectedJob.revenue ?? 0)
+  
     return [{
-      description: selectedJob.billingType === 'fixed'
+      description: isFixed
         ? `${selectedJob.title} – Fixed Price`
         : `${selectedJob.title} – Hourly Service`,
       qty,
@@ -477,7 +477,6 @@ function CreateInvoiceModal({
       amount,
     }]
   }
-
   const handleJobSelect = (id: string) => {
     setJobId(id)
     setLineItems([])

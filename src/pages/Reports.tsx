@@ -231,7 +231,7 @@ function OverviewTab({ d }: { d: ReportsData['overview'] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        <KpiCard label="Total Revenue" value={fmt(d.totalRevenue)} sub={`${d.totalJobs} jobs`} icon={<DollarSign size={18} />} color="#22c55e" />
+        <KpiCard label="Total Revenue" value={fmt(d.totalRevenue)} sub={`${d.totalJobs} jobs`} icon={<span style={{fontWeight:700,fontSize:16}}>{currencySymbol}</span>} color="#22c55e" />
         <KpiCard label="Net Profit" value={fmt(d.totalProfit)} sub={`${d.avgMargin.toFixed(1)}% avg margin`} icon={<TrendingUp size={18} />} color="#3b82f6" />
         <KpiCard label="Hours Logged" value={`${d.totalHours.toFixed(1)}h`} sub={`${d.billableHours.toFixed(1)}h billable`} icon={<Clock size={18} />} color="#f59e0b" />
         <KpiCard label="Active Clients" value={String(d.activeClients)} sub={`${d.completedJobs}/${d.totalJobs} jobs done`} icon={<Users size={18} />} color="#a855f7" />
@@ -604,13 +604,6 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-const TABS: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview', label: 'Overview', icon: <BarChart2 size={14} /> },
-  { id: 'jobs',     label: 'Jobs',     icon: <Briefcase size={14} /> },
-  { id: 'time',     label: 'Time',     icon: <Clock size={14} /> },
-  { id: 'finance',  label: 'Finance',  icon: <DollarSign size={14} /> },
-]
-
 const RANGES: DateRange[] = ['this_month', 'last_month', 'last_3_months', 'last_6_months', 'this_year', 'all']
 
 export function Reports() {
@@ -619,7 +612,15 @@ export function Reports() {
 
   const { data, loading, error } = useReports(range)
   const { currency, currencySymbol } = useSettingsStore()
-
+  const TABS: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview', label: 'Overview',                    icon: <BarChart2 size={14} /> },
+    { id: 'jobs',     label: 'Jobs',                        icon: <Briefcase size={14} /> },
+    { id: 'time',     label: 'Time',                        icon: <Clock size={14} /> },
+    {
+      id: 'finance', label: `(${currencySymbol}) Finance`,
+      icon: undefined
+    },
+  ]
   const handleDownload = () => {
     if (!data) return
     exportTab(activeTab, data, range, currency, currencySymbol)

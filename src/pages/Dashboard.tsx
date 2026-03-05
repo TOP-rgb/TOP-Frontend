@@ -323,7 +323,7 @@ function ManagerDashboard() {
           title="Revenue"
           value={fmt(revenue?.total ?? 0)} // Use currency formatter
           subtitle="completed + invoiced"
-          icon={<DollarSign size={18} />}
+          icon={<span style={{fontWeight:700,fontSize:16}}>{currencySymbol}</span>}
           color="purple"
         />
         <StatCard
@@ -560,7 +560,7 @@ function AdminDashboard() {
           title="Total Revenue"
           value={fmt(financial?.totalRevenue ?? 0)} // Use currency formatter
           subtitle={`${financial?.completedJobs ?? 0} completed job${(financial?.completedJobs ?? 0) !== 1 ? 's' : ''}`}
-          icon={<DollarSign size={18} />}
+          icon={<span style={{fontWeight:700,fontSize:16}}>{currencySymbol}</span>}
           color="emerald"
         />
         <StatCard

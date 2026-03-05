@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, normStr, getToken } from '@/lib/api'
+import { api, getToken } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
 import type { Job, JobStatus, Priority } from '@/types'
-
-// ── Shape returned by the backend ────────────────────────────────────────────
 
 interface ApiJob {
   id: string
@@ -12,7 +10,7 @@ interface ApiJob {
   clientId: string
   client: { id: string; company: string }
   jobType: string
-  billingType: 'HOURLY' | 'FIXED'
+  billingType: string
   billingRate: number
   quotedHours: number
   actualHours: number
@@ -32,8 +30,7 @@ interface ApiJob {
   createdAt: string
 }
 
-// ── Normalise backend → frontend shape ───────────────────────────────────────
-
+// ✅ No normStr — pass status/priority/billingType through as-is from DB
 function normaliseJob(j: ApiJob): Job {
   return {
     id: j.id,
@@ -42,12 +39,12 @@ function normaliseJob(j: ApiJob): Job {
     clientId: j.clientId,
     clientName: j.client?.company ?? '',
     jobType: j.jobType,
-    billingType: normStr(j.billingType) as 'hourly' | 'fixed',
+    billingType: j.billingType as 'hourly' | 'fixed',
     billingRate: j.billingRate,
     quotedHours: j.quotedHours,
     actualHours: j.actualHours,
-    status: normStr(j.status) as JobStatus,
-    priority: normStr(j.priority) as Priority,
+    status: j.status as JobStatus,
+    priority: j.priority as Priority,
     quoteApprovedDate: j.quoteApprovedDate ?? '',
     startDate: j.startDate ?? '',
     deadline: j.deadline ?? '',
@@ -58,11 +55,10 @@ function normaliseJob(j: ApiJob): Job {
     jobScore: j.jobScore ?? undefined,
     assignedManager: j.assignedManager ?? '',
     layoutId: j.layoutId ?? undefined,
+    // ✅ Always preserve customFieldValues
     customFieldValues: j.customFieldValues ?? undefined,
   }
 }
-
-// ── Hook ─────────────────────────────────────────────────────────────────────
 
 interface UseJobsOptions {
   status?: string
@@ -77,14 +73,15 @@ export function useJobs(options: UseJobsOptions = {}) {
   const [error, setError] = useState<string | null>(null)
 
   const fetchJobs = useCallback(async () => {
-    if (!getToken()) { return }
+    if (!getToken()) return
     try {
       setLoading(true)
       setError(null)
       const params = new URLSearchParams({ limit: '100' })
-      if (options.status && options.status !== 'all') params.set('status', options.status.toUpperCase())
+      // ✅ No .toUpperCase() — send as-is
+      if (options.status && options.status !== 'all') params.set('status', options.status)
       if (options.clientId) params.set('clientId', options.clientId)
-      if (options.priority) params.set('priority', options.priority.toUpperCase())
+      if (options.priority) params.set('priority', options.priority)
       if (options.search) params.set('search', options.search)
 
       const res = await api.get<ApiResponse<ApiJob[]>>(`/jobs?${params}`)
@@ -100,11 +97,10 @@ export function useJobs(options: UseJobsOptions = {}) {
 
   const createJob = async (data: Partial<Job>): Promise<Job | null> => {
     try {
+      // ✅ No uppercasing — send exactly what the form/layout provides
       const payload = {
         ...data,
-        billingType: data.billingType?.toUpperCase(),
-        priority: data.priority?.toUpperCase(),
-        status: data.status?.toUpperCase(),
+        customFieldValues: data.customFieldValues ?? {},
       }
       const res = await api.post<ApiResponse<ApiJob>>('/jobs', payload)
       const newJob = normaliseJob(res.data)
@@ -118,11 +114,10 @@ export function useJobs(options: UseJobsOptions = {}) {
 
   const updateJob = async (id: string, data: Partial<Job>): Promise<boolean> => {
     try {
+      // ✅ No uppercasing — send exactly what the form/layout provides
       const payload = {
         ...data,
-        billingType: data.billingType ? data.billingType.toUpperCase() : undefined,
-        priority: data.priority ? data.priority.toUpperCase() : undefined,
-        status: data.status ? data.status.toUpperCase() : undefined,
+        customFieldValues: data.customFieldValues ?? {},
       }
       const res = await api.put<ApiResponse<ApiJob>>(`/jobs/${id}`, payload)
       const updated = normaliseJob(res.data)
@@ -134,9 +129,10 @@ export function useJobs(options: UseJobsOptions = {}) {
     }
   }
 
-  const updateStatus = async (id: string, status: JobStatus): Promise<boolean> => {
+  const updateStatus = async (id: string, status: string): Promise<boolean> => {
     try {
-      const res = await api.patch<ApiResponse<ApiJob>>(`/jobs/${id}/status`, { status: status.toUpperCase() })
+      // ✅ No uppercasing — custom statuses must be sent as-is
+      const res = await api.patch<ApiResponse<ApiJob>>(`/jobs/${id}/status`, { status })
       const updated = normaliseJob(res.data)
       setJobs(prev => prev.map(j => j.id === id ? updated : j))
       return true
