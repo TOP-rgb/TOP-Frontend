@@ -210,20 +210,21 @@ export function Jobs() {
     }
   })
 
-  // Jobs approaching or past deadline (within 7 days, not yet closed/invoiced/completed)
-  const deadlineAlertJobs = notifyJobDeadline
-    ? jobsWithActualHours.filter(j => {
-        if (!j.deadline) return false
-        if (['completed', 'invoiced', 'closed'].includes(j.status)) return false
-        const daysUntil = Math.ceil((new Date(j.deadline).getTime() - Date.now()) / 86_400_000)
-        return daysUntil <= 7
-      }).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
-    : []
-
-  // For employees: only show jobs linked to tasks assigned to them
   const myTaskJobIds = user?.role === 'employee'
-    ? tasks.filter(t => t.assignedToIds?.includes(user.id)).map(t => t.jobId)
-    : null
+  ? tasks.filter(t => t.assignedToIds?.includes(user.id)).map(t => t.jobId)
+  : null
+
+// ✅ Move AFTER myTaskJobIds, filter by assigned jobs for employees
+const deadlineAlertJobs = notifyJobDeadline
+  ? jobsWithActualHours.filter(j => {
+      if (!j.deadline) return false
+      if (['completed', 'invoiced', 'closed'].includes(j.status)) return false
+      // ✅ employees only see deadlines for their assigned jobs
+      if (myTaskJobIds && !myTaskJobIds.includes(j.id)) return false
+      const daysUntil = Math.ceil((new Date(j.deadline!).getTime() - Date.now()) / 86_400_000)
+      return daysUntil <= 7
+    }).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+  : []
 
   const filtered = jobsWithActualHours.filter(j => {
     const matchSearch = j.title.toLowerCase().includes(search.toLowerCase()) ||

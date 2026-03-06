@@ -160,8 +160,18 @@ function StatCard({ icon, label, value, color }: {
 }
 
 function StatusDot({ status }: { status: string }) {
-  const colors: Record<string, string> = { todo: '#94a3b8', in_progress: '#2563eb', completed: '#059669' }
-  const dot = colors[status] ?? '#94a3b8'
+  const colors: Record<string, string> = {
+    todo: '#94a3b8',
+    in_progress: '#2563eb',
+    completed: '#059669',
+  }
+  // For custom statuses, generate a consistent color from the string
+  const fallback = (() => {
+    let hash = 0
+    for (let i = 0; i < status.length; i++) hash = status.charCodeAt(i) + ((hash << 5) - hash)
+    return `hsl(${Math.abs(hash) % 360}, 60%, 50%)`
+  })()
+  const dot = colors[status] ?? fallback
   return <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot, display: 'inline-block', flexShrink: 0 }} />
 }
 
@@ -408,12 +418,16 @@ function TaskDetailModal({
     in_progress: 'In Progress',
     completed: 'Completed',
   }
-  const statusColors: Record<string, { bg: string; color: string; dot: string }> = {
+  const sc = ({
     todo:        { bg: '#1e293b', color: '#94a3b8', dot: '#64748b' },
     in_progress: { bg: '#1e3a5f', color: '#60a5fa', dot: '#2563eb' },
     completed:   { bg: '#14532d40', color: '#86efac', dot: '#22c55e' },
-  }
-  const sc = statusColors[task.status] ?? { bg: '#1e293b', color: '#94a3b8', dot: '#64748b' }
+  } as Record<string, { bg: string; color: string; dot: string }>)[task.status] ?? (() => {
+    let hash = 0
+    for (let i = 0; i < task.status.length; i++) hash = task.status.charCodeAt(i) + ((hash << 5) - hash)
+    const hue = Math.abs(hash) % 360
+    return { bg: `hsl(${hue},40%,15%)`, color: `hsl(${hue},70%,65%)`, dot: `hsl(${hue},60%,50%)` }
+  })()
   const assignedUsers = users.filter(u => (task.assignedToIds || []).includes(u.id))
   const taskTypeColor = getTaskTypeColor(task.type, taskTypes)
 
@@ -847,7 +861,8 @@ export function Tasks() {
     const matchSearch = t.name.toLowerCase().includes(search.toLowerCase()) ||
                        t.clientName.toLowerCase().includes(search.toLowerCase()) ||
                        t.jobTitle.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'all' || t.status === statusFilter
+                       const matchStatus = statusFilter === 'all' || 
+                       t.status.toLowerCase() === statusFilter.toLowerCase()
     const matchUser = isManager ? true : (t.assignedToIds?.includes(user?.id ?? '') ?? false)
     return matchSearch && matchStatus && matchUser
   })
@@ -872,7 +887,7 @@ export function Tasks() {
     ...pageTaskStatusOpts.map(s => ({
       key: s,
       label: s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      count: userTasks.filter(t => t.status === s).length,
+      count: userTasks.filter(t => t.status.toLowerCase() === s.toLowerCase()).length,
     })),
   ]
 
@@ -912,21 +927,27 @@ export function Tasks() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
-          {[
-            { label: 'Total Tasks',  value: userTasks.length,                                          bar: '#6366f1', bg: '#eef2ff', fg: '#4338ca' },
-            { label: 'To Do',        value: userTasks.filter(t => t.status === 'todo').length,         bar: '#64748b', bg: '#f1f5f9', fg: '#475569' },
-            { label: 'In Progress',  value: userTasks.filter(t => t.status === 'in_progress').length,  bar: '#2563eb', bg: '#dbeafe', fg: '#1d4ed8' },
-            { label: 'Completed',    value: userTasks.filter(t => t.status === 'completed').length,    bar: '#059669', bg: '#d1fae5', fg: '#065f46' },
-            { label: 'Billable',     value: userTasks.filter(t => t.billable).length,                  bar: '#f59e0b', bg: '#fef3c7', fg: '#92400e' },
-          ].map(s => (
-            <div key={s.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.bar }} />
-              <div style={{ width: 38, height: 38, borderRadius: 9, background: s.bg, color: s.fg, display: 'grid', placeItems: 'center', flexShrink: 0, fontSize: 17, fontWeight: 700 }}>{s.value}</div>
-              <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
+        {/* Stats */}
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
+  {[
+    { label: 'Total Tasks', value: userTasks.length, bar: '#6366f1', bg: '#eef2ff', fg: '#4338ca' },
+    // ✅ Dynamic — use layout status options instead of hardcoded ones
+    ...pageTaskStatusOpts.slice(0, 3).map(s => ({
+      label: s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: userTasks.filter(t => t.status === s).length,
+      bar: s === 'completed' ? '#059669' : s === 'in_progress' ? '#2563eb' : '#64748b',
+      bg:  s === 'completed' ? '#d1fae5' : s === 'in_progress' ? '#dbeafe' : '#f1f5f9',
+      fg:  s === 'completed' ? '#065f46' : s === 'in_progress' ? '#1d4ed8' : '#475569',
+    })),
+    { label: 'Billable', value: userTasks.filter(t => t.billable).length, bar: '#f59e0b', bg: '#fef3c7', fg: '#92400e' },
+  ].map(s => (
+    <div key={s.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.bar }} />
+      <div style={{ width: 38, height: 38, borderRadius: 9, background: s.bg, color: s.fg, display: 'grid', placeItems: 'center', flexShrink: 0, fontSize: 17, fontWeight: 700 }}>{s.value}</div>
+      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{s.label}</div>
+    </div>
+  ))}
+</div>
 
         {/* Live timer banner */}
         {activeTask && (
@@ -1172,38 +1193,46 @@ export function Tasks() {
                             return <td key={col.key} style={{ ...tdStyle, color: '#374151', whiteSpace: 'nowrap' }}>{task.estimatedHours}h</td>
                           case 'billingType':
                             return <td key={col.key} style={tdStyle}><BillablePill billable={task.billable} /></td>
-                          case 'taskStatus':
-                            return (
-                              <td key={col.key} style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                                {canEdit ? (
-                                  <select
-                                    value={task.status}
-                                    onChange={e => updateStatus(task.id, e.target.value as TaskStatus)}
-                                    style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
-                                  >
-                                    {pageTaskStatusOpts.map(s => (
-                                      <option key={s} value={s}>
-                                        {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  (() => {
-                                    const statusColorMap: Record<string, { color: string; bg: string }> = {
-                                      completed:   { color: '#16a34a', bg: '#dcfce7' },
-                                      in_progress: { color: '#2563eb', bg: '#dbeafe' },
-                                      todo:        { color: '#6b7280', bg: '#f1f5f9' },
-                                    }
-                                    const sc = statusColorMap[task.status] ?? { color: '#6b7280', bg: '#f1f5f9' }
-                                    return (
-                                      <span style={{ color: sc.color, background: sc.bg, fontWeight: 600, fontSize: 11, padding: '3px 8px', borderRadius: 6 }}>
-                                        {task.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                      </span>
-                                    )
-                                  })()
-                                )}
-                              </td>
-                            )
+                            case 'taskStatus': {
+                              // ✅ If the task's current status isn't in the layout options, add it so the select shows correctly
+                              const statusOpts = pageTaskStatusOpts.includes(task.status)
+                                ? pageTaskStatusOpts
+                                : [task.status, ...pageTaskStatusOpts]
+                            
+                              const statusColorMap: Record<string, { color: string; bg: string }> = {
+                                completed:   { color: '#16a34a', bg: '#dcfce7' },
+                                in_progress: { color: '#2563eb', bg: '#dbeafe' },
+                                todo:        { color: '#6b7280', bg: '#f1f5f9' },
+                              }
+                              const scMap = statusColorMap[task.status] ?? (() => {
+                                let hash = 0
+                                for (let i = 0; i < task.status.length; i++) hash = task.status.charCodeAt(i) + ((hash << 5) - hash)
+                                const hue = Math.abs(hash) % 360
+                                return { color: `hsl(${hue},60%,35%)`, bg: `hsl(${hue},60%,93%)` }
+                              })()
+                            
+                              return (
+                                <td key={col.key} style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+                                  {canEdit ? (
+                                    <select
+                                      value={task.status}
+                                      onChange={e => updateStatus(task.id, e.target.value as TaskStatus)}
+                                      style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                    >
+                                      {statusOpts.map(s => (
+                                        <option key={s} value={s}>
+                                          {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <span style={{ color: scMap.color, background: scMap.bg, fontWeight: 600, fontSize: 11, padding: '3px 8px', borderRadius: 6 }}>
+                                      {task.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                    </span>
+                                  )}
+                                </td>
+                              )
+                            }
                           case 'timeTracking':
                             return (
                               <td key={col.key} style={tdStyle}>

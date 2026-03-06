@@ -1023,6 +1023,18 @@ export function Calendar() {
     setModalOpen(true)
   }
 
+  const handleNewEvent = () => {
+    const now = new Date()
+    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+    
+    setSelectRange({ 
+      startAt: now.toISOString(), 
+      endAt: oneHourLater.toISOString() 
+    })
+    setEditingEvent(null)
+    setModalOpen(true)
+  }
+
   const handleEventClick = (arg: EventClickArg) => {
     const evt = arg.event.extendedProps as CalendarEventData
     if (evt._derived) return // read-only derived deadline events
@@ -1147,7 +1159,7 @@ export function Calendar() {
 
           {/* New event */}
           <button
-            onClick={() => { setEditingEvent(null); setSelectRange(null); setModalOpen(true) }}
+            onClick={handleNewEvent}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" /> New Event
@@ -1233,10 +1245,13 @@ export function Calendar() {
                 }
               : selectRange
               ? {
-                  startAt: selectRange.startAt.slice(0, 16),
-                  endAt: selectRange.endAt.slice(0, 16),
+                  startAt: new Date(selectRange.startAt).toISOString().slice(0, 16),
+                  endAt: new Date(selectRange.endAt).toISOString().slice(0, 16),
                 }
-              : undefined
+              : {
+                  startAt: new Date().toISOString().slice(0, 16),
+                  endAt: new Date(Date.now() + 3600000).toISOString().slice(0, 16),
+                }
           }
           existingId={editingEvent?.id}
           integrations={integrations}
