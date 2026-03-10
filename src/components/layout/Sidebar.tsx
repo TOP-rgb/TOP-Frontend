@@ -6,7 +6,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import {
   LayoutDashboard, Building2, Briefcase, CheckSquare,
   Clock, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
-  Calendar, FolderOpen, HeadphonesIcon, Receipt, UserCog, Bell
+  Calendar, FolderOpen, HeadphonesIcon, Receipt, UserCog, Bell,
+  ScanLine, CalendarClock
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -25,6 +26,8 @@ const navItems: NavItem[] = [
   { label: 'Jobs',                icon: <Briefcase size={20} />,       path: '/jobs',             roles: ['employee', 'manager', 'admin'] },
   { label: 'Tasks',               icon: <CheckSquare size={20} />,     path: '/tasks',            roles: ['employee', 'manager', 'admin'] },
   { label: 'Time Sheets',         icon: <Clock size={20} />,           path: '/timesheets',       roles: ['employee', 'manager', 'admin'] },
+  { label: 'Attendance',          icon: <ScanLine size={20} />,        path: '/attendance',       roles: ['employee', 'manager', 'admin'] },
+  { label: 'Attendance Config',   icon: <CalendarClock size={20} />,   path: '/attendance/config', roles: ['admin'] },
   { label: 'Billing or Invoice',  icon: <Receipt size={20} />,         path: '/invoices',         roles: ['manager', 'admin'] },
   { label: 'Reports',             icon: <BarChart3 size={20} />,       path: '/reports',          roles: ['manager', 'admin'] },
   { label: 'Notifications',       icon: <Bell size={20} />,            path: '/notifications',    roles: ['employee', 'manager', 'admin'] },

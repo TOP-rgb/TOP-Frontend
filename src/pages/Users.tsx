@@ -238,6 +238,7 @@ export function Users() {
               role: u.role,
               department: u.department,
               phone: u.phone,
+              country: u.country || null,
               status: u.status
             })
             if (ok) toast.success('User updated successfully')
@@ -254,6 +255,7 @@ export function Users() {
               role: u.role ?? 'employee',
               department: u.department,
               phone: u.phone,
+              country: u.country || null,
             })
             if (ok) toast.success('User created successfully')
             else toast.error('Failed to create user')
@@ -401,6 +403,22 @@ function UserModal({ open, onClose, user, onSave }: UserModalProps) {
                     <option value="Advisory">Advisory</option>
                     <option value="Operations">Operations</option>
                     <option value="Management">Management</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Country</label>
+                  <select style={{ ...darkInput, cursor: 'pointer' }} value={form.country ?? ''} onChange={e => set('country', e.target.value)}>
+                    <option value="">— No country set —</option>
+                    <option value="AU">🇦🇺 Australia</option>
+                    <option value="IN">🇮🇳 India</option>
+                    <option value="US">🇺🇸 United States</option>
+                    <option value="GB">🇬🇧 United Kingdom</option>
+                    <option value="NZ">🇳🇿 New Zealand</option>
+                    <option value="CA">🇨🇦 Canada</option>
+                    <option value="SG">🇸🇬 Singapore</option>
+                    <option value="IE">🇮🇪 Ireland</option>
+                    <option value="DE">🇩🇪 Germany</option>
+                    <option value="FR">🇫🇷 France</option>
                   </select>
                 </div>
               </div>

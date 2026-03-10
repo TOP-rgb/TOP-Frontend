@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, normStr, getToken } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
-import type { User, UserRole } from '@/types'
+import type { User, UserRole, EmployeeType } from '@/types'
 
 interface ApiUser {
   id: string
@@ -10,8 +10,10 @@ interface ApiUser {
   lastName: string
   role: string
   status: string
+  employeeType?: string
   department?: string
   phone?: string
+  country?: string | null
   createdAt: string
 }
 
@@ -21,10 +23,12 @@ function normaliseUser(u: ApiUser): User {
     name: `${u.firstName} ${u.lastName}`,
     email: u.email,
     role: normStr(u.role) as UserRole,
+    employeeType: (u.employeeType ?? 'PERMANENT') as EmployeeType,
     status: normStr(u.status) as 'active' | 'inactive',
     department: u.department || '',
     joinedDate: u.createdAt?.slice(0, 10) ?? '',
     phone: u.phone || '',
+    country: u.country ?? null,
     costRate: 0,
   }
 }
@@ -110,6 +114,17 @@ export function useUsers(options: UseUsersOptions = {}) {
     }
   }
 
+  const updateEmployeeType = async (id: string, employeeType: EmployeeType): Promise<boolean> => {
+    try {
+      await api.put<ApiResponse<ApiUser>>(`/users/${id}`, { employeeType })
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, employeeType } : u))
+      return true
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to update employee type')
+      return false
+    }
+  }
+
   const deactivateUser = async (id: string): Promise<boolean> => {
     try {
       await api.delete(`/users/${id}/deactivate`)
@@ -140,6 +155,7 @@ export function useUsers(options: UseUsersOptions = {}) {
     role: UserRole
     department?: string
     phone?: string
+    country?: string | null
   }): Promise<boolean> => {
     try {
       // Use the invite endpoint — adds user to the admin's organization
@@ -151,6 +167,7 @@ export function useUsers(options: UseUsersOptions = {}) {
         role: data.role,
         department: data.department || null,
         phone: data.phone || null,
+        country: data.country || null,
       })
       const newUser = normaliseUser(res.data)
       setUsers(prev => [newUser, ...prev])
@@ -161,15 +178,16 @@ export function useUsers(options: UseUsersOptions = {}) {
     }
   }
 
-  return { 
-    users, 
-    loading, 
-    error, 
-    refetch: fetchUsers, 
-    updateUserRole, 
-    updateUser, 
-    deactivateUser, 
+  return {
+    users,
+    loading,
+    error,
+    refetch: fetchUsers,
+    updateUserRole,
+    updateEmployeeType,
+    updateUser,
+    deactivateUser,
     deleteUser,
-    createUser 
+    createUser
   }
 }

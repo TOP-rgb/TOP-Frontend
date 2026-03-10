@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -7,10 +7,13 @@ import {
 import {
   TrendingUp, DollarSign, Clock, Users, Briefcase,
   AlertCircle, CheckCircle, BarChart2, FileText, Target,
-  RefreshCw, Download, Flag, Activity, Layers,
+  RefreshCw, Download, Flag, Activity, Layers, ScanLine,
 } from 'lucide-react'
 import { useReports, type DateRange, type ReportsData } from '@/hooks/useReports'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useAuthStore } from '@/store/authStore'
+import { api } from '@/lib/api'
+import type { ApiResponse } from '@/lib/api'
 import { formatDateWithSettings } from '@/lib/utils'
 
 // ── Currency formatter factory (matching Invoices component pattern) ─────────
@@ -66,9 +69,165 @@ function downloadCSV(filename: string, csv: string) {
   URL.revokeObjectURL(url)
 }
 
-type ReportTab = 'overview' | 'jobs' | 'time' | 'finance'
+type ReportTab = 'overview' | 'jobs' | 'time' | 'finance' | 'attendance'
 
-function exportTab(tab: ReportTab, data: ReportsData, range: string, currency = 'AUD', symbol = '$') {
+// ── Attendance stats types ────────────────────────────────────────────────────
+interface AttendanceStats {
+  summary: { presentDays: number; lateDays: number; leaveDays: number; attendanceRate: number }
+  dailyTrend: { date: string; present: number; late: number; onLeave: number }[]
+  byEmployee: { userId: string; name: string; present: number; late: number; absent: number; leaveDays: number; overtimeMinutes: number }[]
+  exceptionBreakdown: { LATE_ARRIVAL: number; EARLY_DEPARTURE: number; MISSED_CHECKOUT: number; LOCATION_VIOLATION: number }
+  leaveByType: { leaveType: string; color: string; days: number }[]
+}
+
+function useAttendanceStats(range: DateRange) {
+  const [data, setData] = useState<AttendanceStats | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetch = useCallback(async (r: DateRange) => {
+    try {
+      setLoading(true)
+      const now = new Date()
+      let startDate = '', endDate = now.toISOString().slice(0, 10)
+      if (r === 'this_month') startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
+      else if (r === 'last_month') {
+        const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        startDate = d.toISOString().slice(0, 10)
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10)
+      } else if (r === 'last_3_months') startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().slice(0, 10)
+      else if (r === 'last_6_months') startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString().slice(0, 10)
+      else if (r === 'this_year') startDate = `${now.getFullYear()}-01-01`
+      else startDate = '2020-01-01'
+
+      const res = await api.get<ApiResponse<AttendanceStats>>(`/attendance/stats?startDate=${startDate}&endDate=${endDate}`)
+      setData(res.data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load attendance stats')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetch(range) }, [fetch, range])
+  return { data, loading, error }
+}
+
+// ── Attendance Tab Component ──────────────────────────────────────────────────
+function AttendanceTab({ d }: { d: AttendanceStats }) {
+  const excData = [
+    { name: 'Late Arrival',       value: d.exceptionBreakdown.LATE_ARRIVAL,      fill: '#f59e0b' },
+    { name: 'Early Departure',    value: d.exceptionBreakdown.EARLY_DEPARTURE,   fill: '#ef4444' },
+    { name: 'Missed Checkout',    value: d.exceptionBreakdown.MISSED_CHECKOUT,   fill: '#8b5cf6' },
+    { name: 'Location Violation', value: d.exceptionBreakdown.LOCATION_VIOLATION, fill: '#ec4899' },
+  ].filter(e => e.value > 0)
+
+  const KPI = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '16px 20px' }}>
+      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1f36', margin: '6px 0 2px' }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: '#9ca3af' }}>{sub}</div>}
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* KPI cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+        <KPI label="Attendance Rate" value={`${d.summary.attendanceRate}%`} sub="Present days / total working days" />
+        <KPI label="Present Days" value={d.summary.presentDays} />
+        <KPI label="Late Days" value={d.summary.lateDays} sub="Arrived after grace period" />
+        <KPI label="Leave Days" value={d.summary.leaveDays} sub="Approved leave taken" />
+      </div>
+
+      {/* Daily trend */}
+      {d.dailyTrend.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1f36', marginBottom: 14 }}>Daily Attendance Trend</div>
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={d.dailyTrend} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Area type="monotone" dataKey="present" name="Present" stackId="1" stroke="#10b981" fill="#d1fae5" />
+              <Area type="monotone" dataKey="late"    name="Late"    stackId="1" stroke="#f59e0b" fill="#fef3c7" />
+              <Area type="monotone" dataKey="onLeave" name="On Leave" stackId="1" stroke="#3b82f6" fill="#dbeafe" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+        {/* Exception breakdown */}
+        {excData.length > 0 && (
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1f36', marginBottom: 14 }}>Exception Breakdown</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={excData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  {excData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Leave by type */}
+        {d.leaveByType.length > 0 && (
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1f36', marginBottom: 14 }}>Leave Days by Type</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={d.leaveByType} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="leaveType" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="days" name="Days Used" radius={[4, 4, 0, 0]}>
+                  {d.leaveByType.map((e, i) => <Cell key={i} fill={e.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* By employee table */}
+      {d.byEmployee.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', fontWeight: 700, fontSize: 14, color: '#1a1f36', borderBottom: '1px solid #e5e7eb' }}>By Employee</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f9fafb' }}>
+                  {['Employee', 'Present', 'Late', 'Absent', 'OT Hours', 'Leave Days'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {d.byEmployee.map(e => (
+                  <tr key={e.userId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 600, color: '#1a1f36' }}>{e.name}</td>
+                    <td style={{ padding: '10px 16px', color: '#10b981', fontWeight: 600 }}>{e.present}</td>
+                    <td style={{ padding: '10px 16px', color: '#f59e0b' }}>{e.late}</td>
+                    <td style={{ padding: '10px 16px', color: '#ef4444' }}>{e.absent}</td>
+                    <td style={{ padding: '10px 16px', color: '#10b981' }}>{e.overtimeMinutes > 0 ? `${(e.overtimeMinutes / 60).toFixed(1)}h` : '—'}</td>
+                    <td style={{ padding: '10px 16px' }}>{e.leaveDays > 0 ? e.leaveDays : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function exportTab(tab: ReportTab, data: ReportsData, range: string, currency = 'AUD', symbol = '$', attStats?: AttendanceStats | null) {
   const fmt = (n: number) => makeFmt(currency, symbol)(n)
   const label = range.replace(/_/g, '-')
   
@@ -120,6 +279,16 @@ function exportTab(tab: ReportTab, data: ReportsData, range: string, currency = 
       'Outstanding': fmt(data.finance.outstanding),
       'Overdue': fmt(data.finance.overdue),
     }]))
+  } else if (tab === 'attendance' && attStats) {
+    const rows = attStats.byEmployee.map(e => ({
+      Employee:         e.name,
+      'Present Days':   e.present,
+      'Late Days':      e.late,
+      'Absent Days':    e.absent,
+      'Leave Days':     e.leaveDays,
+      'Overtime (hrs)': e.overtimeMinutes > 0 ? (e.overtimeMinutes / 60).toFixed(1) : 0,
+    }))
+    downloadCSV(`attendance-${label}.csv`, toCSV(rows.length ? rows : [{ Note: 'No data' }]))
   }
 }
 
@@ -612,16 +781,24 @@ export function Reports() {
 
   const { data, loading, error } = useReports(range)
   const { currency, currencySymbol } = useSettingsStore()
-  const TABS: { id: ReportTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Overview',                    icon: <BarChart2 size={14} /> },
-    { id: 'jobs',     label: 'Jobs',                        icon: <Briefcase size={14} /> },
-    { id: 'time',     label: 'Time',                        icon: <Clock size={14} /> },
-    {
-      id: 'finance', label: `(${currencySymbol}) Finance`,
-      icon: undefined
-    },
+  const { user } = useAuthStore()
+  const isManager = user?.role === 'manager' || user?.role === 'admin'
+
+  const { data: attendanceStats, loading: attendanceLoading } = useAttendanceStats(range)
+
+  const TABS: { id: ReportTab; label: string; icon: React.ReactNode; managerOnly?: boolean }[] = [
+    { id: 'overview',    label: 'Overview',                    icon: <BarChart2 size={14} /> },
+    { id: 'jobs',        label: 'Jobs',                        icon: <Briefcase size={14} /> },
+    { id: 'time',        label: 'Time',                        icon: <Clock size={14} /> },
+    { id: 'finance',     label: `(${currencySymbol}) Finance`, icon: undefined },
+    { id: 'attendance',  label: 'Attendance',                  icon: <ScanLine size={14} />, managerOnly: true },
   ]
   const handleDownload = () => {
+    if (activeTab === 'attendance') {
+      if (!attendanceStats) return
+      exportTab('attendance', data!, range, currency, currencySymbol, attendanceStats)
+      return
+    }
     if (!data) return
     exportTab(activeTab, data, range, currency, currencySymbol)
   }
@@ -638,14 +815,14 @@ export function Reports() {
           {/* Download CSV */}
           <button
             onClick={handleDownload}
-            disabled={!data || loading}
+            disabled={activeTab === 'attendance' ? (!attendanceStats || attendanceLoading) : (!data || loading)}
             title={`Download ${activeTab} report as CSV`}
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb',
               background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13,
-              cursor: data && !loading ? 'pointer' : 'not-allowed',
-              opacity: data && !loading ? 1 : 0.5,
+              cursor: (activeTab === 'attendance' ? (attendanceStats && !attendanceLoading) : (data && !loading)) ? 'pointer' : 'not-allowed',
+              opacity: (activeTab === 'attendance' ? (attendanceStats && !attendanceLoading) : (data && !loading)) ? 1 : 0.5,
             }}
           >
             <Download size={14} />
@@ -670,7 +847,7 @@ export function Reports() {
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
-        {TABS.map(tab => (
+        {TABS.filter(t => !t.managerOnly || isManager).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -710,13 +887,29 @@ export function Reports() {
       )}
 
       {/* Tab content */}
-      {!loading && !error && data && (
+      {!loading && !error && data && activeTab !== 'attendance' && (
         <>
           {activeTab === 'overview' && <OverviewTab d={data.overview} />}
           {activeTab === 'jobs'     && <JobsTab d={data.jobs} overview={data.overview} />}
           {activeTab === 'time'     && <TimeTab d={data.time} />}
           {activeTab === 'finance'  && <FinanceTab d={data.finance} />}
         </>
+      )}
+      {activeTab === 'attendance' && isManager && (
+        attendanceLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10, color: '#6b7280' }}>
+            <div style={{ width: 20, height: 20, border: '2px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            Loading attendance data…
+          </div>
+        ) : attendanceStats ? (
+          <AttendanceTab d={attendanceStats} />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+            <ScanLine size={40} style={{ margin: '0 auto 12px', opacity: 0.25 }} />
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>No attendance data</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Attendance data will appear after employees start checking in</div>
+          </div>
+        )
       )}
 
       {/* No data yet */}

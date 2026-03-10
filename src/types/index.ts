@@ -1,15 +1,18 @@
 export type UserRole = 'employee' | 'manager' | 'admin'
+export type EmployeeType = 'PERMANENT' | 'PROBATION' | 'INTERN' | 'CONTRACT'
 
 export interface User {
   id: string
   name: string
   email: string
   role: UserRole
+  employeeType: EmployeeType
   department?: string
   avatar?: string
   status: 'active' | 'inactive'
   joinedDate: string
   phone?: string
+  country?: string | null   // ISO country code e.g. "IN", "AU" — for region-specific holidays
   billingRate?: number
   costRate?: number
   organizationId?: string
@@ -156,6 +159,213 @@ export interface InvoiceFormData {
   dueDate: string
   notes: string
   lineItems: InvoiceLineItem[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Attendance & Leave types
+// ─────────────────────────────────────────────────────────────────────────────
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'AUTO_CHECKED_OUT' | 'ON_LEAVE'
+export type ExceptionType = 'LATE_ARRIVAL' | 'EARLY_DEPARTURE' | 'MISSED_CHECKOUT' | 'LOCATION_VIOLATION'
+export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type WorkMode = 'OFFICE' | 'WFH' | 'TRAVELLING'
+
+export interface AttendanceWorkPolicy {
+  id: string
+  userId: string
+  organizationId: string
+  /** Empty array = unrestricted (all modes allowed) */
+  allowedModes: WorkMode[]
+  createdAt: string
+  updatedAt: string
+  user?: { id: string; firstName: string; lastName: string }
+}
+
+export interface ShiftTemplate {
+  id: string
+  organizationId: string
+  name: string
+  startTime: string
+  endTime: string
+  gracePeriodMinutes: number
+  workingDays: number[]
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  assignments?: ShiftAssignment[]
+}
+
+export interface ShiftAssignment {
+  id: string
+  organizationId: string
+  userId: string
+  shiftId: string
+  effectiveFrom: string
+  effectiveTo?: string | null
+  createdAt: string
+  user?: { id: string; firstName: string; lastName: string }
+  shift?: Pick<ShiftTemplate, 'id' | 'name' | 'startTime' | 'endTime'>
+}
+
+export interface GeofenceLocation {
+  id: string
+  organizationId: string
+  name: string
+  latitude: number
+  longitude: number
+  radiusMeters: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AttendanceException {
+  id: string
+  organizationId: string
+  recordId: string
+  userId: string
+  type: ExceptionType
+  details?: string | null
+  isReviewed: boolean
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  detectedAt: string
+  user?: { id: string; firstName: string; lastName: string }
+  record?: { date: string; checkInAt: string; checkOutAt?: string | null }
+}
+
+export interface AttendanceRecord {
+  id: string
+  organizationId: string
+  userId: string
+  date: string
+  checkInAt: string           // current/latest session start — used by live timer
+  firstCheckInAt?: string | null  // original first check-in of the day — display only
+  checkOutAt?: string | null
+  checkInLat?: number | null
+  checkInLng?: number | null
+  checkOutLat?: number | null
+  checkOutLng?: number | null
+  geofenceId?: string | null
+  isWithinGeofence?: boolean | null
+  status: AttendanceStatus
+  autoCheckedOut: boolean
+  isHoliday: boolean
+  isOnLeave: boolean
+  shiftId?: string | null
+  minutesLate?: number | null
+  minutesEarly?: number | null
+  workMinutes?: number | null
+  overtimeMinutes?: number | null
+  isRemote: boolean
+  workMode?: WorkMode | null
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+  user?: { id: string; firstName: string; lastName: string; email: string }
+  exceptions?: AttendanceException[]
+  regularization?: RegularizationRequest | null
+}
+
+export interface RegularizationRequest {
+  id: string
+  organizationId: string
+  userId: string
+  recordId: string
+  requestedCheckIn: string
+  requestedCheckOut?: string | null
+  reason: string
+  status: RequestStatus
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNote?: string | null
+  createdAt: string
+  updatedAt: string
+  user?: { id: string; firstName: string; lastName: string; email: string }
+  record?: { date: string; checkInAt: string; firstCheckInAt?: string | null; checkOutAt?: string | null; status: AttendanceStatus }
+}
+
+export interface PublicHoliday {
+  id: string
+  organizationId: string
+  name: string
+  date: string
+  type: string
+  countryCode?: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export interface LeaveType {
+  id: string
+  organizationId: string
+  name: string
+  color: string
+  maxDaysPerYear: number
+  carryForwardDays: number
+  isPaid: boolean
+  isActive: boolean
+  allowedEmployeeTypes: string[]   // empty = unrestricted; otherwise EmployeeType values
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LeaveBalance {
+  id: string
+  organizationId: string
+  userId: string
+  leaveTypeId: string
+  year: number
+  allocated: number
+  used: number
+  pending: number
+  leaveType?: LeaveType
+  user?: { id: string; firstName: string; lastName: string; email: string }
+}
+
+export interface LeaveRequest {
+  id: string
+  organizationId: string
+  userId: string
+  leaveTypeId: string
+  startDate: string
+  endDate: string
+  days: number
+  reason?: string | null
+  status: RequestStatus
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNote?: string | null
+  createdAt: string
+  updatedAt: string
+  user?: { id: string; firstName: string; lastName: string; email: string }
+  leaveType?: { id: string; name: string; color: string }
+}
+
+export interface WFHRequest {
+  id: string
+  organizationId: string
+  userId: string
+  startDate: string
+  endDate: string
+  mode: WorkMode          // WFH | TRAVELLING
+  reason?: string | null
+  status: RequestStatus
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNote?: string | null
+  createdAt: string
+  updatedAt: string
+  user?: { id: string; firstName: string; lastName: string }
+}
+
+export interface TeamStatus {
+  present: AttendanceRecord[]
+  late: AttendanceRecord[]
+  checkedOut: AttendanceRecord[]
+  onLeave: Array<{ user: { id: string; firstName: string; lastName: string; email: string }; leaveType?: { name: string; color: string } }>
+  absent: Array<{ user: { id: string; firstName: string; lastName: string; email: string } }>
+  holiday: PublicHoliday | null
+  date: string
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

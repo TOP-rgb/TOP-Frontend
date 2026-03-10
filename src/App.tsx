@@ -20,6 +20,8 @@ import { Settings } from '@/pages/Settings'
 import { Notifications } from '@/pages/Notifications'
 import { Documents } from '@/pages/Documents'
 import { Calendar } from '@/pages/Calendar'
+import { Attendance } from '@/pages/Attendance'
+import { AttendanceConfig } from '@/pages/AttendanceConfig'
 import type { UserRole } from '@/types'
 
 /** Loads org locale settings after login so Reports picks up correct currency */
@@ -99,6 +101,10 @@ export default function App() {
             <Route path="notifications" element={<Notifications />} />
             <Route path="documents" element={<Documents />} />
             <Route path="calendar" element={<Calendar />} />
+            <Route path="attendance" element={<Attendance />} />
+            <Route path="attendance/config" element={
+              <RequireRole roles={['admin']}><AttendanceConfig /></RequireRole>
+            } />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Bell, BellOff, CheckSquare, AlertTriangle, FileText,
   UserPlus, Clock, CheckCircle, Filter, Inbox,
-  AlertCircle, ChevronRight,
+  AlertCircle, ChevronRight, ScanLine,
 } from 'lucide-react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useAuthStore } from '@/store/authStore'
@@ -11,11 +11,13 @@ import { useInvoices } from '@/hooks/useInvoices'
 import { useUsers } from '@/hooks/useUsers'
 import { useTimesheets } from '@/hooks/useTimesheets'
 import { useTasks } from '@/hooks/useTasks'
+import { useLeaves } from '@/hooks/useLeaves'
+import { useAttendanceManager } from '@/hooks/useAttendanceManager'
 import { formatDateWithSettings } from '@/lib/utils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type NotifCategory = 'all' | 'timesheets' | 'jobs' | 'invoices' | 'team'
+type NotifCategory = 'all' | 'timesheets' | 'jobs' | 'invoices' | 'team' | 'attendance'
 
 interface NotifItem {
   id: string
@@ -47,6 +49,7 @@ const CATEGORY_STYLES: Record<Exclude<NotifCategory, 'all'>, { bg: string; text:
   jobs:       { bg: '#fff7ed', text: '#c2410c', border: '#fdba74' },
   invoices:   { bg: '#fff1f2', text: '#be123c', border: '#fecdd3' },
   team:       { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+  attendance: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd' },
 }
 
 function CategoryPill({ category }: { category: Exclude<NotifCategory, 'all'> }) {
@@ -87,6 +90,18 @@ export function Notifications() {
   const { invoices } = useInvoices()
   const { users } = useUsers()
   const { entries: allEntries, pendingEntries } = useTimesheets(isManager ? {} : { userId: user?.id })
+  const leaves = useLeaves()
+  const attendanceMgr = useAttendanceManager()
+
+  // Fetch attendance data for notifications
+  useEffect(() => {
+    if (isManager) {
+      attendanceMgr.fetchExceptions({ isReviewed: false, limit: 100 })
+      attendanceMgr.fetchPendingRegularizations()
+      leaves.fetchPendingLeaves()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManager])
 
   // Employees only see jobs linked to their assigned tasks
   const myJobIds = !isManager
@@ -210,12 +225,94 @@ export function Notifications() {
       })
     })
 
+    // ── ATTENDANCE: manager view ─────────────────────────────────────────────
+    if (isManager) {
+      // Pending leave requests — one notification per request
+      leaves.pendingLeaves.forEach(lr => {
+        const userName = lr.user ? `${lr.user.firstName} ${lr.user.lastName}`.trim() : 'Employee'
+        const typeName = lr.leaveType?.name ?? 'Leave'
+        const days = lr.days
+        items.push({
+          id: `att-leave-${lr.id}`,
+          category: 'attendance',
+          icon: <ScanLine size={16} />,
+          iconBg: '#e0f2fe', iconColor: '#0284c7',
+          title: 'Leave request pending approval',
+          description: `${userName} · ${typeName} · ${days} day${days !== 1 ? 's' : ''}`,
+          meta: `${lr.startDate.slice(0, 10)} → ${lr.endDate.slice(0, 10)}`,
+          severity: 'warning',
+          enabled: true,
+        })
+      })
+
+      // Unreviewed exceptions — grouped as a single notification
+      const unreviewedCount = attendanceMgr.exceptions.filter(e => !e.isReviewed).length
+      if (unreviewedCount > 0) {
+        items.push({
+          id: 'att-exceptions',
+          category: 'attendance',
+          icon: <AlertCircle size={16} />,
+          iconBg: '#fef3c7', iconColor: '#d97706',
+          title: `${unreviewedCount} unreviewed attendance exception${unreviewedCount !== 1 ? 's' : ''}`,
+          description: 'Late arrivals, early departures, missed checkouts, or location violations',
+          meta: 'Review in Attendance → Exceptions',
+          severity: 'warning',
+          enabled: true,
+        })
+      }
+
+      // Pending regularizations — grouped as a single notification
+      const regCount = attendanceMgr.pendingRegularizations.length
+      if (regCount > 0) {
+        items.push({
+          id: 'att-regularizations',
+          category: 'attendance',
+          icon: <Clock size={16} />,
+          iconBg: '#dbeafe', iconColor: '#1d4ed8',
+          title: `${regCount} attendance regularization${regCount !== 1 ? 's' : ''} pending review`,
+          description: 'Employees requesting correction to their attendance records',
+          meta: 'Review in Attendance → Regularizations',
+          severity: 'info',
+          enabled: true,
+        })
+      }
+    }
+
+    // ── ATTENDANCE: employee leave status updates (last 30 days) ────────────
+    if (!isManager) {
+      const thirtyDaysAgo = Date.now() - 30 * 86_400_000
+      leaves.myLeaves
+        .filter(lr =>
+          (lr.status === 'APPROVED' || lr.status === 'REJECTED') &&
+          new Date(lr.updatedAt).getTime() > thirtyDaysAgo
+        )
+        .forEach(lr => {
+          const typeName = lr.leaveType?.name ?? 'Leave'
+          const days = lr.days
+          const isApproved = lr.status === 'APPROVED'
+          items.push({
+            id: `att-my-leave-${lr.id}`,
+            category: 'attendance',
+            icon: <ScanLine size={16} />,
+            iconBg: isApproved ? '#f0fdf4' : '#fff1f2',
+            iconColor: isApproved ? '#16a34a' : '#dc2626',
+            title: `Leave request ${isApproved ? 'approved' : 'rejected'}`,
+            description: `${typeName} · ${days} day${days !== 1 ? 's' : ''}`,
+            meta: `${lr.startDate.slice(0, 10)} → ${lr.endDate.slice(0, 10)}`,
+            severity: isApproved ? 'info' : 'warning',
+            enabled: true,
+          })
+        })
+    }
+
     return items
   }, [
     pendingEntries, allEntries, jobs, invoices, users, tasks, isManager, myJobIds,
     dateFormat, overdueInvoiceDays,
     notifyTimesheetApproval, notifyFlaggedTimesheets,
     notifyJobDeadline, notifyInvoiceOverdue, notifyNewUser,
+    leaves.pendingLeaves, leaves.myLeaves,
+    attendanceMgr.exceptions, attendanceMgr.pendingRegularizations,
   ])
 
   // Enabled items only
@@ -231,6 +328,7 @@ export function Notifications() {
     jobs:       enabledItems.filter(n => n.category === 'jobs').length,
     invoices:   enabledItems.filter(n => n.category === 'invoices').length,
     team:       enabledItems.filter(n => n.category === 'team').length,
+    attendance: enabledItems.filter(n => n.category === 'attendance').length,
   }
 
   // Disabled flag summary — only show flags relevant to the user's role
@@ -248,6 +346,7 @@ export function Notifications() {
     { key: 'jobs',       label: 'Jobs' },
     { key: 'invoices',   label: 'Invoices' },
     { key: 'team',       label: 'Team' },
+    { key: 'attendance', label: 'Attendance' },
   ]
 
   return (
@@ -388,7 +487,7 @@ export function Notifications() {
               Showing {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
-              {(['timesheets', 'jobs', 'invoices', 'team'] as const).map(cat => {
+              {(['timesheets', 'jobs', 'invoices', 'team', 'attendance'] as const).map(cat => {
                 const count = counts[cat]
                 if (count === 0) return null
                 return (
@@ -422,6 +521,7 @@ export function Notifications() {
                         { label: 'Jobs',       active: notifyJobDeadline },
             isManager ? { label: 'Invoices',   active: notifyInvoiceOverdue } : null,
             isManager ? { label: 'Team',       active: notifyNewUser }        : null,
+                        { label: 'Attendance', active: true },
           ].filter(Boolean) as { label: string; active: boolean }[]).map(f => (
             <span key={f.label} style={{
               fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
