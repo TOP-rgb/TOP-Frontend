@@ -42,6 +42,7 @@ export interface OrgSettings {
   blockSubmitOverThreshold: boolean
   hourlyCostRatio: number
   requireClientForJob: boolean
+  managerScopedView: boolean
 }
 
 export interface TaskType {
@@ -99,6 +100,7 @@ const DEFAULTS: OrgSettings = {
   blockSubmitOverThreshold: true,
   hourlyCostRatio: 0.70,
   requireClientForJob: false,
+  managerScopedView: false,
 }
 
 function mergeApiResponse(raw: SettingsApiResponse): OrgSettings {
@@ -135,6 +137,7 @@ function mergeApiResponse(raw: SettingsApiResponse): OrgSettings {
     blockSubmitOverThreshold: (s.blockSubmitOverThreshold as boolean) ?? true,
     hourlyCostRatio: (s.hourlyCostRatio as number) ?? 0.70,
     requireClientForJob: (s.requireClientForJob as boolean) ?? false,
+    managerScopedView: (s.managerScopedView as boolean) ?? false,
   }
 }
 

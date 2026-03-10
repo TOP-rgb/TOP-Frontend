@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner'
 import { useSettings } from '@/hooks/useSettings'
 import { useDocuments } from '@/hooks/useDocuments'
+import { Pagination } from '@/components/ui/Pagination'
 
 // ── Date formatter with settings ──────────────────────────────────────────────
 function formatDateWithSettings(d: string | null | undefined, format: string): string {
@@ -758,6 +759,8 @@ export function Tasks() {
   const { dateFormat } = useSettingsStore()
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
+  const [tasksPage, setTasksPage]         = useState(1)
+  const [tasksPageSize, setTasksPageSize] = useState(25)
   const [showModal, setShowModal] = useState(false)
   const [detailTask, setDetailTask] = useState<Task | null>(null)
   const [selected, setSelected] = useState<Task | null>(null)
@@ -861,11 +864,16 @@ export function Tasks() {
     const matchSearch = t.name.toLowerCase().includes(search.toLowerCase()) ||
                        t.clientName.toLowerCase().includes(search.toLowerCase()) ||
                        t.jobTitle.toLowerCase().includes(search.toLowerCase())
-                       const matchStatus = statusFilter === 'all' || 
+                       const matchStatus = statusFilter === 'all' ||
                        t.status.toLowerCase() === statusFilter.toLowerCase()
     const matchUser = isManager ? true : (t.assignedToIds?.includes(user?.id ?? '') ?? false)
     return matchSearch && matchStatus && matchUser
   })
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setTasksPage(1) }, [search, statusFilter])
+
+  const paginatedTasks = filtered.slice((tasksPage - 1) * tasksPageSize, tasksPage * tasksPageSize)
 
   const handleCompleteTask = async (id: string) => {
     const task = tasks.find(t => t.id === id)
@@ -979,7 +987,7 @@ export function Tasks() {
         )}
 
         {/* Table card */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 }}>
 
           {/* Tabs + search toolbar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9' }}>
@@ -1108,7 +1116,7 @@ export function Tasks() {
                   <tr><td colSpan={activeTaskCols.length + 1} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
                     {tasks.length === 0 ? 'No tasks yet. Create one to get started.' : 'No tasks match your filters.'}
                   </td></tr>
-                ) : filtered.map((task, i) => {
+                ) : paginatedTasks.map((task, i) => {
                   const jobPriority = jobs.find(j => j.id === task.jobId)?.priority
 
                   const renderTaskCFValue = (cf: LayoutField | undefined) => {
@@ -1282,6 +1290,16 @@ export function Tasks() {
                 })}
               </tbody>
             </table>
+          </div>
+          {/* Pagination */}
+          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9' }}>
+            <Pagination
+              total={filtered.length}
+              page={tasksPage}
+              pageSize={tasksPageSize}
+              onPageChange={setTasksPage}
+              onPageSizeChange={n => { setTasksPageSize(n); setTasksPage(1) }}
+            />
           </div>
         </div>
 

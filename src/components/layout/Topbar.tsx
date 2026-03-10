@@ -1,5 +1,5 @@
-import { Bell, Search, LogOut, Building2 } from 'lucide-react'
-import { useState, useMemo, useEffect } from 'react'
+import { Bell, Search, LogOut, Building2, Briefcase, CheckSquare, FileText, Users2, UserCircle2, X } from 'lucide-react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
@@ -13,6 +13,7 @@ import { useInvoices } from '@/hooks/useInvoices'
 import { useUsers } from '@/hooks/useUsers'
 import { useTimesheets } from '@/hooks/useTimesheets'
 import { useTasks } from '@/hooks/useTasks'
+import { useClients } from '@/hooks/useClients'
 
 const roleLabels: Record<UserRole, string> = {
   employee: 'Processor',
@@ -34,6 +35,30 @@ const notifIcons: Record<string, string> = {
   timesheet: '🕐',
 }
 
+// ── Search result type ────────────────────────────────────────────────────────
+type SearchCategory = 'Job' | 'Task' | 'Invoice' | 'Client' | 'User'
+
+interface SearchResult {
+  id: string
+  category: SearchCategory
+  title: string
+  subtitle: string
+  path: string
+}
+
+const categoryMeta: Record<SearchCategory, { icon: React.ReactNode; color: string; bg: string }> = {
+  Job:     { icon: <Briefcase size={13} />,    color: '#2563eb', bg: '#eff6ff' },
+  Task:    { icon: <CheckSquare size={13} />,  color: '#7c3aed', bg: '#f5f3ff' },
+  Invoice: { icon: <FileText size={13} />,     color: '#059669', bg: '#ecfdf5' },
+  Client:  { icon: <Users2 size={13} />,       color: '#d97706', bg: '#fffbeb' },
+  User:    { icon: <UserCircle2 size={13} />,  color: '#0891b2', bg: '#ecfeff' },
+}
+
+function matchStr(haystack: string | undefined | null, needle: string): boolean {
+  return !!(haystack && haystack.toLowerCase().includes(needle))
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const { user, logout } = useAuthStore()
   const { sidebarCollapsed, setNotificationCount } = useUIStore()
@@ -46,24 +71,154 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [search,    setSearch]    = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [activeIdx,  setActiveIdx]  = useState(-1)
 
-  const sidebarW = sidebarCollapsed ? 76 : 260
+  const searchWrapperRef = useRef<HTMLDivElement>(null)
+  const inputRef         = useRef<HTMLInputElement>(null)
+
+  const sidebarW  = sidebarCollapsed ? 76 : 260
   const isManager = user?.role !== 'employee'
 
   // ── Real data hooks ───────────────────────────────────────────────────────
-  const { jobs }                          = useJobs()
-  const { tasks }                         = useTasks()
-  const { entries: allEntries, pendingEntries } = useTimesheets(isManager ? {} : { userId: user?.id })
-  // Invoices + users only fetched/used for managers — but hooks must be called unconditionally (React rules)
-  const { invoices }  = useInvoices()
-  const { users }     = useUsers()
+  const { jobs }                                   = useJobs()
+  const { tasks }                                  = useTasks()
+  const { entries: allEntries, pendingEntries }    = useTimesheets(isManager ? {} : { userId: user?.id })
+  const { invoices }                               = useInvoices()
+  const { users }                                  = useUsers()
+  const { clients }                                = useClients()
 
   // For employees: only show jobs linked to their assigned tasks
   const myJobIds = !isManager
     ? tasks.filter(t => t.assignedToIds?.includes(user?.id ?? '')).map(t => t.jobId)
     : null
 
-  // ── Build real notification items ─────────────────────────────────────────
+  // ── Global search results ─────────────────────────────────────────────────
+  const searchResults = useMemo<SearchResult[]>(() => {
+    const q = search.trim().toLowerCase()
+    if (q.length < 2) return []
+
+    const results: SearchResult[] = []
+
+    // Jobs — visible to all roles, employees only see their assigned jobs
+    const visibleJobs = myJobIds
+      ? jobs.filter(j => myJobIds.includes(j.id))
+      : jobs
+    visibleJobs
+      .filter(j => matchStr(j.title, q) || matchStr(j.jobId, q) || matchStr(j.clientName, q))
+      .slice(0, 4)
+      .forEach(j => results.push({
+        id:       `job-${j.id}`,
+        category: 'Job',
+        title:    j.title,
+        subtitle: `${j.jobId} · ${j.clientName}`,
+        path:     '/jobs',
+      }))
+
+    // Tasks — visible to all roles
+    tasks
+      .filter(t => matchStr(t.name, q) || matchStr(t.jobTitle, q) || matchStr(t.clientName, q) || matchStr(t.assignedToNames, q))
+      .slice(0, 4)
+      .forEach(t => results.push({
+        id:       `task-${t.id}`,
+        category: 'Task',
+        title:    t.name,
+        subtitle: `${t.jobTitle} · ${t.clientName}`,
+        path:     '/tasks',
+      }))
+
+    // Invoices — managers/admins only
+    if (isManager) {
+      invoices
+        .filter(inv => matchStr(inv.invoiceNumber, q) || matchStr(inv.clientCompany, q) || matchStr(inv.jobTitle, q))
+        .slice(0, 4)
+        .forEach(inv => results.push({
+          id:       `inv-${inv.id}`,
+          category: 'Invoice',
+          title:    inv.invoiceNumber,
+          subtitle: `${inv.clientCompany} · ${inv.status}`,
+          path:     '/invoices',
+        }))
+
+      // Clients — managers/admins only
+      clients
+        .filter(c => matchStr(c.name, q) || matchStr(c.company, q) || matchStr(c.industry, q) || matchStr(c.email, q))
+        .slice(0, 4)
+        .forEach(c => results.push({
+          id:       `client-${c.id}`,
+          category: 'Client',
+          title:    c.company,
+          subtitle: `${c.name} · ${c.industry}`,
+          path:     '/clients',
+        }))
+
+      // Users — managers/admins only
+      users
+        .filter(u => matchStr(u.name, q) || matchStr(u.email, q) || matchStr(u.department, q))
+        .slice(0, 4)
+        .forEach(u => results.push({
+          id:       `user-${u.id}`,
+          category: 'User',
+          title:    u.name,
+          subtitle: `${u.email}${u.department ? ` · ${u.department}` : ''}`,
+          path:     '/users',
+        }))
+    }
+
+    return results
+  }, [search, jobs, tasks, invoices, clients, users, isManager, myJobIds])
+
+  // Open dropdown when results exist
+  useEffect(() => {
+    setSearchOpen(searchResults.length > 0 || search.trim().length >= 2)
+    setActiveIdx(-1)
+  }, [searchResults, search])
+
+  // Outside-click closes search dropdown
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [])
+
+  const handleResultClick = useCallback((result: SearchResult) => {
+    navigate(result.path)
+    setSearch('')
+    setSearchOpen(false)
+    setActiveIdx(-1)
+  }, [navigate])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!searchOpen) return
+    if (e.key === 'Escape') {
+      setSearchOpen(false)
+      setSearch('')
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx(i => Math.min(i + 1, searchResults.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault()
+      handleResultClick(searchResults[activeIdx])
+    }
+  }, [searchOpen, searchResults, activeIdx, handleResultClick])
+
+  const clearSearch = () => {
+    setSearch('')
+    setSearchOpen(false)
+    setActiveIdx(-1)
+    inputRef.current?.focus()
+  }
+
+  // ── Notifications ─────────────────────────────────────────────────────────
   const allNotifications = useMemo(() => {
     const items: { id: string; text: string; time: string; unread: boolean; type: string }[] = []
 
@@ -188,6 +343,19 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
     navigate('/login')
   }
 
+  // Group results by category for display
+  const grouped = useMemo(() => {
+    const map = new Map<SearchCategory, SearchResult[]>()
+    searchResults.forEach(r => {
+      if (!map.has(r.category)) map.set(r.category, [])
+      map.get(r.category)!.push(r)
+    })
+    return map
+  }, [searchResults])
+
+  // Flat list index → result (for keyboard nav)
+  let flatIdx = -1
+
   return (
     <header
       className="fixed top-0 right-0 z-30 h-[60px] bg-white border-b border-slate-200/80 flex items-center px-5 gap-4 shadow-sm"
@@ -213,16 +381,169 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
 
       <div className="flex-1" />
 
-      {/* Search */}
-      <div className="hidden md:flex items-center gap-2 bg-slate-50 ring-1 ring-slate-200 hover:ring-slate-300 rounded-lg px-3 h-9 w-56 transition-all focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:bg-white">
-        <Search size={14} className="text-slate-400 flex-shrink-0" />
-        <input
-          placeholder="Search anything..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="bg-transparent text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none w-full"
-          aria-label="Global search"
-        />
+      {/* ── Global Search ─────────────────────────────────────────────────── */}
+      <div
+        ref={searchWrapperRef}
+        className="hidden md:block relative"
+        style={{ width: 240 }}
+      >
+        {/* Input row */}
+        <div
+          className={cn(
+            'flex items-center gap-2 bg-slate-50 ring-1 ring-slate-200 rounded-lg px-3 h-9 transition-all',
+            searchOpen && search.trim().length >= 2
+              ? 'ring-2 ring-blue-400/60 bg-white rounded-b-none'
+              : 'hover:ring-slate-300 focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:bg-white'
+          )}
+        >
+          <Search size={14} className="text-slate-400 flex-shrink-0" />
+          <input
+            ref={inputRef}
+            placeholder="Search anything..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onFocus={() => { if (searchResults.length > 0) setSearchOpen(true) }}
+            onKeyDown={handleKeyDown}
+            className="bg-transparent text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none w-full"
+            aria-label="Global search"
+            autoComplete="off"
+          />
+          {search && (
+            <button onClick={clearSearch} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* Results dropdown */}
+        {searchOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              background: '#fff',
+              border: '1px solid #bfdbfe',
+              borderTop: 'none',
+              borderBottomLeftRadius: 8,
+              borderBottomRightRadius: 8,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+              maxHeight: 360,
+              overflowY: 'auto',
+            }}
+          >
+            {searchResults.length === 0 ? (
+              <div style={{ padding: '14px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                No results for <strong style={{ color: '#6b7280' }}>"{search}"</strong>
+              </div>
+            ) : (
+              Array.from(grouped.entries()).map(([category, items]) => {
+                const meta = categoryMeta[category]
+                return (
+                  <div key={category}>
+                    {/* Category header */}
+                    <div style={{
+                      padding: '6px 12px 4px',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.07em',
+                      textTransform: 'uppercase',
+                      color: '#9ca3af',
+                      background: '#f9fafb',
+                      borderTop: '1px solid #f1f5f9',
+                    }}>
+                      {category}s
+                    </div>
+
+                    {/* Items */}
+                    {items.map(result => {
+                      flatIdx++
+                      const currentIdx = flatIdx
+                      const isActive = activeIdx === currentIdx
+
+                      return (
+                        <button
+                          key={result.id}
+                          onMouseEnter={() => setActiveIdx(currentIdx)}
+                          onClick={() => handleResultClick(result)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            width: '100%',
+                            padding: '8px 12px',
+                            textAlign: 'left',
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: isActive ? '#eff6ff' : '#fff',
+                            transition: 'background 0.1s',
+                          }}
+                        >
+                          {/* Category icon pill */}
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 24,
+                            height: 24,
+                            borderRadius: 6,
+                            background: meta.bg,
+                            color: meta.color,
+                            flexShrink: 0,
+                          }}>
+                            {meta.icon}
+                          </span>
+
+                          {/* Text */}
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <span style={{
+                              display: 'block',
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: isActive ? '#1d4ed8' : '#1e293b',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {result.title}
+                            </span>
+                            <span style={{
+                              display: 'block',
+                              fontSize: 11,
+                              color: '#94a3b8',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {result.subtitle}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              })
+            )}
+
+            {/* Footer hint */}
+            {searchResults.length > 0 && (
+              <div style={{
+                padding: '6px 12px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                gap: 12,
+                background: '#f9fafb',
+              }}>
+                <span style={{ fontSize: 10, color: '#cbd5e1' }}>↑↓ navigate</span>
+                <span style={{ fontSize: 10, color: '#cbd5e1' }}>↵ open</span>
+                <span style={{ fontSize: 10, color: '#cbd5e1' }}>Esc clear</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Notifications bell — shown if any type is enabled */}

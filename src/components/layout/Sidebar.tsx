@@ -101,6 +101,7 @@ export function Sidebar() {
           <NavLink
             key={item.path}
             to={item.path}
+            end
             className={({ isActive }) =>
               cn(
                 'group relative flex items-center gap-3 py-3.5 px-3 mb-1.5 text-sm font-medium rounded-r-xl transition-all',

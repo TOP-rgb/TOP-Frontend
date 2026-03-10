@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { useInvoices } from '@/hooks/useInvoices'
@@ -6,6 +6,7 @@ import { useJobs } from '@/hooks/useJobs'
 import { useAuthStore } from '@/store/authStore'
 import { useSettings } from '@/hooks/useSettings' // Replace with useSettings
 import { Modal } from '@/components/ui/Modal'
+import { Pagination } from '@/components/ui/Pagination'
 import { toast } from 'sonner'
 import {
   Plus, Search, Eye, FileText, Trash2, Check,
@@ -139,6 +140,8 @@ export function Invoices() {
 
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
+  const [invPage, setInvPage]         = useState(1)
+  const [invPageSize, setInvPageSize] = useState(25)
   const [showCreate, setShowCreate] = useState(false)
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null)
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null)
@@ -157,6 +160,11 @@ export function Invoices() {
       (inv.jobTitle ?? '').toLowerCase().includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setInvPage(1) }, [search, statusFilter])
+
+  const paginatedInvoices = filtered.slice((invPage - 1) * invPageSize, invPage * invPageSize)
 
   // Stat calculations
   const totalBilled = enriched.reduce((s, i) => s + i.total, 0)
@@ -195,7 +203,7 @@ export function Invoices() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Invoices</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>{enriched.length} invoice{enriched.length !== 1 ? 's' : ''} total</p>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}{filtered.length !== enriched.length ? ` (${enriched.length} total)` : ' total'}</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -238,7 +246,7 @@ export function Invoices() {
       )}
 
       {/* Table card */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 }}>
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 10 }}>
           {/* Status filters */}
@@ -287,7 +295,7 @@ export function Invoices() {
                     {search || statusFilter !== 'all' ? 'No invoices match your filters' : 'No invoices yet. Create your first invoice!'}
                   </td>
                 </tr>
-              ) : filtered.map((inv, i) => (
+              ) : paginatedInvoices.map((inv, i) => (
                 <tr key={inv.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                   <td style={{ padding: '13px 18px', whiteSpace: 'nowrap' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1f36', fontFamily: 'monospace' }}>{inv.invoiceNumber}</span>
@@ -344,6 +352,16 @@ export function Invoices() {
               ))}
             </tbody>
           </table>
+        </div>
+        {/* Pagination */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9' }}>
+          <Pagination
+            total={filtered.length}
+            page={invPage}
+            pageSize={invPageSize}
+            onPageChange={setInvPage}
+            onPageSizeChange={n => { setInvPageSize(n); setInvPage(1) }}
+          />
         </div>
       </div>
 

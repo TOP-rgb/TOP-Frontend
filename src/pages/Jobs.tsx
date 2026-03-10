@@ -7,9 +7,11 @@ import { useAuthStore } from '@/store/authStore'
 import { useSettings } from '@/hooks/useSettings'
 import { useJobs } from '@/hooks/useJobs'
 import { useClients } from '@/hooks/useClients'
+import { useUsers } from '@/hooks/useUsers'
 import { useTasks } from '@/hooks/useTasks'
 import { useJobLayouts } from '@/hooks/useLayouts'
 import type { LayoutField, JobLayout } from '@/hooks/useLayouts'
+import { Pagination } from '@/components/ui/Pagination'
 import { toast } from 'sonner'
 
 // ── Currency formatter factory ────────────────────────────────────────────────
@@ -119,9 +121,20 @@ export function Jobs() {
   const [detailJob, setDetailJob] = useState<Job | null>(null)
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const columnPickerRef = useRef<HTMLDivElement>(null)
+  const [showFilterPanel, setShowFilterPanel]     = useState(false)
+  const filterPanelRef                            = useRef<HTMLDivElement>(null)
+  const [filterPriorities, setFilterPriorities]   = useState<Priority[]>([])
+  const [filterClientId, setFilterClientId]       = useState<string>('')
+  const [filterManagerId, setFilterManagerId]     = useState<string>('')
+  const [filterBillingType, setFilterBillingType] = useState<BillingType | 'all'>('all')
+  const [filterDeadlineFrom, setFilterDeadlineFrom] = useState<string>('')
+  const [filterDeadlineTo, setFilterDeadlineTo]     = useState<string>('')
+  const [jobsPage, setJobsPage]                     = useState(1)
+  const [jobsPageSize, setJobsPageSize]             = useState(25)
 
   const { jobs, loading, error, createJob, updateJob, updateStatus: apiUpdateStatus } = useJobs()
   const { clients } = useClients()
+  const { users: managers } = useUsers({ role: 'manager', status: 'active' })
   const { tasks } = useTasks()
 
   // Page-level layout for driving status/priority options in the table filters + inline dropdowns
@@ -196,6 +209,20 @@ export function Jobs() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showColumnPicker])
 
+  // Close filter panel on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
+        setShowFilterPanel(false)
+      }
+    }
+    if (showFilterPanel) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showFilterPanel])
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => { setJobsPage(1) }, [search, statusFilter, filterPriorities, filterClientId, filterManagerId, filterBillingType, filterDeadlineFrom, filterDeadlineTo])
+
   // Columns actually shown (respecting employee visibility)
   const isEmployee = user?.role === 'employee'
   const activeColumns = allColumns.filter(c => visibleColumns.has(c.key) && !(c.employeeHidden && isEmployee))
@@ -226,14 +253,35 @@ const deadlineAlertJobs = notifyJobDeadline
     }).sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
   : []
 
+  const activeFilterCount =
+    (filterPriorities.length > 0 ? 1 : 0) +
+    (filterClientId !== '' ? 1 : 0) +
+    (filterManagerId !== '' ? 1 : 0) +
+    (filterBillingType !== 'all' ? 1 : 0) +
+    (filterDeadlineFrom !== '' || filterDeadlineTo !== '' ? 1 : 0)
+
+  const clearAllFilters = () => {
+    setFilterPriorities([]); setFilterClientId(''); setFilterManagerId('')
+    setFilterBillingType('all'); setFilterDeadlineFrom(''); setFilterDeadlineTo('')
+  }
+
   const filtered = jobsWithActualHours.filter(j => {
-    const matchSearch = j.title.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch   = j.title.toLowerCase().includes(search.toLowerCase()) ||
       j.jobId.toLowerCase().includes(search.toLowerCase()) ||
       j.clientName.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'all' || j.status === statusFilter
+    const matchStatus   = statusFilter === 'all' || j.status === statusFilter
     const matchEmployee = myTaskJobIds ? myTaskJobIds.includes(j.id) : true
-    return matchSearch && matchStatus && matchEmployee
+    const matchPriority = filterPriorities.length === 0 || filterPriorities.includes(j.priority as Priority)
+    const matchClient   = filterClientId === '' || j.clientId === filterClientId
+    const matchManager  = filterManagerId === '' || j.assignedManager === filterManagerId
+    const matchBilling  = filterBillingType === 'all' || j.billingType === filterBillingType
+    const matchFrom     = filterDeadlineFrom === '' || (j.deadline != null && j.deadline >= filterDeadlineFrom)
+    const matchTo       = filterDeadlineTo === '' || (j.deadline != null && j.deadline <= filterDeadlineTo)
+    return matchSearch && matchStatus && matchEmployee &&
+      matchPriority && matchClient && matchManager && matchBilling && matchFrom && matchTo
   })
+
+  const paginatedJobs = filtered.slice((jobsPage - 1) * jobsPageSize, jobsPage * jobsPageSize)
 
   const canEdit = user?.role !== 'employee'
 
@@ -304,7 +352,7 @@ const deadlineAlertJobs = notifyJobDeadline
       )}
 
       {/* Table Card */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb' }}>
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 10 }}>
           {/* Status filter pills */}
@@ -340,9 +388,137 @@ const deadlineAlertJobs = notifyJobDeadline
                 style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 180 }}
               />
             </div>
-            <button style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500 }}>
-              <Filter size={13} /> Filters
-            </button>
+            {/* Filter panel */}
+            <div style={{ position: 'relative' }} ref={filterPanelRef}>
+              <button
+                onClick={() => setShowFilterPanel(p => !p)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7,
+                  background: showFilterPanel || activeFilterCount > 0 ? '#f3f4f6' : '#fff',
+                  fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500,
+                }}
+              >
+                <Filter size={13} /> Filters
+                {activeFilterCount > 0 && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    background: '#2563eb', color: '#fff', borderRadius: 99,
+                    fontSize: 11, fontWeight: 700, minWidth: 18, height: 18, padding: '0 5px',
+                  }}>{activeFilterCount}</span>
+                )}
+              </button>
+
+              {showFilterPanel && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '100%', marginTop: 6,
+                  background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 300, zIndex: 50,
+                }}>
+                  {/* Panel header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <button
+                        onClick={clearAllFilters}
+                        style={{ fontSize: 12, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+                      >Clear all</button>
+                    )}
+                  </div>
+
+                  {/* Priority */}
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Priority</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {(['low', 'medium', 'high', 'urgent'] as Priority[]).map(p => (
+                        <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                          <input
+                            type="checkbox"
+                            checked={filterPriorities.includes(p)}
+                            onChange={() => setFilterPriorities(prev =>
+                              prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+                            )}
+                            style={{ accentColor: '#2563eb', width: 14, height: 14 }}
+                          />
+                          <span style={{ color: priorityColor[p], fontWeight: 600, textTransform: 'capitalize' }}>{p}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Client */}
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Client</div>
+                    <select
+                      value={filterClientId}
+                      onChange={e => setFilterClientId(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="">All clients</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Assigned Manager */}
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Manager</div>
+                    <select
+                      value={filterManagerId}
+                      onChange={e => setFilterManagerId(e.target.value)}
+                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="">All managers</option>
+                      {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Billing Type */}
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Billing Type</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {(['all', 'hourly', 'fixed'] as const).map(bt => (
+                        <button
+                          key={bt}
+                          onClick={() => setFilterBillingType(bt)}
+                          style={{
+                            flex: 1, padding: '6px 0', borderRadius: 6, border: '1px solid #e5e7eb',
+                            fontSize: 12, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
+                            background: filterBillingType === bt ? '#2563eb' : '#f9fafb',
+                            color: filterBillingType === bt ? '#fff' : '#6b7280',
+                          }}
+                        >{bt}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Deadline */}
+                  <div style={{ padding: '12px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Deadline</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: '#9ca3af', width: 30 }}>From</span>
+                        <input
+                          type="date"
+                          value={filterDeadlineFrom}
+                          onChange={e => setFilterDeadlineFrom(e.target.value)}
+                          style={{ flex: 1, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: '#9ca3af', width: 30 }}>To</span>
+                        <input
+                          type="date"
+                          value={filterDeadlineTo}
+                          min={filterDeadlineFrom || undefined}
+                          onChange={e => setFilterDeadlineTo(e.target.value)}
+                          style={{ flex: 1, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Column picker */}
             <div style={{ position: 'relative' }} ref={columnPickerRef}>
@@ -443,7 +619,7 @@ const deadlineAlertJobs = notifyJobDeadline
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={activeColumns.length + 1} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No jobs found</td></tr>
-              ) : filtered.map((job, i) => {
+              ) : paginatedJobs.map((job, i) => {
                 // Calculate hour thresholds if enabled
                 const hourCheck = (flagUnderHours || flagOverHours)
                   ? checkHourThresholds(job.actualHours, job.quotedHours, dailyHoursThreshold)
@@ -554,6 +730,16 @@ const deadlineAlertJobs = notifyJobDeadline
               )})}
             </tbody>
           </table>
+        </div>
+        {/* Pagination */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9' }}>
+          <Pagination
+            total={filtered.length}
+            page={jobsPage}
+            pageSize={jobsPageSize}
+            onPageChange={setJobsPage}
+            onPageSizeChange={n => { setJobsPageSize(n); setJobsPage(1) }}
+          />
         </div>
       </div>
 
@@ -770,6 +956,7 @@ const deadlineAlertJobs = notifyJobDeadline
         onClose={() => setShowModal(false)}
         job={selected}
         clients={clients.map(c => ({ id: c.id, company: c.company }))}
+        managers={managers}
         currency={currency}
         currencySymbol={currencySymbol}
         defaultHourlyRate={defaultHourlyRate}
@@ -800,6 +987,7 @@ interface JobModalProps {
   job: Job | null
   onSave: (j: Job) => void
   clients: Array<{ id: string; company: string }>
+  managers: Array<{ id: string; name: string }>
   currency: string
   currencySymbol: string
   defaultHourlyRate: number | null
@@ -807,13 +995,14 @@ interface JobModalProps {
   billingIncrement: number
 }
 
-function JobModal({ 
-  open, 
-  onClose, 
-  job, 
-  onSave, 
-  clients, 
-  currency, 
+function JobModal({
+  open,
+  onClose,
+  job,
+  onSave,
+  clients,
+  managers,
+  currency,
   currencySymbol,
   defaultHourlyRate,
   requireClientForJob,
@@ -1067,6 +1256,13 @@ function JobModal({
                   <select style={{ ...darkInput, cursor: 'pointer' }} value={form.clientId ?? ''} onChange={e => { s('clientId', e.target.value); s('clientName', clients.find(c => c.id === e.target.value)?.company ?? '') }}>
                     <option value="">Select client</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.company}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Assigned Manager</label>
+                  <select style={{ ...darkInput, cursor: 'pointer' }} value={form.assignedManager ?? ''} onChange={e => s('assignedManager', e.target.value)}>
+                    <option value="">— Unassigned —</option>
+                    {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
                 <div>

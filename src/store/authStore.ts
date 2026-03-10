@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User, UserRole } from '@/types'
+import type { User, UserRole, EmployeeType } from '@/types'
 import { api, setToken, clearToken, getToken } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
 
@@ -39,6 +39,7 @@ function normaliseUser(u: ApiUser): User {
     name: `${u.firstName} ${u.lastName}`,
     email: u.email,
     role: u.role.toLowerCase() as UserRole,
+    employeeType: ((u as unknown as Record<string, string>).employeeType as EmployeeType) ?? 'PERMANENT',
     status: u.status.toLowerCase() as 'active' | 'inactive',
     department: '',
     joinedDate: u.createdAt || '',

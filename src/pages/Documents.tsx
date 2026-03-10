@@ -556,7 +556,7 @@ export function Documents() {
     }
     if (!activeFolderId) return [{ id: null, name: 'All Files' }]
     const crumbs: { id: string | null; name: string }[] = [{ id: null, name: 'All Files' }]
-    const findPath = (folders: typeof import('@/hooks/useDocuments').DocumentFolder[], targetId: string): boolean => {
+    const findPath = (folders: DocumentFolder[], targetId: string): boolean => {
       for (const f of folders) {
         if (f.id === targetId) { crumbs.push({ id: f.id, name: f.name }); return true }
         if (findPath(f.children, targetId)) { crumbs.splice(1, 0, { id: f.id, name: f.name }); return true }

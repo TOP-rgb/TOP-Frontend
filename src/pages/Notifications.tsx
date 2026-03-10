@@ -438,7 +438,7 @@ export function Notifications() {
             </div>
           </div>
         ) : (
-          <div style={{ divide: 'y' }}>
+          <div>
             {filtered.map((item, i) => (
               <div
                 key={item.id}

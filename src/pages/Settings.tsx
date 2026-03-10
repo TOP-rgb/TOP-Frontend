@@ -514,6 +514,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
     blockSubmitOverThreshold: data.blockSubmitOverThreshold,
     hourlyCostRatio: data.hourlyCostRatio,
     requireClientForJob: data.requireClientForJob,
+    managerScopedView: data.managerScopedView ?? false,
   })
   useEffect(() => setWf({
     dailyHoursThreshold: data.dailyHoursThreshold,
@@ -524,6 +525,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
     blockSubmitOverThreshold: data.blockSubmitOverThreshold,
     hourlyCostRatio: data.hourlyCostRatio,
     requireClientForJob: data.requireClientForJob,
+    managerScopedView: data.managerScopedView ?? false,
   }), [data])
 
   const handleAddType = async () => {
@@ -755,6 +757,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
             <Switch checked={wf.blockSubmitUnderThreshold} onCheckedChange={v => setWf(f => ({ ...f, blockSubmitUnderThreshold: v }))} label="Block Submit if Under Threshold" description="Disable the timesheet submit button when hours are below the daily threshold" />
             <Switch checked={wf.blockSubmitOverThreshold} onCheckedChange={v => setWf(f => ({ ...f, blockSubmitOverThreshold: v }))} label="Block Submit if Over Threshold" description="Disable the timesheet submit button when hours exceed the daily threshold" />
             <Switch checked={wf.requireClientForJob} onCheckedChange={v => setWf(f => ({ ...f, requireClientForJob: v }))} label="Require Client for Job" description="Jobs must be linked to a client before creation" />
+            <Switch checked={wf.managerScopedView} onCheckedChange={v => setWf(f => ({ ...f, managerScopedView: v }))} label="Manager Scoped View" description="When enabled, managers only see jobs assigned to them, tasks they created, and the related invoices and reports" />
           </div>
           <div style={cardFoot}><SaveButton saving={saving} section="workflow" onClick={handleWfSave} /></div>
         </div>
