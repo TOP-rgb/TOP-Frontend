@@ -964,10 +964,10 @@ export function Calendar() {
       .catch(() => {})
   }, [fetchEvents, fetchIntegrations])
 
-  // Poll for new events every 60 s + refresh when the tab regains focus
+  // Poll for new events every 30 s + refresh when the tab regains focus
   // This ensures attendees see meetings created by others without a manual refresh
   useEffect(() => {
-    const poll = setInterval(() => fetchEvents(), 60_000)
+    const poll = setInterval(() => fetchEvents(), 30_000)
     const onVisible = () => { if (document.visibilityState === 'visible') fetchEvents() }
     document.addEventListener('visibilitychange', onVisible)
     return () => { clearInterval(poll); document.removeEventListener('visibilitychange', onVisible) }
@@ -987,18 +987,26 @@ export function Calendar() {
     if (calApi) setCurrentTitle(calApi.view.title)
   }, [])
 
-  // Handle OAuth return
+  // Handle OAuth return — sync immediately after connecting so events appear right away
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const success = params.get('success')
     const error = params.get('error')
-    if (success === 'google_calendar') { toast.success('Google Calendar connected!'); fetchIntegrations() }
-    if (success === 'microsoft_calendar') { toast.success('Outlook Calendar connected!'); fetchIntegrations() }
+    if (success === 'google_calendar' || success === 'microsoft_calendar') {
+      toast.success(success === 'google_calendar' ? 'Google Calendar connected!' : 'Outlook Calendar connected!')
+      // Clean URL first, then sync + fetch to pull in external events immediately
+      window.history.replaceState({}, '', window.location.pathname)
+      fetchIntegrations()
+      // Sync then re-fetch events so newly-connected calendar events appear
+      syncNow().then(() => fetchEvents())
+      setAutoSyncDone(true) // prevent the autoSync effect from also firing
+      return
+    }
     if (error) toast.error('Calendar connection failed')
-    if (success || error) {
+    if (error) {
       window.history.replaceState({}, '', window.location.pathname)
     }
-  }, [fetchIntegrations])
+  }, [fetchIntegrations, syncNow, fetchEvents])
 
   const navigate = (dir: 'prev' | 'next' | 'today') => {
     const calApi = calRef.current?.getApi()

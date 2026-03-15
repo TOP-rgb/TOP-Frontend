@@ -142,5 +142,16 @@ export function useJobs(options: UseJobsOptions = {}) {
     }
   }
 
-  return { jobs, loading, error, refetch: fetchJobs, createJob, updateJob, updateStatus }
+  const deleteJob = async (id: string): Promise<boolean> => {
+    try {
+      await api.delete(`/jobs/${id}`)
+      setJobs(prev => prev.filter(j => j.id !== id))
+      return true
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to delete job')
+      return false
+    }
+  }
+
+  return { jobs, loading, error, refetch: fetchJobs, createJob, updateJob, updateStatus, deleteJob }
 }

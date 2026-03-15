@@ -21,6 +21,7 @@ const badgeVariants = cva(
         warning: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
         danger: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800",
         info: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+        purple: "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
       },
     },
     defaultVariants: {
@@ -41,6 +42,7 @@ const dotColors = {
   warning: "bg-amber-700 dark:bg-amber-400",
   danger: "bg-red-700 dark:bg-red-400",
   info: "bg-sky-700 dark:bg-sky-400",
+  purple: "bg-purple-700 dark:bg-purple-400",
 }
 
 interface BadgeProps extends React.ComponentProps<"span">, VariantProps<typeof badgeVariants> {

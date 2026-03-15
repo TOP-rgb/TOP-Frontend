@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
 import type { AttendanceRecord, RegularizationRequest, WorkMode } from '@/types'
@@ -11,6 +11,7 @@ interface TodayResponse {
   leaveType: { name: string; color: string } | null
   approvedWFH: { id: string; mode: WorkMode } | null
   shift: { name: string; startTime: string; endTime: string; gracePeriodMinutes: number; workingDays: number[] } | null
+  workingDays: number[] | null  // always present — even on off days when shift is null
 }
 
 interface CheckInPayload {
@@ -21,7 +22,8 @@ interface CheckInPayload {
 }
 
 interface RegularizationPayload {
-  recordId: string
+  recordId?: string   // for existing records
+  date?: string       // for absent (synthetic) records — YYYY-MM-DD
   requestedCheckIn: string
   requestedCheckOut?: string
   reason: string
@@ -34,6 +36,12 @@ export function useAttendance() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Remembers the most recently used date filter so that param-less calls
+  // (e.g. after check-in / check-out, or the chained auto-close fetch on mount)
+  // always re-use the current filter instead of falling back to the backend's
+  // default "current month" range and overwriting whatever the UI filter shows.
+  const lastHistoryParamsRef = useRef<{ startDate?: string; endDate?: string } | undefined>(undefined)
+
   const fetchToday = useCallback(async () => {
     try {
       const res = await api.get<ApiResponse<TodayResponse>>('/attendance/today')
@@ -44,13 +52,19 @@ export function useAttendance() {
   }, [])
 
   const fetchHistory = useCallback(async (params?: { startDate?: string; endDate?: string; limit?: number; offset?: number }) => {
+    // Persist explicit params for future param-less calls (auto-refresh after
+    // check-in/out, or the chained auto-close fetch on mount).
+    if (params !== undefined) lastHistoryParamsRef.current = params
+    // If called without params, re-use the last known filter so the visible
+    // date range in the UI stays consistent.
+    const effectiveParams = params ?? lastHistoryParamsRef.current
     try {
       setLoading(true)
       const q = new URLSearchParams()
-      if (params?.startDate) q.set('startDate', params.startDate)
-      if (params?.endDate) q.set('endDate', params.endDate)
-      if (params?.limit) q.set('limit', String(params.limit))
-      if (params?.offset) q.set('offset', String(params.offset))
+      if (effectiveParams?.startDate) q.set('startDate', effectiveParams.startDate)
+      if (effectiveParams?.endDate) q.set('endDate', effectiveParams.endDate)
+      if (effectiveParams?.limit) q.set('limit', String(effectiveParams.limit))
+      if (effectiveParams?.offset) q.set('offset', String(effectiveParams.offset))
       const res = await api.get<ApiResponse<AttendanceRecord[]>>(`/attendance/mine?${q}`)
       setHistory(res.data)
     } catch (err) {
@@ -70,22 +84,26 @@ export function useAttendance() {
   }, [])
 
   useEffect(() => {
-    fetchToday()
-    fetchHistory()
+    // fetchToday runs autoCloseStaleRecords on the backend — sequence fetchHistory
+    // after it resolves so history always reflects the auto-closed workMinutes,
+    // not the stale open record from a previous day.
+    fetchToday().then(() => fetchHistory())
     fetchMyRegularizations()
   }, [fetchToday, fetchHistory, fetchMyRegularizations])
 
   const checkIn = useCallback(async (coords?: CheckInPayload) => {
     const res = await api.post<ApiResponse<AttendanceRecord>>('/attendance/checkin', coords ?? {})
     await fetchToday()
+    fetchHistory()   // keep history in sync (clears stale checkOutAt on re-check-in)
     return res.data
-  }, [fetchToday])
+  }, [fetchToday, fetchHistory])
 
   const checkOut = useCallback(async (coords?: CheckInPayload) => {
     const res = await api.patch<ApiResponse<AttendanceRecord>>('/attendance/checkout', coords ?? {})
     await fetchToday()
+    fetchHistory()   // refresh so history Hours column shows updated workMinutes immediately
     return res.data
-  }, [fetchToday])
+  }, [fetchToday, fetchHistory])
 
   const submitRegularization = useCallback(async (payload: RegularizationPayload) => {
     const res = await api.post<ApiResponse<RegularizationRequest>>('/attendance/regularizations', payload)

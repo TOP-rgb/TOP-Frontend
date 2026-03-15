@@ -164,7 +164,7 @@ export interface InvoiceFormData {
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance & Leave types
 // ─────────────────────────────────────────────────────────────────────────────
-export type AttendanceStatus = 'PRESENT' | 'LATE' | 'AUTO_CHECKED_OUT' | 'ON_LEAVE'
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'AUTO_CHECKED_OUT' | 'ON_LEAVE' | 'ABSENT'
 export type ExceptionType = 'LATE_ARRIVAL' | 'EARLY_DEPARTURE' | 'MISSED_CHECKOUT' | 'LOCATION_VIOLATION'
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type WorkMode = 'OFFICE' | 'WFH' | 'TRAVELLING'
@@ -238,7 +238,7 @@ export interface AttendanceRecord {
   organizationId: string
   userId: string
   date: string
-  checkInAt: string           // current/latest session start — used by live timer
+  checkInAt: string | null     // current/latest session start — used by live timer (null for synthetic absent entries)
   firstCheckInAt?: string | null  // original first check-in of the day — display only
   checkOutAt?: string | null
   checkInLat?: number | null

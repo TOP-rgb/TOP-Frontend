@@ -764,9 +764,10 @@ export function Tasks() {
   const [showModal, setShowModal] = useState(false)
   const [detailTask, setDetailTask] = useState<Task | null>(null)
   const [selected, setSelected] = useState<Task | null>(null)
+  const [confirmDeleteTask, setConfirmDeleteTask] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const { tasks, loading, error, createTask, updateTask, updateStatus, tickTimer, startTimer, pauseTimer, updateNotes } = useTasks()
+  const { tasks, loading, error, createTask, updateTask, updateStatus, tickTimer, startTimer, pauseTimer, updateNotes, deleteTask } = useTasks()
   const { jobs } = useJobs()
   const { users } = useUsers({ status: 'active' })
   const { taskTypes } = useSettings()
@@ -1283,6 +1284,11 @@ export function Tasks() {
                               <Square size={13} />
                             </IconBtn>
                           )}
+                          {canEdit && (
+                            <IconBtn onClick={() => setConfirmDeleteTask(task.id)} title="Delete Task" bg="#fee2e2" hoverBg="#fecaca" color="#ef4444">
+                              <Trash2 size={13} />
+                            </IconBtn>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1384,6 +1390,37 @@ export function Tasks() {
               setShowModal(false)
             }}
           />
+        )}
+
+        {/* Delete Task confirmation */}
+        {confirmDeleteTask && (
+          <Modal open onClose={() => setConfirmDeleteTask(null)}>
+            <div style={{ padding: '28px 32px', maxWidth: 420, textAlign: 'center' }}>
+              <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Trash2 size={24} color="#ef4444" />
+              </div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#111827' }}>Delete Task?</h3>
+              <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
+                This will permanently delete the task and all its time entries. This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button onClick={() => setConfirmDeleteTask(null)} style={{ padding: '9px 24px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const ok = await deleteTask(confirmDeleteTask)
+                    if (ok) toast.success('Task deleted')
+                    else toast.error('Failed to delete task')
+                    setConfirmDeleteTask(null)
+                  }}
+                  style={{ padding: '9px 24px', border: 'none', borderRadius: 8, background: '#ef4444', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </Modal>
         )}
       </div>
     </>

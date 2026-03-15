@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { Job, JobStatus, Priority, BillingType } from '@/types'
 import { Modal } from '@/components/ui/Modal'
 import { formatDate, formatDateForInput } from '@/lib/utils'
-import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock, AlertTriangle, Clock, Columns3 } from 'lucide-react'
+import { Search, Plus, Eye, Edit2, Loader2, Check, Filter, Layout, Star, Lock, AlertTriangle, Clock, Columns3, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useSettings } from '@/hooks/useSettings'
 import { useJobs } from '@/hooks/useJobs'
@@ -131,8 +131,9 @@ export function Jobs() {
   const [filterDeadlineTo, setFilterDeadlineTo]     = useState<string>('')
   const [jobsPage, setJobsPage]                     = useState(1)
   const [jobsPageSize, setJobsPageSize]             = useState(25)
+  const [confirmDeleteJob, setConfirmDeleteJob]     = useState<string | null>(null)
 
-  const { jobs, loading, error, createJob, updateJob, updateStatus: apiUpdateStatus } = useJobs()
+  const { jobs, loading, error, createJob, updateJob, updateStatus: apiUpdateStatus, deleteJob } = useJobs()
   const { clients } = useClients()
   const { users: managers } = useUsers({ role: 'manager', status: 'active' })
   const { tasks } = useTasks()
@@ -724,6 +725,11 @@ const deadlineAlertJobs = notifyJobDeadline
                           <Edit2 size={14} />
                         </button>
                       )}
+                      {canEdit && (
+                        <button onClick={() => setConfirmDeleteJob(job.id)} style={{ padding: '5px 8px', border: '1px solid #fecaca', borderRadius: 6, background: '#fff5f5', cursor: 'pointer', color: '#ef4444' }} title="Delete">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -975,6 +981,37 @@ const deadlineAlertJobs = notifyJobDeadline
           setShowModal(false)
         }}
       />
+
+      {/* Delete Job confirmation */}
+      {confirmDeleteJob && (
+        <Modal open onClose={() => setConfirmDeleteJob(null)}>
+          <div style={{ padding: '28px 32px', maxWidth: 420, textAlign: 'center' }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Trash2 size={24} color="#ef4444" />
+            </div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#111827' }}>Delete Job?</h3>
+            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
+              This will permanently delete the job and all its associated tasks and time entries. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button onClick={() => setConfirmDeleteJob(null)} style={{ padding: '9px 24px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' }}>
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const ok = await deleteJob(confirmDeleteJob)
+                  if (ok) toast.success('Job deleted')
+                  else toast.error('Failed to delete job')
+                  setConfirmDeleteJob(null)
+                }}
+                style={{ padding: '9px 24px', border: 'none', borderRadius: 8, background: '#ef4444', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

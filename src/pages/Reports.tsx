@@ -73,7 +73,7 @@ type ReportTab = 'overview' | 'jobs' | 'time' | 'finance' | 'attendance'
 
 // ── Attendance stats types ────────────────────────────────────────────────────
 interface AttendanceStats {
-  summary: { presentDays: number; lateDays: number; leaveDays: number; attendanceRate: number }
+  summary: { presentDays: number; lateDays: number; leaveDays: number; absentDays: number; attendanceRate: number }
   dailyTrend: { date: string; present: number; late: number; onLeave: number }[]
   byEmployee: { userId: string; name: string; present: number; late: number; absent: number; leaveDays: number; overtimeMinutes: number }[]
   exceptionBreakdown: { LATE_ARRIVAL: number; EARLY_DEPARTURE: number; MISSED_CHECKOUT: number; LOCATION_VIOLATION: number }
@@ -137,6 +137,7 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
         <KPI label="Attendance Rate" value={`${d.summary.attendanceRate}%`} sub="Present days / total working days" />
         <KPI label="Present Days" value={d.summary.presentDays} />
         <KPI label="Late Days" value={d.summary.lateDays} sub="Arrived after grace period" />
+        <KPI label="Absent Days" value={d.summary.absentDays ?? 0} sub="Working days with no check-in" />
         <KPI label="Leave Days" value={d.summary.leaveDays} sub="Approved leave taken" />
       </div>
 

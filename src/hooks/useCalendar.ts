@@ -109,7 +109,16 @@ export function useCalendar() {
       const res = await api.get<ApiResponse<CalendarEventData[]>>(
         `/calendar/events${params.toString() ? `?${params}` : ''}`
       )
-      if (res.success) setEvents(res.data ?? [])
+      if (res.success) {
+        // Deduplicate by event id — concurrent syncs can create duplicates in the DB
+        const seen = new Set<string>()
+        const deduped = (res.data ?? []).filter(e => {
+          if (seen.has(e.id)) return false
+          seen.add(e.id)
+          return true
+        })
+        setEvents(deduped)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load events')
     } finally {

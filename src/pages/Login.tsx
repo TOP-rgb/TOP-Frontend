@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -200,9 +200,9 @@ export function Login() {
                   <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 accent-blue-600" />
                   <span className="text-sm text-slate-600">Remember me</span>
                 </label>
-                <button type="button" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">
+                <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">
                   Forgot password?
-                </button>
+                </Link>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>

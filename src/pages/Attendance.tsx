@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { LogIn, LogOut, Clock, Calendar, Users, AlertTriangle, ClipboardList, CheckSquare, Loader2, ChevronRight, Download, ChevronLeft, Building2, Home, Plane } from 'lucide-react'
+import { LogIn, LogOut, Clock, Calendar, Users, AlertTriangle, ClipboardList, CheckSquare, Loader2, ChevronRight, Download, ChevronLeft, Building2, Home, Plane, History, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/store/authStore'
@@ -24,11 +24,11 @@ function fmtDate(iso: string | null | undefined): string {
   // Use timeZone:'UTC' because all record dates are stored as midnight-UTC
   // of the local date (e.g. "2024-03-06T00:00:00.000Z" = local March 6).
   // Without this, UTC-offset browsers shift it to the previous day.
-  return new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  return new Date(iso).toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
 function fmtMinutes(mins: number | null | undefined): string {
-  if (mins == null) return '—'
+  if (mins == null || mins < 0) return '—'
   const h = Math.floor(mins / 60)
   const m = mins % 60
   return h > 0 ? `${h}h ${m}m` : `${m}m`
@@ -51,19 +51,23 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'PRESENT':         return <Badge variant="success" dot>Present</Badge>
     case 'LATE':            return <Badge variant="warning" dot>Late</Badge>
+    case 'HALF_DAY':        return <Badge variant="purple" dot>Half Day</Badge>
     case 'AUTO_CHECKED_OUT':return <Badge variant="secondary" dot>Auto Closed</Badge>
     case 'ON_LEAVE':        return <Badge variant="info" dot>On Leave</Badge>
+    case 'ABSENT':          return <Badge variant="destructive" dot>Absent</Badge>
+    case 'HOLIDAY':         return <Badge variant="secondary" dot>Holiday</Badge>
     default:                return <Badge variant="secondary">{status}</Badge>
   }
 }
 
 function getExceptionBadge(type: string) {
   switch (type) {
-    case 'LATE_ARRIVAL':      return <Badge variant="warning">Late Arrival</Badge>
-    case 'EARLY_DEPARTURE':   return <Badge variant="warning">Early Departure</Badge>
-    case 'MISSED_CHECKOUT':   return <Badge variant="danger">Missed Checkout</Badge>
-    case 'LOCATION_VIOLATION':return <Badge variant="danger">Location Violation</Badge>
-    default:                  return <Badge variant="secondary">{type}</Badge>
+    case 'LATE_ARRIVAL':       return <Badge variant="warning">Late Arrival</Badge>
+    case 'EARLY_DEPARTURE':    return <Badge variant="warning">Early Departure</Badge>
+    case 'MISSED_CHECKOUT':    return <Badge variant="danger">Missed Checkout</Badge>
+    case 'LOCATION_VIOLATION': return <Badge variant="danger">Location Violation</Badge>
+    case 'OUT_OF_SHIFT_HOURS': return <Badge variant="danger">Out of Shift Hours</Badge>
+    default:                   return <Badge variant="secondary">{type}</Badge>
   }
 }
 
@@ -77,15 +81,10 @@ function useLiveMinutes(
   const [mins, setMins] = useState<number | null>(null)
   useEffect(() => {
     if (!checkInAt) { setMins(null); return }
-
-    // Already checked out — backend has correctly accumulated all sessions in
-    // workMinutes (storedMinutes), so use that directly.
     if (checkOutAt) {
       setMins(storedMinutes ?? Math.floor((new Date(checkOutAt).getTime() - new Date(checkInAt).getTime()) / 60000))
       return
     }
-
-    // Currently checked in — live counter = previous sessions + current session.
     const accumulated = storedMinutes ?? 0
     const update = () =>
       setMins(accumulated + Math.floor((Date.now() - new Date(checkInAt).getTime()) / 60000))
@@ -96,9 +95,105 @@ function useLiveMinutes(
   return mins
 }
 
+// Live second-level timer — used for the "Hours Worked" card while checked in.
+//
+// Problem: workMinutes is floor(minutes), so 5m 30s stores workMinutes=5, losing
+// 30 s. After checkout → re-check-in OR page refresh, the timer restarts at 5:00
+// instead of 5:30.
+//
+// Fix: at checkout we compute precise total seconds (workMinutes*60 + sub-minute
+// remainder from real timestamps) and write to sessionStorage keyed by date.
+// sessionStorage survives page refreshes within the same browser tab, so both
+// re-check-in and refresh restore the exact value shown at checkout.
+const WORK_SECS_KEY = 'attendance-precise-secs'
+
+function useLiveSecs(
+  checkInAt?: string | null,
+  checkOutAt?: string | null,
+  storedMinutes?: number | null,
+) {
+  const [secs, setSecs] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!checkInAt) { setSecs(null); return }
+
+    const dateKey = checkInAt.slice(0, 10) // YYYY-MM-DD — invalidates on new day
+
+    const readStorage = () => {
+      try {
+        const raw = sessionStorage.getItem(WORK_SECS_KEY)
+        return raw ? JSON.parse(raw) as { date: string; secs: number; checkOutAt?: string } : null
+      } catch { return null }
+    }
+
+    const writeStorage = (totalSecs: number, co: string) => {
+      try { sessionStorage.setItem(WORK_SECS_KEY, JSON.stringify({ date: dateKey, secs: totalSecs, checkOutAt: co })) } catch {}
+    }
+
+    if (checkOutAt) {
+      const stored = readStorage()
+
+      // Idempotent: already computed for this exact checkout — just restore, no re-accumulate.
+      // This prevents the growing-on-refresh bug where checkout branch keeps re-adding
+      // currentSessionSecs every time the page reloads in the checked-out state.
+      if (stored?.date === dateKey && stored.checkOutAt === checkOutAt) {
+        setSecs(stored.secs)
+        return
+      }
+
+      const currentSessionSecs = Math.floor(
+        (new Date(checkOutAt).getTime() - new Date(checkInAt).getTime()) / 1000
+      )
+
+      // prevAccum = server's accumulated floor (storedMinutes) converted to seconds,
+      // PLUS the sub-minute remainder from sessionStorage.
+      // Using storedMinutes*60 as the base (not raw stored.secs) makes this immune to
+      // any inflation the old buggy code may have written into sessionStorage.
+      // The `% 60` extracts only the sub-minute fraction, recovering precision lost by
+      // the server's floor-per-session calculation without risking accumulation errors.
+      const serverPrevSecs = (storedMinutes ?? 0) * 60
+      const subMinutePrev = (stored?.date === dateKey && typeof stored.secs === 'number')
+        ? stored.secs % 60 : 0
+      const prevAccum = serverPrevSecs + subMinutePrev
+
+      const total = prevAccum + currentSessionSecs
+      setSecs(total)
+      writeStorage(total, checkOutAt)
+      return
+    }
+
+    // Live session — base from server's workMinutes (reliable floor) + sub-minute
+    // seconds from sessionStorage (% 60). Using % 60 makes accumulated immune to any
+    // inflation in sessionStorage written by old buggy runs; it only extracts the
+    // sub-minute precision the server loses when it floors minutes at each session.
+    const serverSecs = (storedMinutes ?? 0) * 60
+    const storedLive = readStorage()
+    const subMinuteSecs = storedLive?.date === dateKey && typeof storedLive.secs === 'number'
+      ? storedLive.secs % 60 : 0
+    let accumulated = serverSecs + subMinuteSecs
+
+    const update = () =>
+      setSecs(accumulated + Math.floor((Date.now() - new Date(checkInAt).getTime()) / 1000))
+    update()
+    const t = setInterval(update, 1_000)
+    return () => clearInterval(t)
+  }, [checkInAt, checkOutAt, storedMinutes])
+
+  return secs
+}
+
+function fmtLiveDuration(secs: number): string {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
+  const mm = String(m).padStart(2, '0')
+  const ss = String(s).padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
+}
+
 // ── Tab definitions ───────────────────────────────────────────────────────────
 
-type Tab = 'my-attendance' | 'calendar' | 'my-leaves' | 'wfh-requests' | 'team' | 'exceptions' | 'regularizations' | 'leave-approvals' | 'wfh-approvals'
+type Tab = 'my-attendance' | 'calendar' | 'my-leaves' | 'wfh-requests' | 'team' | 'staff-history' | 'exceptions' | 'regularizations' | 'leave-approvals' | 'wfh-approvals'
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -162,11 +257,36 @@ export function Attendance() {
   const [checkingIn, setCheckingIn] = useState(false)
   const [workMode, setWorkMode] = useState<WorkMode>('OFFICE')
 
+  // History date range filter — default to current week (Mon–Sun)
+  const [historyFrom, setHistoryFrom] = useState(() => {
+    const now = new Date()
+    const day = now.getDay()
+    const diff = day === 0 ? -6 : 1 - day
+    const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff)
+    return `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`
+  })
+  const [historyTo, setHistoryTo] = useState(() => {
+    const now = new Date()
+    const day = now.getDay()
+    const diff = day === 0 ? -6 : 1 - day
+    const sun = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff + 6)
+    return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`
+  })
+
+  // Fetch current week on mount
+  useEffect(() => {
+    if (historyFrom && historyTo) refetchHistory({ startDate: historyFrom, endDate: historyTo })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Calendar state
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1)
   })
   const [calendarDetail, setCalendarDetail] = useState<{ date: Date; record: typeof history[0] | null } | null>(null)
+  const handleCalendarDayClick = (date: Date, rec: typeof history[0] | null) => {
+    setCalendarDetail({ date, record: rec })
+  }
+
 
   // Fetch work-mode policy for this employee
   useEffect(() => { fetchPolicies() }, [fetchPolicies])
@@ -196,7 +316,13 @@ export function Attendance() {
   // Review notes
   const [reviewNote, setReviewNote] = useState('')
 
+  // Staff History tab — employee selector + date range
+  const [staffHistoryUserId, setStaffHistoryUserId] = useState<string>('')
+  const [staffHistoryStart,  setStaffHistoryStart]  = useState<string>('')
+  const [staffHistoryEnd,    setStaffHistoryEnd]    = useState<string>('')
+
   const liveMinutes = useLiveMinutes(todayRecord?.checkInAt, todayRecord?.checkOutAt, todayRecord?.workMinutes)
+  const liveSecs    = useLiveSecs(todayRecord?.checkInAt, todayRecord?.checkOutAt, todayRecord?.workMinutes)
 
   // Derive today's display status
   const todayStatus = (() => {
@@ -214,12 +340,16 @@ export function Attendance() {
     CHECKED_OUT:      'Checked Out',
     PRESENT:          'Present',
     LATE:             'Late',
+    HALF_DAY:         'Half Day',
+    ABSENT:           'Absent',
     AUTO_CHECKED_OUT: 'Auto Closed',
   }
 
   // Load manager data on tab change
   useEffect(() => {
     if (activeTab === 'team' && isManager) mgr.fetchTeamStatus()
+    // Staff History needs the team member list — fetch team status if not already loaded
+    if (activeTab === 'staff-history' && isManager && !mgr.teamStatus) mgr.fetchTeamStatus()
     if (activeTab === 'exceptions' && isManager) mgr.fetchExceptions()
     if (activeTab === 'regularizations') {
       if (isManager) mgr.fetchPendingRegularizations()
@@ -278,8 +408,13 @@ export function Attendance() {
   const handleSubmitReg = async () => {
     if (!regModal || !regForm.requestedCheckIn || !regForm.reason) return
     try {
+      const isSynthetic = regModal.record.id?.startsWith('absent-')
       await submitRegularization({
-        recordId: regModal.record.id,
+        ...(isSynthetic
+          ? { date: regModal.record.date instanceof Date
+              ? regModal.record.date.toISOString().slice(0, 10)
+              : String(regModal.record.date).slice(0, 10) }
+          : { recordId: regModal.record.id }),
         requestedCheckIn: regForm.requestedCheckIn,
         requestedCheckOut: regForm.requestedCheckOut || undefined,
         reason: regForm.reason,
@@ -376,14 +511,26 @@ export function Attendance() {
   const canCheckIn  = todayStatus === 'NOT_CHECKED_IN' || todayStatus === 'CHECKED_OUT'
   const canCheckOut = todayStatus === 'PRESENT' || todayStatus === 'LATE'
 
+  // Off-day helper — uses the always-present workingDays field (not todayData.shift.workingDays,
+  // which is null on off days because resolveShiftForUser returns null for non-working days).
+  const shiftWorkingDays = todayData?.workingDays
+  const isOffDay = (jsDay: number): boolean => {
+    if (shiftWorkingDays && shiftWorkingDays.length > 0) {
+      const isoDay = jsDay === 0 ? 7 : jsDay  // JS Sun=0 → ISO Sun=7
+      return !shiftWorkingDays.includes(isoDay)
+    }
+    return jsDay === 0 || jsDay === 6           // default: Sat/Sun
+  }
+
   const TABS: { id: Tab; label: string; icon: React.ReactNode; managerOnly?: boolean }[] = [
     { id: 'my-attendance',   label: 'My Attendance',   icon: <Clock size={14} /> },
     { id: 'calendar',        label: 'Calendar',         icon: <Calendar size={14} /> },
     { id: 'my-leaves',       label: 'My Leaves',        icon: <Calendar size={14} /> },
     { id: 'wfh-requests',    label: 'WFH Requests',    icon: <Home size={14} /> },
     { id: 'regularizations', label: 'Regularizations',  icon: <ClipboardList size={14} /> },
-    { id: 'team',            label: 'Team View',        icon: <Users size={14} />,        managerOnly: true },
-    { id: 'exceptions',      label: 'Exceptions',       icon: <AlertTriangle size={14} />, managerOnly: true },
+    { id: 'team',            label: 'Team View',        icon: <Users size={14} />,         managerOnly: true },
+    { id: 'staff-history',  label: 'Staff History',    icon: <History size={14} />,       managerOnly: true },
+    { id: 'exceptions',     label: 'Exceptions',       icon: <AlertTriangle size={14} />, managerOnly: true },
     { id: 'leave-approvals', label: 'Leave Approvals',  icon: <CheckSquare size={14} />,   managerOnly: true },
     { id: 'wfh-approvals',   label: 'WFH Approvals',   icon: <Home size={14} />,          managerOnly: true },
   ]
@@ -532,7 +679,13 @@ export function Attendance() {
         />
         <StatCard
           label="Hours Worked"
-          value={liveMinutes != null ? fmtMinutes(liveMinutes) : '—'}
+          value={
+            todayRecord?.checkOutAt
+              ? fmtMinutes(todayRecord.workMinutes)    // server value after checkout — always matches history
+              : liveSecs != null
+                ? fmtLiveDuration(liveSecs)            // live HH:MM:SS tick while active
+                : '—'
+          }
           sub={todayRecord?.checkOutAt ? 'Completed' : todayRecord?.checkInAt ? 'In progress' : 'Not started'}
         />
         <StatCard
@@ -543,12 +696,13 @@ export function Attendance() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+      <div className="overflow-x-auto hide-scrollbar border-b border-slate-200 dark:border-slate-700">
+        <div className="flex gap-1 min-w-max">
         {TABS.filter(t => !t.managerOnly || isManager).map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
               activeTab === t.id
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -557,6 +711,7 @@ export function Attendance() {
             {t.icon}{t.label}
           </button>
         ))}
+        </div>
       </div>
 
       {/* ─────────────────────────────────────────────── */}
@@ -564,9 +719,46 @@ export function Attendance() {
       {/* ─────────────────────────────────────────────── */}
       {activeTab === 'my-attendance' && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <h2 className="font-medium text-slate-800 dark:text-slate-200">My Attendance History</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="date"
+                  value={historyFrom}
+                  onChange={e => {
+                    setHistoryFrom(e.target.value)
+                    if (e.target.value && historyTo) refetchHistory({ startDate: e.target.value, endDate: historyTo })
+                  }}
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={historyTo}
+                  onChange={e => {
+                    setHistoryTo(e.target.value)
+                    if (historyFrom && e.target.value) refetchHistory({ startDate: historyFrom, endDate: e.target.value })
+                  }}
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {(historyFrom || historyTo) && (
+                  <button
+                    onClick={() => {
+                      const now = new Date()
+                      const day = now.getDay()
+                      const diff = day === 0 ? -6 : 1 - day
+                      const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff)
+                      const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6)
+                      const f = `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`
+                      const t = `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`
+                      setHistoryFrom(f); setHistoryTo(t); refetchHistory({ startDate: f, endDate: t })
+                    }}
+                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1.5"
+                    title="Reset to current week"
+                  >&times;</button>
+                )}
+              </div>
               <button
                 onClick={() => {
                   const csv = toCSV(
@@ -613,23 +805,42 @@ export function Attendance() {
                 </thead>
                 <tbody>
                   {history.map(r => {
-                    const wm = r.workMinutes ?? (r.checkInAt && r.checkOutAt
-                      ? Math.floor((new Date(r.checkOutAt).getTime() - new Date(r.checkInAt).getTime()) / 60000)
-                      : null)
+                    const regPending = r.regularization?.status === 'PENDING'
+                    // For today's active (checked-in, not yet checked-out) row, use the live
+                    // seconds counter so Hours column stays in sync with the stat card.
+                    const isTodayLive = r.id === todayRecord?.id && !r.checkOutAt && liveSecs != null
+                    const wm = regPending ? null : isTodayLive
+                      ? Math.floor(liveSecs! / 60)
+                      : (r.workMinutes ?? (r.checkInAt && r.checkOutAt
+                          ? Math.floor((new Date(r.checkOutAt).getTime() - new Date(r.checkInAt).getTime()) / 60000)
+                          : null))
+                    // Determine whether this record falls on an off day so we can
+                    // replace the normal status/flags with a plain "Day Off" label.
+                    const rowJsDay = new Date(
+                      r.date instanceof Date ? r.date.toISOString() : String(r.date)
+                    ).getUTCDay()
+                    const rowIsOffDay = isOffDay(rowJsDay)
                     return (
                       <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                         <td className="px-4 py-3 font-medium">{fmtDate(r.date)}</td>
-                        <td className="px-4 py-3">{fmtTime(r.firstCheckInAt ?? r.checkInAt)}</td>
-                        <td className="px-4 py-3">{fmtTime(r.checkOutAt)}</td>
+                        <td className="px-4 py-3">{regPending ? '—' : fmtTime(r.firstCheckInAt ?? r.checkInAt)}</td>
+                        <td className="px-4 py-3">{regPending ? '—' : fmtTime(r.checkOutAt)}</td>
                         <td className="px-4 py-3">{fmtMinutes(wm)}</td>
                         <td className="px-4 py-3">
                           {r.overtimeMinutes && r.overtimeMinutes > 0
                             ? <span className="text-emerald-600 font-medium text-xs">+{fmtMinutes(r.overtimeMinutes)}</span>
                             : <span className="text-slate-400">—</span>}
                         </td>
-                        <td className="px-4 py-3">{getStatusBadge(r.isOnLeave ? 'ON_LEAVE' : r.isHoliday ? 'HOLIDAY' : r.status)}</td>
                         <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
+                          {regPending
+                            ? <Badge variant="warning">Pending</Badge>
+                            : rowIsOffDay
+                              ? <Badge variant="secondary" dot>Day Off</Badge>
+                              : getStatusBadge(r.isOnLeave ? 'ON_LEAVE' : r.isHoliday ? 'HOLIDAY' : r.status)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {/* On off-day check-ins, suppress all flags — only "Day Off" status is shown */}
+                          {!rowIsOffDay && <div className="flex flex-wrap gap-1">
                             {(r.workMode === 'WFH'   || (!r.workMode && r.isRemote)) && <Badge variant="secondary"><Home size={10} className="inline mr-0.5" />WFH</Badge>}
                             {r.workMode === 'TRAVELLING' && <Badge variant="warning"><Plane size={10} className="inline mr-0.5" />Travelling</Badge>}
                             {/* Deduplicate by type — multi-session days generate one exception per session */}
@@ -638,12 +849,21 @@ export function Attendance() {
                             ).values()).map(e => (
                               <span key={e.type}>{getExceptionBadge(e.type)}</span>
                             ))}
-                          </div>
+                          </div>}
                         </td>
                         <td className="px-4 py-3">
                           {!r.isOnLeave && r.regularization?.status !== 'PENDING' && r.regularization?.status !== 'APPROVED' && (
                             <button
-                              onClick={() => { setRegModal({ record: r }); setRegForm({ requestedCheckIn: (r.firstCheckInAt ?? r.checkInAt)?.slice(0,16) ?? '', requestedCheckOut: r.checkOutAt?.slice(0,16) ?? '', reason: '' }) }}
+                              onClick={() => {
+  const dateStr = r.date instanceof Date
+    ? r.date.toISOString().slice(0, 10)
+    : String(r.date).slice(0, 10)
+  const isAbsent = r.status === 'ABSENT' || (r as any)._synthetic
+  const defaultCheckIn  = isAbsent ? `${dateStr}T09:00` : ((r.firstCheckInAt ?? r.checkInAt)?.slice(0, 16) ?? `${dateStr}T09:00`)
+  const defaultCheckOut = isAbsent ? `${dateStr}T17:00` : (r.checkOutAt?.slice(0, 16) ?? '')
+  setRegModal({ record: r })
+  setRegForm({ requestedCheckIn: defaultCheckIn, requestedCheckOut: defaultCheckOut, reason: '' })
+}}
                               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
                             >
                               <ChevronRight size={12} /> Regularize
@@ -681,19 +901,28 @@ export function Attendance() {
         const makeKey = (y: number, m: number, d: number): string =>
           `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 
+        // isOffDay is defined at component scope so it's shared with the history table.
+
         // statusColor now receives the precomputed key to avoid a second
         // toISOString() conversion inside the function.
         const statusColor = (date: Date, key: string): string => {
           const jsDay = date.getDay()
-          if (jsDay === 0 || jsDay === 6) return 'bg-slate-100 dark:bg-slate-800 opacity-40'
+          // Off days (weekends or shift rest days): mute only if there is no record.
+          // If the employee worked on an off day, show the actual status colour.
+          if (isOffDay(jsDay)) {
+            const rec = calendarRecordMap.get(key)
+            if (!rec) return 'bg-slate-100 dark:bg-slate-800 opacity-40'
+            // Has a record — fall through to normal status colour checks below
+          }
           // Show holiday color for both past and future holidays
           if (holidayDateSet.has(key)) return 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300'
           if (date > today) return 'bg-transparent'
           const rec = calendarRecordMap.get(key)
-          if (!rec) return 'bg-red-100 dark:bg-red-900/40 hover:bg-red-200'
+          if (!rec || rec.status === 'ABSENT') return 'bg-red-100 dark:bg-red-900/40 hover:bg-red-200'
           if (rec.isOnLeave || rec.status === 'ON_LEAVE') return 'bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200'
           if (rec.isHoliday) return 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300'
           if (rec.status === 'LATE') return 'bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200'
+          if (rec.status === 'HALF_DAY') return 'bg-purple-100 dark:bg-purple-900/40 hover:bg-purple-200'
           if (rec.status === 'AUTO_CHECKED_OUT') return 'bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200'
           return 'bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200'
         }
@@ -705,10 +934,11 @@ export function Attendance() {
               {[
                 { color: 'bg-emerald-300', label: 'Present' },
                 { color: 'bg-amber-300', label: 'Late' },
+                { color: 'bg-purple-300', label: 'Half Day' },
                 { color: 'bg-orange-300', label: 'Auto Closed' },
                 { color: 'bg-blue-300', label: 'On Leave' },
                 { color: 'bg-red-300', label: 'Absent' },
-                { color: 'bg-slate-300', label: 'Holiday/Weekend' },
+                { color: 'bg-slate-300', label: 'Holiday / Day Off' },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <span className={`w-3 h-3 rounded-sm ${color}`} />
@@ -746,7 +976,7 @@ export function Attendance() {
                 return (
                   <button
                     key={i}
-                    onClick={() => setCalendarDetail({ date, record: rec ?? null })}
+                    onClick={() => handleCalendarDayClick(date, rec ?? null)}
                     className={`relative rounded-lg p-1.5 text-xs transition-colors ${statusColor(date, key)} ${isToday ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
                   >
                     <span className={`font-medium ${isToday ? 'text-blue-600' : 'text-slate-700 dark:text-slate-300'}`}>{i + 1}</span>
@@ -804,8 +1034,8 @@ export function Attendance() {
                     : null
                   return (
                     <p className="text-sm text-slate-500 italic">
-                      {[0,6].includes(jsDay)
-                        ? 'Weekend'
+                      {isOffDay(jsDay)
+                        ? 'Day Off'
                         : isHolidayDay
                           ? `🎉 Public holiday${holiday?.name ? ` — ${holiday.name}` : ''}`
                           : calendarDetail.date > today
@@ -1090,6 +1320,152 @@ export function Attendance() {
           )}
         </div>
       )}
+
+      {/* ─────────────────────────────────────────────── */}
+      {/* Tab: Staff History                             */}
+      {/* ─────────────────────────────────────────────── */}
+      {activeTab === 'staff-history' && isManager && (() => {
+        // Build a deduplicated, sorted list of all team members from every status group
+        const memberMap = new Map<string, { id: string; firstName: string; lastName: string }>()
+        const addMember = (u?: { id: string; firstName: string; lastName: string }) => {
+          if (u) memberMap.set(u.id, u)
+        }
+        if (mgr.teamStatus) {
+          mgr.teamStatus.present.forEach(r => addMember(r.user))
+          mgr.teamStatus.late.forEach(r => addMember(r.user))
+          mgr.teamStatus.checkedOut.forEach(r => addMember(r.user))
+          mgr.teamStatus.onLeave.forEach(r => addMember(r.user))
+          mgr.teamStatus.absent.forEach(r => addMember(r.user))
+        }
+        const allMembers = Array.from(memberMap.values())
+          .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+
+        const handleSearch = () => {
+          if (!staffHistoryUserId) return
+          mgr.fetchHistory({
+            userId: staffHistoryUserId,
+            startDate: staffHistoryStart || undefined,
+            endDate:   staffHistoryEnd   || undefined,
+          })
+        }
+
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-medium text-slate-800 dark:text-slate-200">Staff Attendance History</h2>
+            </div>
+
+            {/* Filter bar */}
+            <div className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+              <div className="flex flex-col gap-1 min-w-[180px]">
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Employee</label>
+                <select
+                  value={staffHistoryUserId}
+                  onChange={e => { setStaffHistoryUserId(e.target.value) }}
+                  className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select employee…</option>
+                  {allMembers.map(m => (
+                    <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">From</label>
+                <input
+                  type="date"
+                  value={staffHistoryStart}
+                  onChange={e => setStaffHistoryStart(e.target.value)}
+                  className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">To</label>
+                <input
+                  type="date"
+                  value={staffHistoryEnd}
+                  onChange={e => setStaffHistoryEnd(e.target.value)}
+                  className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                onClick={handleSearch}
+                disabled={!staffHistoryUserId || mgr.loading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+              >
+                {mgr.loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                Search
+              </button>
+            </div>
+
+            {/* Results */}
+            {mgr.loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+            ) : !staffHistoryUserId ? (
+              <EmptyState icon={<Users size={32} />} text="Select an employee above to view their attendance history." />
+            ) : mgr.historyRecords.length === 0 ? (
+              <EmptyState icon={<History size={32} />} text="No attendance records found for the selected period." />
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                      {['Date', 'Check In', 'Check Out', 'Hours', 'Overtime', 'Status', 'Flags'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mgr.historyRecords.map(r => {
+                      const wm = r.workMinutes ?? (r.checkInAt && r.checkOutAt
+                        ? Math.floor((new Date(r.checkOutAt).getTime() - new Date(r.checkInAt).getTime()) / 60000)
+                        : null)
+                      const rowJsDay = new Date(
+                        r.date instanceof Date ? r.date.toISOString() : String(r.date)
+                      ).getUTCDay()
+                      const rowIsOffDay = isOffDay(rowJsDay)
+                      return (
+                        <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                          <td className="px-4 py-3 font-medium">{fmtDate(r.date)}</td>
+                          <td className="px-4 py-3">{fmtTime(r.firstCheckInAt ?? r.checkInAt)}</td>
+                          <td className="px-4 py-3">{fmtTime(r.checkOutAt)}</td>
+                          <td className="px-4 py-3">{fmtMinutes(wm)}</td>
+                          <td className="px-4 py-3">
+                            {r.overtimeMinutes && r.overtimeMinutes > 0
+                              ? <span className="text-emerald-600 font-medium text-xs">+{fmtMinutes(r.overtimeMinutes)}</span>
+                              : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {rowIsOffDay
+                              ? <Badge variant="secondary" dot>Day Off</Badge>
+                              : getStatusBadge(r.isOnLeave ? 'ON_LEAVE' : r.isHoliday ? 'HOLIDAY' : r.status)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {!rowIsOffDay && <div className="flex flex-wrap gap-1">
+                              {(r.workMode === 'WFH' || (!r.workMode && r.isRemote)) && <Badge variant="secondary"><Home size={10} className="inline mr-0.5" />WFH</Badge>}
+                              {r.workMode === 'TRAVELLING' && <Badge variant="warning"><Plane size={10} className="inline mr-0.5" />Travelling</Badge>}
+                              {Array.from(new Map(
+                                r.exceptions?.filter(e => !e.isReviewed).map(e => [e.type, e]) ?? []
+                              ).values()).map(e => (
+                                <span key={e.type}>{getExceptionBadge(e.type)}</span>
+                              ))}
+                            </div>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {mgr.historyTotal > mgr.historyRecords.length && (
+                  <div className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800">
+                    Showing {mgr.historyRecords.length} of {mgr.historyTotal} records
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ─────────────────────────────────────────────── */}
       {/* Tab: Exceptions */}
