@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
-import type { AttendanceRecord, AttendanceException, RegularizationRequest, TeamStatus } from '@/types'
+import type { AttendanceRecord, AttendanceException, RegularizationRequest, TeamStatus, AttendanceStats } from '@/types'
 
 interface HistoryParams {
   userId?: string
@@ -24,9 +24,12 @@ export function useAttendanceManager() {
   const [teamStatus, setTeamStatus] = useState<TeamStatus | null>(null)
   const [historyRecords, setHistoryRecords] = useState<AttendanceRecord[]>([])
   const [historyTotal, setHistoryTotal] = useState(0)
+  const [historyUserWorkingDays, setHistoryUserWorkingDays] = useState<number[] | null>(null)
   const [exceptions, setExceptions] = useState<AttendanceException[]>([])
   const [exceptionsTotal, setExceptionsTotal] = useState(0)
   const [pendingRegularizations, setPendingRegularizations] = useState<RegularizationRequest[]>([])
+  const [stats, setStats] = useState<AttendanceStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,9 +55,10 @@ export function useAttendanceManager() {
       if (params?.status) q.set('status', params.status)
       if (params?.limit) q.set('limit', String(params.limit))
       if (params?.offset) q.set('offset', String(params.offset))
-      const res = await api.get<ApiResponse<AttendanceRecord[]>>(`/attendance/history?${q}`)
+      const res = await api.get<ApiResponse<AttendanceRecord[]> & { meta?: { userWorkingDays: number[] | null } }>(`/attendance/history?${q}`)
       setHistoryRecords(res.data)
       setHistoryTotal(res.pagination?.total ?? res.data.length)
+      setHistoryUserWorkingDays(res.meta?.userWorkingDays ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load history')
     } finally {
@@ -90,6 +94,21 @@ export function useAttendanceManager() {
     }
   }, [])
 
+  const fetchStats = useCallback(async (params?: { startDate?: string; endDate?: string }) => {
+    try {
+      setStatsLoading(true)
+      const q = new URLSearchParams()
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      const res = await api.get<ApiResponse<AttendanceStats>>(`/attendance/stats?${q}`)
+      setStats(res.data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load stats')
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [])
+
   const reviewException = useCallback(async (id: string) => {
     await api.patch<ApiResponse<AttendanceException>>(`/attendance/exceptions/${id}/review`, {})
     setExceptions(prev => prev.map(e => e.id === id ? { ...e, isReviewed: true } : e))
@@ -104,15 +123,19 @@ export function useAttendanceManager() {
     teamStatus,
     historyRecords,
     historyTotal,
+    historyUserWorkingDays,
     exceptions,
     exceptionsTotal,
     pendingRegularizations,
+    stats,
+    statsLoading,
     loading,
     error,
     fetchTeamStatus,
     fetchHistory,
     fetchExceptions,
     fetchPendingRegularizations,
+    fetchStats,
     reviewException,
     reviewRegularization,
   }

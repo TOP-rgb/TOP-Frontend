@@ -375,6 +375,7 @@ export function Invoices() {
           currencySymbol={currencySymbol}
           defaultTaxRate={defaultTaxRate}
           defaultDueDate={calculateDueDate(paymentTermsDays)}
+          paymentTermsDays={paymentTermsDays}
           invoicePrefix={invoicePrefix}
           billingIncrement={billingIncrement}
           defaultHourlyRate={defaultHourlyRate}
@@ -438,30 +439,32 @@ interface CreateInvoiceModalProps {
   currencySymbol: string
   defaultTaxRate: number
   defaultDueDate: string
+  paymentTermsDays: number
   invoicePrefix: string
   billingIncrement: number
   defaultHourlyRate: number | null
   onCreated: (data: { jobId: string; taxRate: number; dueDate: string; notes: string; lineItems: InvoiceLineItem[] }) => void
 }
 
-function CreateInvoiceModal({ 
-  open, 
-  onClose, 
-  jobs, 
-  currency, 
+function CreateInvoiceModal({
+  open,
+  onClose,
+  jobs,
+  currency,
   currencySymbol,
   defaultTaxRate,
   defaultDueDate,
+  paymentTermsDays,
   invoicePrefix,
   billingIncrement,
   defaultHourlyRate,
-  onCreated 
+  onCreated
 }: CreateInvoiceModalProps) {
   const [step, setStep] = useState(1)
   const [jobId, setJobId] = useState('')
   const [taxRate, setTaxRate] = useState(defaultTaxRate)
   const [dueDate, setDueDateVal] = useState(defaultDueDate)
-  const [notes, setNotes] = useState(`Payment is due within ${defaultDueDate} days of issue. Please include the invoice number on your payment.`)
+  const [notes, setNotes] = useState(`Payment is due within ${paymentTermsDays} days of issue. Please include the invoice number on your payment.`)
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([])
 
   // Create currency formatter
@@ -560,7 +563,7 @@ function CreateInvoiceModal({
         </div>
 
         {/* Form area */}
-        <div style={{ flex: 1, padding: '32px 28px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, padding: '32px 28px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
           {step === 1 && (
             <div style={{ flex: 1 }}>
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 22 }}>Select a Job</h3>

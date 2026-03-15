@@ -164,7 +164,7 @@ export interface InvoiceFormData {
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance & Leave types
 // ─────────────────────────────────────────────────────────────────────────────
-export type AttendanceStatus = 'PRESENT' | 'LATE' | 'AUTO_CHECKED_OUT' | 'ON_LEAVE' | 'ABSENT'
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'AUTO_CHECKED_OUT' | 'ON_LEAVE' | 'ABSENT' | 'HALF_DAY'
 export type ExceptionType = 'LATE_ARRIVAL' | 'EARLY_DEPARTURE' | 'MISSED_CHECKOUT' | 'LOCATION_VIOLATION'
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type WorkMode = 'OFFICE' | 'WFH' | 'TRAVELLING'
@@ -366,6 +366,34 @@ export interface TeamStatus {
   absent: Array<{ user: { id: string; firstName: string; lastName: string; email: string } }>
   holiday: PublicHoliday | null
   date: string
+}
+
+export interface AttendanceStats {
+  summary: {
+    presentDays: number
+    lateDays: number
+    leaveDays: number
+    absentDays: number
+    attendanceRate: number
+  }
+  dailyTrend: Array<{ date: string; present: number; late: number; onLeave: number }>
+  byEmployee: Array<{
+    userId: string
+    name: string
+    present: number
+    late: number
+    absent: number
+    leaveDays: number
+    overtimeMinutes: number
+  }>
+  exceptionBreakdown: {
+    LATE_ARRIVAL: number
+    EARLY_DEPARTURE: number
+    MISSED_CHECKOUT: number
+    LOCATION_VIOLATION: number
+    OUT_OF_SHIFT_HOURS: number
+  }
+  leaveByType: Array<{ leaveType: string; color: string; days: number }>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

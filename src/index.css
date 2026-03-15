@@ -8,6 +8,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Prevent page layout shift when modal locks body scroll (Radix removes scrollbar) */
+html {
+  scrollbar-gutter: stable;
+}
+
 /* Hide scrollbar but keep scroll functionality */
 .hide-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
@@ -16,6 +21,18 @@
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;             /* Chrome, Safari */
+}
+
+/* Hide ALL scrollbars inside modals — catches nested overflow-auto containers too */
+[data-slot="dialog-content"],
+[data-slot="dialog-content"] * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+[data-slot="dialog-content"]::-webkit-scrollbar,
+[data-slot="dialog-content"] *::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Modal responsive layout ── */

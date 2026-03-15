@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { LogIn, LogOut, Clock, Calendar, Users, AlertTriangle, ClipboardList, CheckSquare, Loader2, ChevronRight, Download, ChevronLeft, Building2, Home, Plane, History, Search } from 'lucide-react'
+import { LogIn, LogOut, Clock, Calendar, Users, AlertTriangle, ClipboardList, CheckSquare, Loader2, ChevronRight, Download, ChevronLeft, Building2, Home, Plane, History, Search, BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/store/authStore'
@@ -193,7 +193,7 @@ function fmtLiveDuration(secs: number): string {
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 
-type Tab = 'my-attendance' | 'calendar' | 'my-leaves' | 'wfh-requests' | 'team' | 'staff-history' | 'exceptions' | 'regularizations' | 'leave-approvals' | 'wfh-approvals'
+type Tab = 'my-attendance' | 'calendar' | 'my-leaves' | 'wfh-requests' | 'team' | 'staff-history' | 'exceptions' | 'regularizations' | 'leave-approvals' | 'wfh-approvals' | 'stats'
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -227,9 +227,9 @@ export function Attendance() {
   const isManager = role === 'manager' || role === 'admin'
 
   const {
-    todayData, todayRecord, history, myRegularizations,
+    todayData, todayRecord, history, calendarHistory, myRegularizations,
     loading: attendanceLoading, checkIn, checkOut, submitRegularization,
-    refetchHistory, refetchRegularizations,
+    refetchHistory, refetchRegularizations, fetchCalendarHistory,
   } = useAttendance()
 
   const mgr = useAttendanceManager()
@@ -321,6 +321,16 @@ export function Attendance() {
   const [staffHistoryStart,  setStaffHistoryStart]  = useState<string>('')
   const [staffHistoryEnd,    setStaffHistoryEnd]    = useState<string>('')
 
+  // Stats tab date range — default: first day of current month to today
+  const [statsFrom, setStatsFrom] = useState<string>(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  })
+  const [statsTo, setStatsTo] = useState<string>(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
+
   const liveMinutes = useLiveMinutes(todayRecord?.checkInAt, todayRecord?.checkOutAt, todayRecord?.workMinutes)
   const liveSecs    = useLiveSecs(todayRecord?.checkInAt, todayRecord?.checkOutAt, todayRecord?.workMinutes)
 
@@ -357,7 +367,20 @@ export function Attendance() {
     if (activeTab === 'leave-approvals' && isManager) leaves.fetchPendingLeaves()
     if (activeTab === 'wfh-requests') wfhRequests.fetchMyRequests()
     if (activeTab === 'wfh-approvals' && isManager) wfhRequests.fetchPending()
+    if (activeTab === 'stats' && isManager) mgr.fetchStats({ startDate: statsFrom, endDate: statsTo })
   }, [activeTab]) // eslint-disable-line
+
+  // Fetch attendance data for the full calendar month whenever the user
+  // navigates to a different month or first switches to the calendar tab.
+  useEffect(() => {
+    if (activeTab !== 'calendar') return
+    const yr = calendarMonth.getFullYear()
+    const mo = calendarMonth.getMonth()
+    const start = `${yr}-${String(mo + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(yr, mo + 1, 0).getDate()
+    const end = `${yr}-${String(mo + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    fetchCalendarHistory(start, end)
+  }, [calendarMonth, activeTab]) // eslint-disable-line
 
   const handleCheckIn = async () => {
     setCheckingIn(true)
@@ -411,9 +434,7 @@ export function Attendance() {
       const isSynthetic = regModal.record.id?.startsWith('absent-')
       await submitRegularization({
         ...(isSynthetic
-          ? { date: regModal.record.date instanceof Date
-              ? regModal.record.date.toISOString().slice(0, 10)
-              : String(regModal.record.date).slice(0, 10) }
+          ? { date: String(regModal.record.date).slice(0, 10) }
           : { recordId: regModal.record.id }),
         requestedCheckIn: regForm.requestedCheckIn,
         requestedCheckOut: regForm.requestedCheckOut || undefined,
@@ -533,14 +554,16 @@ export function Attendance() {
     { id: 'exceptions',     label: 'Exceptions',       icon: <AlertTriangle size={14} />, managerOnly: true },
     { id: 'leave-approvals', label: 'Leave Approvals',  icon: <CheckSquare size={14} />,   managerOnly: true },
     { id: 'wfh-approvals',   label: 'WFH Approvals',   icon: <Home size={14} />,          managerOnly: true },
+    { id: 'stats',           label: 'Stats',            icon: <BarChart2 size={14} />,     managerOnly: true },
   ]
 
-  // Calendar data — build day grid from history
+  // Calendar data — built from dedicated calendarHistory (fetched per-month),
+  // separate from the My Attendance history so month navigation doesn't reset the list filter.
   const calendarRecordMap = useMemo(() => {
-    const m = new Map<string, typeof history[0]>()
-    history.forEach(r => { m.set(r.date.slice(0, 10), r) })
+    const m = new Map<string, typeof calendarHistory[0]>()
+    calendarHistory.forEach(r => { m.set(r.date.slice(0, 10), r) })
     return m
-  }, [history])
+  }, [calendarHistory])
 
   // Holidays relevant to this employee (filtered by their country on the backend)
   // Re-fetches automatically when the calendar year changes
@@ -816,9 +839,7 @@ export function Attendance() {
                           : null))
                     // Determine whether this record falls on an off day so we can
                     // replace the normal status/flags with a plain "Day Off" label.
-                    const rowJsDay = new Date(
-                      r.date instanceof Date ? r.date.toISOString() : String(r.date)
-                    ).getUTCDay()
+                    const rowJsDay = new Date(String(r.date)).getUTCDay()
                     const rowIsOffDay = isOffDay(rowJsDay)
                     return (
                       <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
@@ -855,9 +876,7 @@ export function Attendance() {
                           {!r.isOnLeave && r.regularization?.status !== 'PENDING' && r.regularization?.status !== 'APPROVED' && (
                             <button
                               onClick={() => {
-  const dateStr = r.date instanceof Date
-    ? r.date.toISOString().slice(0, 10)
-    : String(r.date).slice(0, 10)
+  const dateStr = String(r.date).slice(0, 10)
   const isAbsent = r.status === 'ABSENT' || (r as any)._synthetic
   const defaultCheckIn  = isAbsent ? `${dateStr}T09:00` : ((r.firstCheckInAt ?? r.checkInAt)?.slice(0, 16) ?? `${dateStr}T09:00`)
   const defaultCheckOut = isAbsent ? `${dateStr}T17:00` : (r.checkOutAt?.slice(0, 16) ?? '')
@@ -912,7 +931,7 @@ export function Attendance() {
           if (isOffDay(jsDay)) {
             const rec = calendarRecordMap.get(key)
             if (!rec) return 'bg-slate-100 dark:bg-slate-800 opacity-40'
-            // Has a record — fall through to normal status colour checks below
+            return 'bg-cyan-100 dark:bg-cyan-900/40 hover:bg-cyan-200'  // worked on off day
           }
           // Show holiday color for both past and future holidays
           if (holidayDateSet.has(key)) return 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300'
@@ -938,6 +957,7 @@ export function Attendance() {
                 { color: 'bg-orange-300', label: 'Auto Closed' },
                 { color: 'bg-blue-300', label: 'On Leave' },
                 { color: 'bg-red-300', label: 'Absent' },
+                { color: 'bg-cyan-300', label: 'Worked on Day Off' },
                 { color: 'bg-slate-300', label: 'Holiday / Day Off' },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-1.5">
@@ -1258,6 +1278,120 @@ export function Attendance() {
       )}
 
       {/* ─────────────────────────────────────────────── */}
+      {/* Tab: Stats */}
+      {/* ─────────────────────────────────────────────── */}
+      {activeTab === 'stats' && isManager && (
+        <div className="space-y-6">
+          {/* Date range filter */}
+          <div className="flex flex-wrap items-end gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">From</label>
+              <input
+                type="date"
+                value={statsFrom}
+                onChange={e => setStatsFrom(e.target.value)}
+                className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">To</label>
+              <input
+                type="date"
+                value={statsTo}
+                onChange={e => setStatsTo(e.target.value)}
+                className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              onClick={() => mgr.fetchStats({ startDate: statsFrom, endDate: statsTo })}
+              disabled={mgr.statsLoading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+            >
+              {mgr.statsLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              Search
+            </button>
+          </div>
+
+          {mgr.statsLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+          ) : mgr.stats ? (
+            <div className="space-y-6">
+              {/* Summary stat cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: 'Attendance Rate', value: `${mgr.stats.summary.attendanceRate}%`, color: 'text-emerald-600' },
+                  { label: 'Late Days',        value: mgr.stats.summary.lateDays,             color: 'text-amber-600'  },
+                  { label: 'Absent Days',      value: mgr.stats.summary.absentDays,           color: 'text-red-600'    },
+                  { label: 'Leave Days',       value: mgr.stats.summary.leaveDays,            color: 'text-sky-600'    },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center bg-white dark:bg-slate-800">
+                    <div className={`text-2xl font-bold ${color}`}>{value}</div>
+                    <div className="text-xs text-slate-500 mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Exception breakdown */}
+              <div>
+                <h3 className="font-medium text-slate-800 dark:text-slate-200 mb-3">Exception Breakdown</h3>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        {['Exception Type', 'Count'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Object.entries(mgr.stats.exceptionBreakdown) as [string, number][]).map(([type, count]) => (
+                        <tr key={type} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                          <td className="px-4 py-3">{getExceptionBadge(type)}</td>
+                          <td className="px-4 py-3 font-medium">{count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Per-employee table */}
+              <div>
+                <h3 className="font-medium text-slate-800 dark:text-slate-200 mb-3">Per Employee</h3>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        {['Employee', 'Present', 'Late', 'Absent', 'Leave Days', 'Overtime'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mgr.stats.byEmployee.map(emp => (
+                        <tr key={emp.userId} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                          <td className="px-4 py-3 font-medium">{emp.name}</td>
+                          <td className="px-4 py-3 text-emerald-600">{emp.present}</td>
+                          <td className="px-4 py-3 text-amber-600">{emp.late}</td>
+                          <td className="px-4 py-3 text-red-600">{emp.absent}</td>
+                          <td className="px-4 py-3 text-sky-600">{emp.leaveDays}</td>
+                          <td className="px-4 py-3 text-emerald-600">
+                            {emp.overtimeMinutes > 0 ? `+${fmtMinutes(emp.overtimeMinutes)}` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon={<BarChart2 size={32} />} text="Set a date range and click Search to view attendance statistics." />
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────── */}
       {/* Tab: Team View */}
       {/* ─────────────────────────────────────────────── */}
       {activeTab === 'team' && isManager && (
@@ -1420,10 +1554,16 @@ export function Attendance() {
                       const wm = r.workMinutes ?? (r.checkInAt && r.checkOutAt
                         ? Math.floor((new Date(r.checkOutAt).getTime() - new Date(r.checkInAt).getTime()) / 60000)
                         : null)
-                      const rowJsDay = new Date(
-                        r.date instanceof Date ? r.date.toISOString() : String(r.date)
-                      ).getUTCDay()
-                      const rowIsOffDay = isOffDay(rowJsDay)
+                      const rowJsDay = new Date(String(r.date)).getUTCDay()
+                      // Use the fetched employee's workingDays — not the manager's own shift
+                      const rowIsOffDay = (() => {
+                        const wd = mgr.historyUserWorkingDays
+                        if (wd && wd.length > 0) {
+                          const isoDay = rowJsDay === 0 ? 7 : rowJsDay
+                          return !wd.includes(isoDay)
+                        }
+                        return rowJsDay === 0 || rowJsDay === 6
+                      })()
                       return (
                         <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="px-4 py-3 font-medium">{fmtDate(r.date)}</td>

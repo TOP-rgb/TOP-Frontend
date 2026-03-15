@@ -23,6 +23,7 @@ interface ApiTask {
   lastStartedAt: string | null
   layoutId: string | null
   customFieldValues: Record<string, unknown> | null
+  priority?: string | null
   job: {
     id: string
     jobId: string
@@ -73,6 +74,7 @@ function normaliseTask(t: ApiTask): Task {
     notes: t.notes ?? undefined,
     layoutId: t.layoutId ?? undefined,
     customFieldValues: t.customFieldValues ?? undefined,
+    priority: t.priority ?? undefined,
   }
 }
 

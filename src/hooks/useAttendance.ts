@@ -32,6 +32,8 @@ interface RegularizationPayload {
 export function useAttendance() {
   const [todayData, setTodayData] = useState<TodayResponse | null>(null)
   const [history, setHistory] = useState<AttendanceRecord[]>([])
+  const [calendarHistory, setCalendarHistory] = useState<AttendanceRecord[]>([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
   const [myRegularizations, setMyRegularizations] = useState<RegularizationRequest[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +42,7 @@ export function useAttendance() {
   // (e.g. after check-in / check-out, or the chained auto-close fetch on mount)
   // always re-use the current filter instead of falling back to the backend's
   // default "current month" range and overwriting whatever the UI filter shows.
-  const lastHistoryParamsRef = useRef<{ startDate?: string; endDate?: string } | undefined>(undefined)
+  const lastHistoryParamsRef = useRef<{ startDate?: string; endDate?: string; limit?: number; offset?: number } | undefined>(undefined)
 
   const fetchToday = useCallback(async () => {
     try {
@@ -71,6 +73,20 @@ export function useAttendance() {
       setError(err instanceof Error ? err.message : 'Failed to load history')
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  const fetchCalendarHistory = useCallback(async (startDate: string, endDate: string) => {
+    try {
+      setCalendarLoading(true)
+      // limit=62: max 31 days + up to 31 synthetic absent entries
+      const q = new URLSearchParams({ startDate, endDate, limit: '62' })
+      const res = await api.get<ApiResponse<AttendanceRecord[]>>(`/attendance/mine?${q}`)
+      setCalendarHistory(res.data)
+    } catch {
+      // non-critical — calendar shows fewer absent entries but still works
+    } finally {
+      setCalendarLoading(false)
     }
   }, [])
 
@@ -115,6 +131,8 @@ export function useAttendance() {
     todayData,
     todayRecord: todayData?.record ?? null,
     history,
+    calendarHistory,
+    calendarLoading,
     myRegularizations,
     loading,
     error,
@@ -123,6 +141,7 @@ export function useAttendance() {
     submitRegularization,
     refetchToday: fetchToday,
     refetchHistory: fetchHistory,
+    fetchCalendarHistory,
     refetchRegularizations: fetchMyRegularizations,
   }
 }

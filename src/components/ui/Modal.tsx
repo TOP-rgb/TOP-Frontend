@@ -11,7 +11,7 @@ import { X } from 'lucide-react'
 interface ModalProps {
   open: boolean
   onClose: () => void
-  title: string
+  title?: string
   description?: string
   children: React.ReactNode
   footer?: React.ReactNode
@@ -62,7 +62,7 @@ export function Modal({
         </button>
 
         {/* Header */}
-        {!hideHeader && (
+        {!hideHeader && title && (
           <DialogHeader className={`px-6 py-4 bg-[#0f1a2e] border-b border-[#2d4068] rounded-t-lg ${headerClassName}`}>
             <DialogTitle className="text-lg font-semibold text-white">
               {title}
