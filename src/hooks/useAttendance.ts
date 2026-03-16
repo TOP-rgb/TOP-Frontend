@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
-import type { AttendanceRecord, RegularizationRequest, WorkMode } from '@/types'
+import type { AttendanceRecord, RegularizationRequest, WorkMode, CompOffCredit } from '@/types'
 
 interface TodayResponse {
   record: AttendanceRecord | null
@@ -29,12 +29,18 @@ interface RegularizationPayload {
   reason: string
 }
 
+// checkout response extends the standard shape with the top-level comp-off flag
+interface CheckOutApiResponse extends ApiResponse<AttendanceRecord> {
+  compOffEarned?: boolean
+}
+
 export function useAttendance() {
   const [todayData, setTodayData] = useState<TodayResponse | null>(null)
   const [history, setHistory] = useState<AttendanceRecord[]>([])
   const [calendarHistory, setCalendarHistory] = useState<AttendanceRecord[]>([])
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [myRegularizations, setMyRegularizations] = useState<RegularizationRequest[]>([])
+  const [compOffCredits, setCompOffCredits] = useState<CompOffCredit[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -115,11 +121,25 @@ export function useAttendance() {
   }, [fetchToday, fetchHistory])
 
   const checkOut = useCallback(async (coords?: CheckInPayload) => {
-    const res = await api.patch<ApiResponse<AttendanceRecord>>('/attendance/checkout', coords ?? {})
+    const res = await api.patch<CheckOutApiResponse>('/attendance/checkout', coords ?? {})
     await fetchToday()
     fetchHistory()   // refresh so history Hours column shows updated workMinutes immediately
-    return res.data
+    // Return the full response so the caller can read compOffEarned
+    return res
   }, [fetchToday, fetchHistory])
+
+  const fetchCompOffCredits = useCallback(async (params?: { status?: string; limit?: number; offset?: number }) => {
+    try {
+      const q = new URLSearchParams()
+      if (params?.status) q.set('status', params.status)
+      if (params?.limit)  q.set('limit',  String(params.limit))
+      if (params?.offset) q.set('offset', String(params.offset))
+      const res = await api.get<ApiResponse<CompOffCredit[]>>(`/attendance/compoff/credits?${q}`)
+      setCompOffCredits(res.data)
+    } catch {
+      // non-critical — comp-off table just stays empty
+    }
+  }, [])
 
   const submitRegularization = useCallback(async (payload: RegularizationPayload) => {
     const res = await api.post<ApiResponse<RegularizationRequest>>('/attendance/regularizations', payload)
@@ -134,6 +154,7 @@ export function useAttendance() {
     calendarHistory,
     calendarLoading,
     myRegularizations,
+    compOffCredits,
     loading,
     error,
     checkIn,
@@ -143,5 +164,6 @@ export function useAttendance() {
     refetchHistory: fetchHistory,
     fetchCalendarHistory,
     refetchRegularizations: fetchMyRegularizations,
+    refetchCompOffCredits: fetchCompOffCredits,
   }
 }

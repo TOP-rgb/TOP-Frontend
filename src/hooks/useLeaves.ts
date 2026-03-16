@@ -112,6 +112,18 @@ export function useLeaves() {
     return res.data
   }, [])
 
+  const deleteLeaveType = useCallback(async (id: string) => {
+    const res = await api.delete<ApiResponse<{ deleted: boolean; message: string }>>(`/leaves/types/${id}`)
+    if (res.data.deleted) {
+      // Hard-deleted — remove from list entirely
+      setLeaveTypes(prev => prev.filter(t => t.id !== id))
+    } else {
+      // Soft-deleted (usage exists) — mark inactive in list
+      setLeaveTypes(prev => prev.map(t => t.id === id ? { ...t, isActive: false } : t))
+    }
+    return res.data
+  }, [])
+
   const setLeaveBalance = useCallback(async (data: { userId: string; leaveTypeId: string; year: number; allocated: number }) => {
     const res = await api.post<ApiResponse<LeaveBalance>>('/leaves/balance', data)
     return res.data
@@ -139,6 +151,7 @@ export function useLeaves() {
     fetchMyLeaves,
     createLeaveType,
     updateLeaveType,
+    deleteLeaveType,
     setLeaveBalance,
     processCarryForward,
     refetchTypes: fetchLeaveTypes,

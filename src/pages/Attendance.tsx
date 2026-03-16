@@ -228,8 +228,10 @@ export function Attendance() {
 
   const {
     todayData, todayRecord, history, calendarHistory, myRegularizations,
+    compOffCredits,
     loading: attendanceLoading, checkIn, checkOut, submitRegularization,
     refetchHistory, refetchRegularizations, fetchCalendarHistory,
+    refetchCompOffCredits,
   } = useAttendance()
 
   const mgr = useAttendanceManager()
@@ -316,6 +318,9 @@ export function Attendance() {
   // Review notes
   const [reviewNote, setReviewNote] = useState('')
 
+  // Comp Off earned badge — shown in Today card after a qualifying checkout
+  const [compOffJustEarned, setCompOffJustEarned] = useState(false)
+
   // Staff History tab — employee selector + date range
   const [staffHistoryUserId, setStaffHistoryUserId] = useState<string>('')
   const [staffHistoryStart,  setStaffHistoryStart]  = useState<string>('')
@@ -365,6 +370,7 @@ export function Attendance() {
       if (isManager) mgr.fetchPendingRegularizations()
     }
     if (activeTab === 'leave-approvals' && isManager) leaves.fetchPendingLeaves()
+    if (activeTab === 'my-leaves') refetchCompOffCredits()
     if (activeTab === 'wfh-requests') wfhRequests.fetchMyRequests()
     if (activeTab === 'wfh-approvals' && isManager) wfhRequests.fetchPending()
     if (activeTab === 'stats' && isManager) mgr.fetchStats({ startDate: statsFrom, endDate: statsTo })
@@ -384,6 +390,7 @@ export function Attendance() {
 
   const handleCheckIn = async () => {
     setCheckingIn(true)
+    setCompOffJustEarned(false)   // clear comp-off banner on new check-in
     try {
       const needsGps = workMode === 'OFFICE' || workMode === 'TRAVELLING'
       const coords   = needsGps ? await getCoords() : null
@@ -419,7 +426,11 @@ export function Attendance() {
     setCheckingIn(true)
     try {
       const coords = await getCoords()
-      await checkOut(coords ?? undefined)
+      const result = await checkOut(coords ?? undefined)
+      if (result.compOffEarned) {
+        setCompOffJustEarned(true)
+        leaves.fetchMyBalance()   // refresh balance display
+      }
       toast.success('Checked out successfully')
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Check-out failed')
@@ -683,6 +694,14 @@ export function Attendance() {
               ? 'Travel approved for today — check in while travelling.'
               : 'WFH approved for today — you can check in remotely.'}
           </span>
+        </div>
+      )}
+
+      {/* ── Comp Off earned banner ── */}
+      {compOffJustEarned && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-300">
+          <span>🎁</span>
+          <span className="font-medium">Comp Off Earned — 1 day credited to your leave balance</span>
         </div>
       )}
 
@@ -1158,6 +1177,47 @@ export function Attendance() {
               </div>
             )}
           </div>
+
+          {/* Comp Off Credit History — only shown when org has a comp-off leave type */}
+          {leaves.myBalance.some(b => b.leaveType?.isCompOff) && (
+            <div>
+              <h2 className="font-medium text-slate-800 dark:text-slate-200 mb-3">Comp Off Credits</h2>
+              {compOffCredits.length === 0 ? (
+                <EmptyState icon={<Calendar size={32} />} text="No comp off credits yet. Credits are earned when you work on a holiday or your scheduled day off." />
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        {['Date Worked', 'Type', 'Earned On', 'Expires', 'Status'].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compOffCredits.map(c => (
+                        <tr key={c.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                          <td className="px-4 py-3">{fmtDate(c.workedDate)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={c.workType === 'HOLIDAY' ? 'purple' : 'warning'}>
+                              {c.workType === 'HOLIDAY' ? 'Holiday' : 'Off Day'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">{fmtDate(c.earnedAt)}</td>
+                          <td className="px-4 py-3">{fmtDate(c.expiresAt)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={c.status === 'AVAILABLE' ? 'success' : c.status === 'EXPIRED' ? 'danger' : 'secondary'}>
+                              {c.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1816,6 +1876,17 @@ export function Attendance() {
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
+            {(() => {
+              const sel = leaves.leaveTypes.find(t => t.id === leaveForm.leaveTypeId)
+              if (!sel?.isCompOff) return null
+              const bal = leaves.myBalance.find(b => b.leaveTypeId === sel.id)
+              const available = bal ? Math.max(0, bal.allocated - bal.used - bal.pending) : 0
+              return (
+                <p className="text-xs mt-1.5 text-amber-700 dark:text-amber-300">
+                  {available} comp off day{available !== 1 ? 's' : ''} available · Credits used oldest-first
+                </p>
+              )
+            })()}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

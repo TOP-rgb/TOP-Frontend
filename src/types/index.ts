@@ -304,9 +304,26 @@ export interface LeaveType {
   carryForwardDays: number
   isPaid: boolean
   isActive: boolean
+  isCompOff: boolean
   allowedEmployeeTypes: string[]   // empty = unrestricted; otherwise EmployeeType values
   createdAt: string
   updatedAt: string
+}
+
+export type CompOffCreditStatus = 'AVAILABLE' | 'USED' | 'EXPIRED'
+export type CompOffWorkType = 'HOLIDAY' | 'OFF_DAY'
+
+export interface CompOffCredit {
+  id: string
+  organizationId: string
+  userId: string
+  workedDate: string
+  workType: CompOffWorkType
+  earnedAt: string
+  expiresAt: string
+  status: CompOffCreditStatus
+  leaveRequestId?: string | null
+  user?: { id: string; firstName: string; lastName: string; email: string }
 }
 
 export interface LeaveBalance {

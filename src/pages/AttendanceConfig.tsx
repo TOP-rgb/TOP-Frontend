@@ -9,6 +9,7 @@ import { useLeaves } from '@/hooks/useLeaves'
 import { useUsers } from '@/hooks/useUsers'
 import { useWorkPolicies } from '@/hooks/useWorkPolicies'
 import { toast } from 'sonner'
+import { api } from '@/lib/api'
 import type { ShiftTemplate, ShiftAssignment, GeofenceLocation, PublicHoliday, LeaveType, EmployeeType, WorkMode } from '@/types'
 
 const EMPLOYEE_TYPE_OPTIONS: { value: EmployeeType; label: string }[] = [
@@ -33,7 +34,7 @@ function fmtDate(iso: string | null | undefined): string {
 }
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
-type Tab = 'shifts' | 'assignments' | 'geofences' | 'holidays' | 'leave-types' | 'work-modes'
+type Tab = 'shifts' | 'assignments' | 'geofences' | 'holidays' | 'leave-types' | 'work-modes' | 'comp-off'
 
 // Countries supported by Nager.Date (free, no key required)
 const NAGER_COUNTRY_CODES = [
@@ -102,6 +103,7 @@ export function AttendanceConfig() {
             { id: 'holidays',    label: 'Holidays' },
             { id: 'leave-types', label: 'Leave Types' },
             { id: 'work-modes',  label: 'Work Modes' },
+            { id: 'comp-off',    label: 'Comp Off' },
           ] as const
         ).map(t => (
           <button
@@ -124,6 +126,7 @@ export function AttendanceConfig() {
       {activeTab === 'holidays'    && <HolidaysTab holidays={holidays} />}
       {activeTab === 'leave-types' && <LeaveTypesTab leaves={leaves} users={users} usersHook={usersHook} />}
       {activeTab === 'work-modes'  && <WorkModesTab users={users} workPolicies={workPolicies} />}
+      {activeTab === 'comp-off'    && <CompOffTab leaves={leaves} />}
     </div>
   )
 }
@@ -906,7 +909,11 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
                       <span className="font-medium">{t.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">{t.maxDaysPerYear}</td>
+                  <td className="px-4 py-3">
+                    {t.isCompOff
+                      ? <span className="text-xs text-amber-600 dark:text-amber-400 italic font-medium">Credit-based</span>
+                      : t.maxDaysPerYear}
+                  </td>
                   <td className="px-4 py-3">
                     {(!t.allowedEmployeeTypes || t.allowedEmployeeTypes.length === 0)
                       ? <Badge variant="success">All</Badge>
@@ -922,7 +929,25 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
                   <td className="px-4 py-3"><Badge variant={t.isPaid ? 'success' : 'secondary'}>{t.isPaid ? 'Paid' : 'Unpaid'}</Badge></td>
                   <td className="px-4 py-3"><Badge variant={t.isActive ? 'success' : 'secondary'}>{t.isActive ? 'Active' : 'Inactive'}</Badge></td>
                   <td className="px-4 py-3">
-                    <button onClick={() => openEdit(t)} className="text-slate-400 hover:text-blue-600"><Edit2 size={14} /></button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => openEdit(t)} className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={14} /></button>
+                      <button
+                        onClick={async () => {
+                          const msg = t.isCompOff
+                            ? `Delete the Comp Off leave type "${t.name}"? Any existing leave requests will be preserved (type will be deactivated instead of deleted).`
+                            : `Delete leave type "${t.name}"? If it has existing leave requests it will be deactivated instead.`
+                          if (!confirm(msg)) return
+                          try {
+                            const result = await leaves.deleteLeaveType(t.id)
+                            toast.success(result.message)
+                          } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed to delete') }
+                        }}
+                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete leave type"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1294,6 +1319,235 @@ function WorkModesTab({
       <p className="text-xs text-slate-400">
         Tip: Click a mode icon to toggle it for an employee. Faded icons indicate the mode is available by default (no restriction set).
       </p>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comp Off Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
+  const [compOffEnabled,    setCompOffEnabled]    = useState(false)
+  const [compOffExpiryDays, setCompOffExpiryDays] = useState(90)
+  const [expiryInput,       setExpiryInput]       = useState('90')
+  const [loading,           setLoading]           = useState(true)
+  const [saving,            setSaving]            = useState(false)
+  const [creatingType,      setCreatingType]      = useState(false)
+  const [deactivating,      setDeactivating]      = useState(false)
+  const [ltNameEdit,        setLtNameEdit]        = useState('')
+  const [ltColorEdit,       setLtColorEdit]       = useState('')
+  const [savingLt,          setSavingLt]          = useState(false)
+
+  // Load current settings on mount
+  // GET /settings returns { success, data: { org, settings } }
+  useEffect(() => {
+    api.get<{ success: boolean; data: { org: Record<string, unknown>; settings: Record<string, unknown> } }>('/settings')
+      .then(res => {
+        const s = res.data?.settings ?? {}
+        const enabled = Boolean(s.compOffEnabled ?? false)
+        const days    = Number(s.compOffExpiryDays ?? 90) || 90
+        setCompOffEnabled(enabled)
+        setCompOffExpiryDays(days)
+        setExpiryInput(String(days))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const compOffLeaveType = leaves.leaveTypes.find(t => t.isCompOff && t.isActive)
+
+  // Sync edit fields when leave type is loaded
+  useEffect(() => {
+    if (compOffLeaveType) {
+      setLtNameEdit(compOffLeaveType.name)
+      setLtColorEdit(compOffLeaveType.color)
+    }
+  }, [compOffLeaveType?.id])  // eslint-disable-line
+
+  const handleSaveLeaveType = async () => {
+    if (!compOffLeaveType) return
+    setSavingLt(true)
+    try {
+      await leaves.updateLeaveType(compOffLeaveType.id, { name: ltNameEdit.trim() || compOffLeaveType.name, color: ltColorEdit })
+      toast.success('Leave type updated')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSavingLt(false)
+    }
+  }
+
+  const handleDeactivate = async () => {
+    if (!compOffLeaveType) return
+    if (!confirm(`Deactivate "${compOffLeaveType.name}"? Existing credits are unaffected, but employees won't be able to apply for comp-off leave until a new type is created.`)) return
+    setDeactivating(true)
+    try {
+      await leaves.updateLeaveType(compOffLeaveType.id, { isActive: false })
+      toast.success('Leave type deactivated — you can now create a new one')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setDeactivating(false)
+    }
+  }
+
+  const handleToggleEnabled = async (enabled: boolean) => {
+    setSaving(true)
+    try {
+      await api.put('/settings/comp-off', { compOffEnabled: enabled })
+      setCompOffEnabled(enabled)
+      toast.success(enabled ? 'Comp Off enabled' : 'Comp Off disabled')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveExpiry = async () => {
+    const days = parseInt(expiryInput, 10)
+    if (isNaN(days) || days < 1) { toast.error('Expiry days must be a positive number'); return }
+    setSaving(true)
+    try {
+      await api.put('/settings/comp-off', { compOffExpiryDays: days })
+      setCompOffExpiryDays(days)
+      toast.success('Expiry days saved')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCreateLeaveType = async () => {
+    setCreatingType(true)
+    try {
+      await leaves.createLeaveType({
+        name: 'Compensatory Off',
+        color: '#f59e0b',
+        maxDaysPerYear: 365,   // effectively unlimited — governed by credits
+        carryForwardDays: 0,
+        isPaid: false,
+        isCompOff: true,
+        allowedEmployeeTypes: [],
+      })
+      toast.success('Comp Off leave type created')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create')
+    } finally {
+      setCreatingType(false)
+    }
+  }
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+
+  return (
+    <div className="space-y-8 max-w-lg">
+      <div>
+        <h2 className="font-medium text-slate-800 dark:text-slate-200 mb-1">Compensatory Off</h2>
+        <p className="text-sm text-slate-500">
+          When enabled, employees who work ≥ 75% of their shift on a public holiday or their scheduled day off automatically earn one comp-off credit.
+        </p>
+      </div>
+
+      {/* Enable/Disable toggle */}
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
+        <div>
+          <div className="font-medium text-sm text-slate-800 dark:text-slate-200">Enable Comp Off</div>
+          <div className="text-xs text-slate-500 mt-0.5">Auto-award credits at checkout on holidays / off-days</div>
+        </div>
+        <button
+          disabled={saving}
+          onClick={() => handleToggleEnabled(!compOffEnabled)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+            compOffEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'
+          }`}
+        >
+          <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${compOffEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
+      {/* Expiry days */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 space-y-3">
+        <div>
+          <div className="font-medium text-sm text-slate-800 dark:text-slate-200">Credit Expiry</div>
+          <div className="text-xs text-slate-500 mt-0.5">Credits expire this many days after being earned. Industry standard: 90 days.</div>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={1}
+            value={expiryInput}
+            onChange={e => setExpiryInput(e.target.value)}
+            className="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-sm text-slate-500">days</span>
+          <button
+            disabled={saving || expiryInput === String(compOffExpiryDays)}
+            onClick={handleSaveExpiry}
+            className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+          >
+            {saving ? <Loader2 size={13} className="animate-spin inline" /> : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      {/* Comp Off Leave Type */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 space-y-3">
+        <div>
+          <div className="font-medium text-sm text-slate-800 dark:text-slate-200">Comp Off Leave Type</div>
+          <div className="text-xs text-slate-500 mt-0.5">A dedicated leave type is required for employees to apply their comp-off credits.</div>
+        </div>
+        {compOffLeaveType ? (
+          <>
+            {/* Inline name + colour editor */}
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={ltColorEdit}
+                onChange={e => setLtColorEdit(e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border border-slate-200 dark:border-slate-700 p-0.5"
+                title="Leave type colour"
+              />
+              <input
+                type="text"
+                value={ltNameEdit}
+                onChange={e => setLtNameEdit(e.target.value)}
+                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                disabled={savingLt || (ltNameEdit === compOffLeaveType.name && ltColorEdit === compOffLeaveType.color)}
+                onClick={handleSaveLeaveType}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              >
+                {savingLt ? <Loader2 size={13} className="animate-spin inline" /> : 'Save'}
+              </button>
+            </div>
+            {/* Deactivate / reset */}
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+              <button
+                disabled={deactivating}
+                onClick={handleDeactivate}
+                className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 transition-colors"
+              >
+                {deactivating ? <Loader2 size={11} className="animate-spin" /> : <PowerOff size={11} />}
+                Deactivate & reconfigure
+              </button>
+              <span className="text-xs text-slate-400">— deactivating lets you create a replacement</span>
+            </div>
+          </>
+        ) : (
+          <button
+            disabled={creatingType}
+            onClick={handleCreateLeaveType}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-60 transition-colors"
+          >
+            {creatingType ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+            Create Comp Off Leave Type
+          </button>
+        )}
+      </div>
     </div>
   )
 }
