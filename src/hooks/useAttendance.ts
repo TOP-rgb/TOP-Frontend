@@ -41,6 +41,7 @@ export function useAttendance() {
   const [calendarLoading, setCalendarLoading] = useState(false)
   const [myRegularizations, setMyRegularizations] = useState<RegularizationRequest[]>([])
   const [compOffCredits, setCompOffCredits] = useState<CompOffCredit[]>([])
+  const [historyTotal, setHistoryTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -75,6 +76,7 @@ export function useAttendance() {
       if (effectiveParams?.offset) q.set('offset', String(effectiveParams.offset))
       const res = await api.get<ApiResponse<AttendanceRecord[]>>(`/attendance/mine?${q}`)
       setHistory(res.data)
+      setHistoryTotal(res.pagination?.total ?? res.data.length)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load history')
     } finally {
@@ -85,8 +87,9 @@ export function useAttendance() {
   const fetchCalendarHistory = useCallback(async (startDate: string, endDate: string) => {
     try {
       setCalendarLoading(true)
-      // limit=62: max 31 days + up to 31 synthetic absent entries
-      const q = new URLSearchParams({ startDate, endDate, limit: '62' })
+      setCalendarHistory([])   // clear stale month data immediately so old keys don't bleed into the new month
+      // limit=93: 31 days × 3 safety margin (real records + synthetic absent entries)
+      const q = new URLSearchParams({ startDate, endDate, limit: '93' })
       const res = await api.get<ApiResponse<AttendanceRecord[]>>(`/attendance/mine?${q}`)
       setCalendarHistory(res.data)
     } catch {
@@ -128,6 +131,26 @@ export function useAttendance() {
     return res
   }, [fetchToday, fetchHistory])
 
+  const loadMoreHistory = useCallback(async () => {
+    const effectiveParams = lastHistoryParamsRef.current
+    try {
+      setLoading(true)
+      const q = new URLSearchParams()
+      if (effectiveParams?.startDate) q.set('startDate', effectiveParams.startDate)
+      if (effectiveParams?.endDate)   q.set('endDate',   effectiveParams.endDate)
+      q.set('limit',  String(effectiveParams?.limit ?? 60))
+      // offset = number of records already loaded (append after existing rows)
+      q.set('offset', String(history.length))
+      const res = await api.get<ApiResponse<AttendanceRecord[]>>(`/attendance/mine?${q}`)
+      setHistory(prev => [...prev, ...res.data])
+      setHistoryTotal(res.pagination?.total ?? historyTotal)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load more')
+    } finally {
+      setLoading(false)
+    }
+  }, [history.length, historyTotal])
+
   const fetchCompOffCredits = useCallback(async (params?: { status?: string; limit?: number; offset?: number }) => {
     try {
       const q = new URLSearchParams()
@@ -151,6 +174,7 @@ export function useAttendance() {
     todayData,
     todayRecord: todayData?.record ?? null,
     history,
+    historyTotal,
     calendarHistory,
     calendarLoading,
     myRegularizations,
@@ -162,6 +186,7 @@ export function useAttendance() {
     submitRegularization,
     refetchToday: fetchToday,
     refetchHistory: fetchHistory,
+    loadMoreHistory,
     fetchCalendarHistory,
     refetchRegularizations: fetchMyRegularizations,
     refetchCompOffCredits: fetchCompOffCredits,

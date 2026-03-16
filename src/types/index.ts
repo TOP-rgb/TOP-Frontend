@@ -166,7 +166,7 @@ export interface InvoiceFormData {
 // ─────────────────────────────────────────────────────────────────────────────
 export type AttendanceStatus = 'PRESENT' | 'LATE' | 'AUTO_CHECKED_OUT' | 'ON_LEAVE' | 'ABSENT' | 'HALF_DAY'
 export type ExceptionType = 'LATE_ARRIVAL' | 'EARLY_DEPARTURE' | 'MISSED_CHECKOUT' | 'LOCATION_VIOLATION'
-export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 export type WorkMode = 'OFFICE' | 'WFH' | 'TRAVELLING'
 
 export interface AttendanceWorkPolicy {

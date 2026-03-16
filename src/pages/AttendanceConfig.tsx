@@ -34,7 +34,7 @@ function fmtDate(iso: string | null | undefined): string {
 }
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
-type Tab = 'shifts' | 'assignments' | 'geofences' | 'holidays' | 'leave-types' | 'work-modes' | 'comp-off'
+type Tab = 'shifts' | 'assignments' | 'geofences' | 'holidays' | 'leave-types' | 'work-modes' | 'comp-off' | 'attendance-rules'
 
 // Countries supported by Nager.Date (free, no key required)
 const NAGER_COUNTRY_CODES = [
@@ -103,7 +103,8 @@ export function AttendanceConfig() {
             { id: 'holidays',    label: 'Holidays' },
             { id: 'leave-types', label: 'Leave Types' },
             { id: 'work-modes',  label: 'Work Modes' },
-            { id: 'comp-off',    label: 'Comp Off' },
+            { id: 'comp-off',         label: 'Comp Off' },
+            { id: 'attendance-rules', label: 'Attendance Rules' },
           ] as const
         ).map(t => (
           <button
@@ -126,7 +127,8 @@ export function AttendanceConfig() {
       {activeTab === 'holidays'    && <HolidaysTab holidays={holidays} />}
       {activeTab === 'leave-types' && <LeaveTypesTab leaves={leaves} users={users} usersHook={usersHook} />}
       {activeTab === 'work-modes'  && <WorkModesTab users={users} workPolicies={workPolicies} />}
-      {activeTab === 'comp-off'    && <CompOffTab leaves={leaves} />}
+      {activeTab === 'comp-off'         && <CompOffTab leaves={leaves} />}
+      {activeTab === 'attendance-rules' && <AttendanceRulesTab />}
     </div>
   )
 }
@@ -1547,6 +1549,180 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
             Create Comp Off Leave Type
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Attendance Rules Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AttendanceRulesTab() {
+  const [absentInput,  setAbsentInput]  = useState('25')
+  const [halfDayInput, setHalfDayInput] = useState('75')
+  const [otInput,      setOtInput]      = useState('0')
+  const [closeInput,   setCloseInput]   = useState('23')
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+
+  // Load current settings on mount
+  useEffect(() => {
+    api.get<{ success: boolean; data: { org: Record<string, unknown>; settings: Record<string, unknown> } }>('/settings')
+      .then(res => {
+        const s = res.data?.settings ?? {}
+        setAbsentInput(String(s.absentThresholdPercent   ?? 25))
+        setHalfDayInput(String(s.halfDayThresholdPercent ?? 75))
+        setOtInput(String(s.overtimeThresholdMinutes     ?? 0))
+        setCloseInput(String(s.defaultAutoCloseHour      ?? 23))
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    const absent  = parseInt(absentInput,  10)
+    const halfDay = parseInt(halfDayInput, 10)
+    const ot      = parseInt(otInput,      10)
+    const close   = parseInt(closeInput,   10)
+
+    if (isNaN(absent)  || absent  < 1  || absent  > 49) { toast.error('Absent threshold must be 1–49%');              return }
+    if (isNaN(halfDay) || halfDay < 2  || halfDay > 99) { toast.error('Half-day threshold must be 2–99%');            return }
+    if (absent >= halfDay)                               { toast.error('Absent threshold must be less than half-day'); return }
+    if (isNaN(ot)      || ot      < 0)                  { toast.error('Overtime buffer must be 0 or more');           return }
+    if (isNaN(close)   || close   < 0  || close   > 23) { toast.error('Auto-close hour must be 0–23');                return }
+
+    setSaving(true)
+    try {
+      await api.put('/settings/attendance-rules', {
+        absentThresholdPercent:  absent,
+        halfDayThresholdPercent: halfDay,
+        overtimeThresholdMinutes: ot,
+        defaultAutoCloseHour:    close,
+      })
+      toast.success('Attendance rules saved')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={24} className="animate-spin text-slate-400" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-lg space-y-6 py-4">
+
+      {/* Status Tiers */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Status Tiers</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Determines ABSENT / HALF_DAY status at checkout based on % of shift worked.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+              Absent threshold
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={1} max={49}
+                value={absentInput}
+                onChange={e => setAbsentInput(e.target.value)}
+                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-500">%</span>
+            </div>
+            <span className="text-xs text-slate-400">below this % of shift → Absent</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+              Half-day threshold
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min={2} max={99}
+                value={halfDayInput}
+                onChange={e => setHalfDayInput(e.target.value)}
+                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-sm text-slate-500">%</span>
+            </div>
+            <span className="text-xs text-slate-400">below this % of shift → Half Day</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Overtime */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Overtime</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Extra minutes an employee must work beyond their shift before overtime is logged.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+            Overtime buffer
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min={0}
+              value={otInput}
+              onChange={e => setOtInput(e.target.value)}
+              className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-slate-500">min</span>
+          </div>
+          <span className="text-xs text-slate-400">0 = any extra minute counts</span>
+        </div>
+      </div>
+
+      {/* Auto-close */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Auto-close Fallback</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            When the system auto-closes a stale record and the employee has no assigned shift, this hour is used as the checkout time.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+            Close hour
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min={0} max={23}
+              value={closeInput}
+              onChange={e => setCloseInput(e.target.value)}
+              className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <span className="text-xs text-slate-400">hour 0–23 in org timezone</span>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-60 transition-colors"
+        >
+          {saving && <Loader2 size={13} className="animate-spin" />}
+          Save Settings
+        </button>
       </div>
     </div>
   )

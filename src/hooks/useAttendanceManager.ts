@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import type { ApiResponse } from '@/lib/api'
 import type { AttendanceRecord, AttendanceException, RegularizationRequest, TeamStatus, AttendanceStats } from '@/types'
@@ -27,6 +27,7 @@ export function useAttendanceManager() {
   const [historyUserWorkingDays, setHistoryUserWorkingDays] = useState<number[] | null>(null)
   const [exceptions, setExceptions] = useState<AttendanceException[]>([])
   const [exceptionsTotal, setExceptionsTotal] = useState(0)
+  const lastExceptionParamsRef = useRef<ExceptionParams | undefined>(undefined)
   const [pendingRegularizations, setPendingRegularizations] = useState<RegularizationRequest[]>([])
   const [stats, setStats] = useState<AttendanceStats | null>(null)
   const [statsLoading, setStatsLoading] = useState(false)
@@ -67,14 +68,16 @@ export function useAttendanceManager() {
   }, [])
 
   const fetchExceptions = useCallback(async (params?: ExceptionParams) => {
+    // Save params so loadMoreExceptions can reuse the same filters
+    lastExceptionParamsRef.current = params
     try {
       setLoading(true)
       const q = new URLSearchParams()
       if (params?.userId) q.set('userId', params.userId)
       if (params?.type) q.set('type', params.type)
       if (params?.isReviewed !== undefined) q.set('isReviewed', String(params.isReviewed))
-      if (params?.limit) q.set('limit', String(params.limit))
-      if (params?.offset) q.set('offset', String(params.offset))
+      q.set('limit',  String(params?.limit ?? 20))  // always page the initial fetch
+      // Fresh fetch — always start from offset 0 (reset the list)
       const res = await api.get<ApiResponse<AttendanceException[]>>(`/attendance/exceptions?${q}`)
       setExceptions(res.data)
       setExceptionsTotal(res.pagination?.total ?? res.data.length)
@@ -109,6 +112,27 @@ export function useAttendanceManager() {
     }
   }, [])
 
+  const loadMoreExceptions = useCallback(async () => {
+    // Reuse the same filters that were active during the last fetchExceptions call
+    const p = lastExceptionParamsRef.current
+    try {
+      setLoading(true)
+      const q = new URLSearchParams()
+      if (p?.userId) q.set('userId', p.userId)
+      if (p?.type) q.set('type', p.type)
+      if (p?.isReviewed !== undefined) q.set('isReviewed', String(p.isReviewed))
+      q.set('limit',  String(p?.limit ?? 20))
+      q.set('offset', String(exceptions.length))  // append after already-loaded rows
+      const res = await api.get<ApiResponse<AttendanceException[]>>(`/attendance/exceptions?${q}`)
+      setExceptions(prev => [...prev, ...res.data])
+      setExceptionsTotal(res.pagination?.total ?? exceptionsTotal)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load more exceptions')
+    } finally {
+      setLoading(false)
+    }
+  }, [exceptions.length, exceptionsTotal])
+
   const reviewException = useCallback(async (id: string) => {
     await api.patch<ApiResponse<AttendanceException>>(`/attendance/exceptions/${id}/review`, {})
     setExceptions(prev => prev.map(e => e.id === id ? { ...e, isReviewed: true } : e))
@@ -134,6 +158,7 @@ export function useAttendanceManager() {
     fetchTeamStatus,
     fetchHistory,
     fetchExceptions,
+    loadMoreExceptions,
     fetchPendingRegularizations,
     fetchStats,
     reviewException,

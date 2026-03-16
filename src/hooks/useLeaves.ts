@@ -95,6 +95,12 @@ export function useLeaves() {
     await fetchMyBalance()
   }, [fetchMyBalance])
 
+  const cancelApprovedLeave = useCallback(async (id: string) => {
+    await api.patch(`/leaves/${id}/cancel`, {})
+    await fetchMyLeaves()
+    await fetchMyBalance()
+  }, [fetchMyLeaves, fetchMyBalance])
+
   const reviewLeave = useCallback(async (id: string, status: 'APPROVED' | 'REJECTED', reviewNote?: string) => {
     await api.patch<ApiResponse<LeaveRequest>>(`/leaves/${id}`, { status, reviewNote })
     setPendingLeaves(prev => prev.filter(l => l.id !== id))
@@ -144,6 +150,7 @@ export function useLeaves() {
     error,
     submitLeave,
     cancelLeave,
+    cancelApprovedLeave,
     reviewLeave,
     fetchPendingLeaves,
     fetchTeamBalances,

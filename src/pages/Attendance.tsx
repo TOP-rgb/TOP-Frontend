@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { LogIn, LogOut, Clock, Calendar, Users, AlertTriangle, ClipboardList, CheckSquare, Loader2, ChevronRight, Download, ChevronLeft, Building2, Home, Plane, History, Search, BarChart2 } from 'lucide-react'
+import { LogIn, LogOut, Clock, Calendar, Users, AlertTriangle, ClipboardList, CheckSquare, Loader2, ChevronRight, Download, ChevronLeft, Building2, Home, Plane, History, Search, BarChart2, MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { useAuthStore } from '@/store/authStore'
@@ -227,10 +227,11 @@ export function Attendance() {
   const isManager = role === 'manager' || role === 'admin'
 
   const {
-    todayData, todayRecord, history, calendarHistory, myRegularizations,
+    todayData, todayRecord, history, historyTotal, calendarHistory, myRegularizations,
     compOffCredits,
     loading: attendanceLoading, checkIn, checkOut, submitRegularization,
     refetchHistory, refetchRegularizations, fetchCalendarHistory,
+    loadMoreHistory,
     refetchCompOffCredits,
   } = useAttendance()
 
@@ -296,6 +297,27 @@ export function Attendance() {
   useEffect(() => {
     if (!allowedModes.includes(workMode)) setWorkMode(allowedModes[0])
   }, [allowedModes.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Table pagination (client-side "Show more") ────────────────────────────
+  const PAGE_SIZE = 10
+  const [leavesShown,       setLeavesShown]       = useState(PAGE_SIZE)
+  const [compOffShown,      setCompOffShown]       = useState(PAGE_SIZE)
+  const [wfhShown,          setWfhShown]           = useState(PAGE_SIZE)
+  const [wfhPendingShown,   setWfhPendingShown]    = useState(PAGE_SIZE)
+  const [myRegShown,        setMyRegShown]         = useState(PAGE_SIZE)
+  const [pendingRegShown,   setPendingRegShown]    = useState(PAGE_SIZE)
+  const [pendingLeaveShown, setPendingLeaveShown]  = useState(PAGE_SIZE)
+  // Reset visible rows whenever the active tab changes so stale "expanded" state
+  // doesn't carry over when the user navigates between tabs.
+  useEffect(() => {
+    setLeavesShown(PAGE_SIZE)
+    setCompOffShown(PAGE_SIZE)
+    setWfhShown(PAGE_SIZE)
+    setWfhPendingShown(PAGE_SIZE)
+    setMyRegShown(PAGE_SIZE)
+    setPendingRegShown(PAGE_SIZE)
+    setPendingLeaveShown(PAGE_SIZE)
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Modals
   const [regModal, setRegModal] = useState<{ record: AttendanceRecord } | null>(null)
@@ -365,7 +387,7 @@ export function Attendance() {
     if (activeTab === 'team' && isManager) mgr.fetchTeamStatus()
     // Staff History needs the team member list — fetch team status if not already loaded
     if (activeTab === 'staff-history' && isManager && !mgr.teamStatus) mgr.fetchTeamStatus()
-    if (activeTab === 'exceptions' && isManager) mgr.fetchExceptions()
+    if (activeTab === 'exceptions' && isManager) mgr.fetchExceptions({ limit: 20 })
     if (activeTab === 'regularizations') {
       if (isManager) mgr.fetchPendingRegularizations()
     }
@@ -863,8 +885,8 @@ export function Attendance() {
                     return (
                       <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                         <td className="px-4 py-3 font-medium">{fmtDate(r.date)}</td>
-                        <td className="px-4 py-3">{regPending ? '—' : fmtTime(r.firstCheckInAt ?? r.checkInAt)}</td>
-                        <td className="px-4 py-3">{regPending ? '—' : fmtTime(r.checkOutAt)}</td>
+                        <td className="px-4 py-3">{regPending || r.isOnLeave || r.isHoliday ? '—' : fmtTime(r.firstCheckInAt ?? r.checkInAt)}</td>
+                        <td className="px-4 py-3">{regPending || r.isOnLeave || r.isHoliday ? '—' : fmtTime(r.checkOutAt)}</td>
                         <td className="px-4 py-3">{fmtMinutes(wm)}</td>
                         <td className="px-4 py-3">
                           {r.overtimeMinutes && r.overtimeMinutes > 0
@@ -876,7 +898,12 @@ export function Attendance() {
                             ? <Badge variant="warning">Pending</Badge>
                             : rowIsOffDay
                               ? <Badge variant="secondary" dot>Day Off</Badge>
-                              : getStatusBadge(r.isOnLeave ? 'ON_LEAVE' : r.isHoliday ? 'HOLIDAY' : r.status)}
+                              : <>
+                                  {getStatusBadge(r.isOnLeave ? 'ON_LEAVE' : r.isHoliday ? 'HOLIDAY' : r.status)}
+                                  {r.status === 'LATE' && (r.minutesLate ?? 0) > 0 && (
+                                    <span className="text-xs text-amber-600 ml-1 whitespace-nowrap">{r.minutesLate}m late</span>
+                                  )}
+                                </>}
                         </td>
                         <td className="px-4 py-3">
                           {/* On off-day check-ins, suppress all flags — only "Day Off" status is shown */}
@@ -889,6 +916,11 @@ export function Attendance() {
                             ).values()).map(e => (
                               <span key={e.type}>{getExceptionBadge(e.type)}</span>
                             ))}
+                            {r.isWithinGeofence === false && (
+                              <Badge variant="danger">
+                                <MapPin size={10} className="inline mr-0.5" />Out of zone
+                              </Badge>
+                            )}
                           </div>}
                         </td>
                         <td className="px-4 py-3">
@@ -919,6 +951,19 @@ export function Attendance() {
                   })}
                 </tbody>
               </table>
+              {history.length < historyTotal && (
+                <div className="flex justify-center py-4">
+                  <button
+                    onClick={() => loadMoreHistory()}
+                    disabled={attendanceLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {attendanceLoading
+                      ? <><Loader2 size={14} className="animate-spin" /> Loading…</>
+                      : `Load more (${historyTotal - history.length} remaining)`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -943,6 +988,8 @@ export function Attendance() {
 
         // statusColor now receives the precomputed key to avoid a second
         // toISOString() conversion inside the function.
+        const todayKey = makeKey(today.getFullYear(), today.getMonth(), today.getDate())
+
         const statusColor = (date: Date, key: string): string => {
           const jsDay = date.getDay()
           // Off days (weekends or shift rest days): mute only if there is no record.
@@ -954,7 +1001,8 @@ export function Attendance() {
           }
           // Show holiday color for both past and future holidays
           if (holidayDateSet.has(key)) return 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300'
-          if (date > today) return 'bg-transparent'
+          // Today and future dates: no colour — shift may still be in progress
+          if (key >= todayKey) return 'bg-transparent'
           const rec = calendarRecordMap.get(key)
           if (!rec || rec.status === 'ABSENT') return 'bg-red-100 dark:bg-red-900/40 hover:bg-red-200'
           if (rec.isOnLeave || rec.status === 'ON_LEAVE') return 'bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200'
@@ -1041,8 +1089,8 @@ export function Attendance() {
                 {calendarDetail.record ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div><div className="text-xs text-slate-500">Status</div><div>{getStatusBadge(calendarDetail.record.status)}</div></div>
-                    <div><div className="text-xs text-slate-500">Check In</div><div className="font-medium">{fmtTime(calendarDetail.record.firstCheckInAt ?? calendarDetail.record.checkInAt)}</div></div>
-                    <div><div className="text-xs text-slate-500">Check Out</div><div className="font-medium">{fmtTime(calendarDetail.record.checkOutAt)}</div></div>
+                    <div><div className="text-xs text-slate-500">Check In</div><div className="font-medium">{calendarDetail.record.isOnLeave || calendarDetail.record.isHoliday ? '—' : fmtTime(calendarDetail.record.firstCheckInAt ?? calendarDetail.record.checkInAt)}</div></div>
+                    <div><div className="text-xs text-slate-500">Check Out</div><div className="font-medium">{calendarDetail.record.isOnLeave || calendarDetail.record.isHoliday ? '—' : fmtTime(calendarDetail.record.checkOutAt)}</div></div>
                     <div><div className="text-xs text-slate-500">Hours</div><div className="font-medium">{fmtMinutes(calendarDetail.record.workMinutes)}</div></div>
                     {calendarDetail.record.overtimeMinutes && calendarDetail.record.overtimeMinutes > 0 && (
                       <div><div className="text-xs text-slate-500">Overtime</div><div className="font-medium text-emerald-600">+{fmtMinutes(calendarDetail.record.overtimeMinutes)}</div></div>
@@ -1057,6 +1105,25 @@ export function Attendance() {
                       <div className="col-span-2 sm:col-span-4">
                         <div className="text-xs text-slate-500 mb-1">Exceptions</div>
                         <div className="flex flex-wrap gap-1">{Array.from(new Map(calendarDetail.record.exceptions?.map(e => [e.type, e]) ?? []).values()).map(e => <span key={e.type}>{getExceptionBadge(e.type)}</span>)}</div>
+                      </div>
+                    )}
+                    {(calendarDetail.record.checkInLat != null && calendarDetail.record.checkInLng != null) && (
+                      <div className="col-span-2 sm:col-span-4">
+                        <div className="text-xs text-slate-500 mb-1">Check-in Location</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <a
+                            href={`https://maps.google.com/?q=${calendarDetail.record.checkInLat},${calendarDetail.record.checkInLng}`}
+                            target="_blank" rel="noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            <MapPin size={11} />
+                            {(calendarDetail.record.checkInLat as number).toFixed(5)}, {(calendarDetail.record.checkInLng as number).toFixed(5)}
+                            · View on Map
+                          </a>
+                          {calendarDetail.record.isWithinGeofence === false && (
+                            <span className="text-xs text-red-600 font-medium">⚠ Outside geofence</span>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1077,8 +1144,8 @@ export function Attendance() {
                         ? 'Day Off'
                         : isHolidayDay
                           ? `🎉 Public holiday${holiday?.name ? ` — ${holiday.name}` : ''}`
-                          : calendarDetail.date > today
-                            ? 'Future date'
+                          : detailKey >= todayKey
+                            ? 'No record yet'
                             : 'No attendance record — marked absent'}
                     </p>
                   )
@@ -1148,7 +1215,7 @@ export function Attendance() {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaves.myLeaves.map(l => (
+                    {leaves.myLeaves.slice(0, leavesShown).map(l => (
                       <tr key={l.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -1160,7 +1227,7 @@ export function Attendance() {
                         <td className="px-4 py-3">{fmtDate(l.endDate)}</td>
                         <td className="px-4 py-3">{l.days}</td>
                         <td className="px-4 py-3">
-                          <Badge variant={l.status === 'APPROVED' ? 'success' : l.status === 'REJECTED' ? 'danger' : 'warning'}>{l.status}</Badge>
+                          <Badge variant={l.status === 'APPROVED' ? 'success' : l.status === 'REJECTED' || l.status === 'CANCELLED' ? 'danger' : 'warning'}>{l.status}</Badge>
                         </td>
                         <td className="px-4 py-3">
                           {l.status === 'PENDING' && (
@@ -1169,11 +1236,28 @@ export function Attendance() {
                               className="text-xs text-red-600 hover:text-red-800 font-medium"
                             >Cancel</button>
                           )}
+                          {l.status === 'APPROVED' && new Date(l.startDate) > new Date() && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Cancel this approved leave? The days will be returned to your balance.')) return
+                                await leaves.cancelApprovedLeave(l.id)
+                                toast.success('Leave cancelled — days returned to your balance')
+                              }}
+                              className="text-xs text-red-600 hover:text-red-800 font-medium"
+                            >Cancel</button>
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {leaves.myLeaves.length > leavesShown && (
+                  <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                    <button onClick={() => setLeavesShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      Load more ({leaves.myLeaves.length - leavesShown} remaining)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1195,7 +1279,7 @@ export function Attendance() {
                       </tr>
                     </thead>
                     <tbody>
-                      {compOffCredits.map(c => (
+                      {compOffCredits.slice(0, compOffShown).map(c => (
                         <tr key={c.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="px-4 py-3">{fmtDate(c.workedDate)}</td>
                           <td className="px-4 py-3">
@@ -1214,6 +1298,13 @@ export function Attendance() {
                       ))}
                     </tbody>
                   </table>
+                  {compOffCredits.length > compOffShown && (
+                    <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                      <button onClick={() => setCompOffShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        Load more ({compOffCredits.length - compOffShown} remaining)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1250,7 +1341,7 @@ export function Attendance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {wfhRequests.myRequests.map((r: WFHRequest) => (
+                  {wfhRequests.myRequests.slice(0, wfhShown).map((r: WFHRequest) => (
                     <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -1281,6 +1372,13 @@ export function Attendance() {
                   ))}
                 </tbody>
               </table>
+              {wfhRequests.myRequests.length > wfhShown && (
+                <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                  <button onClick={() => setWfhShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Load more ({wfhRequests.myRequests.length - wfhShown} remaining)
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1310,7 +1408,7 @@ export function Attendance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {wfhRequests.pendingRequests.map((r: WFHRequest) => (
+                  {wfhRequests.pendingRequests.slice(0, wfhPendingShown).map((r: WFHRequest) => (
                     <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                       <td className="px-4 py-3 font-medium">{r.user ? `${r.user.firstName} ${r.user.lastName}` : '—'}</td>
                       <td className="px-4 py-3">
@@ -1332,6 +1430,13 @@ export function Attendance() {
                   ))}
                 </tbody>
               </table>
+              {wfhRequests.pendingRequests.length > wfhPendingShown && (
+                <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                  <button onClick={() => setWfhPendingShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Load more ({wfhRequests.pendingRequests.length - wfhPendingShown} remaining)
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1675,8 +1780,8 @@ export function Attendance() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-medium text-slate-800 dark:text-slate-200">Attendance Exceptions</h2>
             <div className="flex gap-2">
-              <button onClick={() => mgr.fetchExceptions({ isReviewed: false })} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">Unreviewed</button>
-              <button onClick={() => mgr.fetchExceptions()} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">All</button>
+              <button onClick={() => mgr.fetchExceptions({ isReviewed: false, limit: 20 })} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">Unreviewed</button>
+              <button onClick={() => mgr.fetchExceptions({ limit: 20 })} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800">All</button>
             </div>
           </div>
           {mgr.exceptions.length === 0 ? (
@@ -1726,6 +1831,17 @@ export function Attendance() {
                   ))}
                 </tbody>
               </table>
+              {mgr.exceptionsTotal > mgr.exceptions.length && (
+                <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => mgr.loadMoreExceptions()}
+                    disabled={mgr.loading}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+                  >
+                    {mgr.loading ? <><Loader2 size={13} className="animate-spin" /> Loading…</> : `Load more (${mgr.exceptionsTotal - mgr.exceptions.length} remaining)`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1752,7 +1868,7 @@ export function Attendance() {
                     </tr>
                   </thead>
                   <tbody>
-                    {myRegularizations.map((r: RegularizationRequest) => (
+                    {myRegularizations.slice(0, myRegShown).map((r: RegularizationRequest) => (
                       <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                         <td className="px-4 py-3">{fmtDate(r.record?.date)}</td>
                         <td className="px-4 py-3">{fmtTime(r.requestedCheckIn)}</td>
@@ -1765,6 +1881,13 @@ export function Attendance() {
                     ))}
                   </tbody>
                 </table>
+                {myRegularizations.length > myRegShown && (
+                  <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                    <button onClick={() => setMyRegShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      Load more ({myRegularizations.length - myRegShown} remaining)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1789,7 +1912,7 @@ export function Attendance() {
                       </tr>
                     </thead>
                     <tbody>
-                      {mgr.pendingRegularizations.map((r: RegularizationRequest) => (
+                      {mgr.pendingRegularizations.slice(0, pendingRegShown).map((r: RegularizationRequest) => (
                         <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="px-4 py-3 font-medium">{r.user ? `${r.user.firstName} ${r.user.lastName}` : '—'}</td>
                           <td className="px-4 py-3">{fmtDate(r.record?.date)}</td>
@@ -1803,6 +1926,13 @@ export function Attendance() {
                       ))}
                     </tbody>
                   </table>
+                  {mgr.pendingRegularizations.length > pendingRegShown && (
+                    <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                      <button onClick={() => setPendingRegShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        Load more ({mgr.pendingRegularizations.length - pendingRegShown} remaining)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1832,7 +1962,7 @@ export function Attendance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leaves.pendingLeaves.map((l: LeaveRequest) => (
+                  {leaves.pendingLeaves.slice(0, pendingLeaveShown).map((l: LeaveRequest) => (
                     <tr key={l.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                       <td className="px-4 py-3 font-medium">{l.user ? `${l.user.firstName} ${l.user.lastName}` : '—'}</td>
                       <td className="px-4 py-3">
@@ -1852,6 +1982,13 @@ export function Attendance() {
                   ))}
                 </tbody>
               </table>
+              {leaves.pendingLeaves.length > pendingLeaveShown && (
+                <div className="flex items-center justify-center py-3 border-t border-slate-100 dark:border-slate-800">
+                  <button onClick={() => setPendingLeaveShown(n => n + PAGE_SIZE)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Load more ({leaves.pendingLeaves.length - pendingLeaveShown} remaining)
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2048,7 +2185,11 @@ export function Attendance() {
             <div className="rounded-lg bg-[#1e2d45] p-4 space-y-2 text-sm">
               <p><span className="text-slate-400">Employee:</span> <span className="font-medium text-white">{reviewRegModal.request.user ? `${reviewRegModal.request.user.firstName} ${reviewRegModal.request.user.lastName}` : '—'}</span></p>
               <p><span className="text-slate-400">Date:</span> <span className="text-slate-300">{fmtDate(reviewRegModal.request.record?.date)}</span></p>
-              <p><span className="text-slate-400">Current:</span> <span className="text-slate-300">{fmtTime(reviewRegModal.request.record?.firstCheckInAt ?? reviewRegModal.request.record?.checkInAt)} → {fmtTime(reviewRegModal.request.record?.checkOutAt)}</span></p>
+              <p><span className="text-slate-400">Current:</span> <span className="text-slate-300">
+                {(!reviewRegModal.request.record || reviewRegModal.request.record.status === 'ABSENT')
+                  ? 'Absent (no check-in)'
+                  : `${fmtTime(reviewRegModal.request.record.firstCheckInAt ?? reviewRegModal.request.record.checkInAt)} → ${fmtTime(reviewRegModal.request.record.checkOutAt)}`}
+              </span></p>
               <p><span className="text-slate-400">Requested:</span> <span className="text-slate-300">{fmtTime(reviewRegModal.request.requestedCheckIn)} → {fmtTime(reviewRegModal.request.requestedCheckOut)}</span></p>
               <p><span className="text-slate-400">Reason:</span> <span className="text-slate-300">{reviewRegModal.request.reason}</span></p>
             </div>

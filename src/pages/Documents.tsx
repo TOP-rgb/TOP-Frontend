@@ -73,7 +73,7 @@ function FolderTreeItem({
   return (
     <div>
       <div
-        className={`flex items-center gap-1 rounded-lg px-2 py-1.5 cursor-pointer group select-none ${
+        className={`relative flex items-center gap-1 rounded-lg px-2 py-1.5 cursor-pointer group select-none ${
           isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-700'
         }`}
         style={{ paddingLeft: `${8 + depth * 16}px` }}
@@ -111,7 +111,7 @@ function FolderTreeItem({
 
         {menuOpen && (
           <div
-            className="absolute right-2 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1"
+            className="absolute right-0 top-full mt-0.5 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1"
             onMouseLeave={() => setMenuOpen(false)}
           >
             <button
