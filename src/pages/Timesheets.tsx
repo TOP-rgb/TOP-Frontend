@@ -674,7 +674,7 @@ export function Timesheets() {
       )}
 
       {/* ── 5 Colored Stat Cards with notification indicators ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Total Hours',    value: `${totalHoursAll.toFixed(1)}h`,    bar: '#2563eb', bg: '#dbeafe', fg: '#1d4ed8', icon: <Clock size={17} /> },
           { label: 'Billable Hours', value: `${billableHours.toFixed(1)}h`,    bar: '#059669', bg: '#d1fae5', fg: '#065f46', icon: <TrendingUp size={17} /> },

@@ -137,7 +137,7 @@ function AvailabilityGrid({
       <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
         {/* Header row — time slots */}
         <div className="flex bg-slate-50 border-b border-slate-200">
-          <div className="w-28 shrink-0 px-2 py-1.5 font-medium text-slate-500">Attendee</div>
+          <div className="w-20 sm:w-28 shrink-0 px-2 py-1.5 font-medium text-slate-500">Attendee</div>
           {slots.map((s, i) => (
             <div
               key={i}
@@ -158,7 +158,7 @@ function AvailabilityGrid({
           return (
             <div key={uid} className="flex border-b border-slate-100 last:border-0">
               <div
-                className="w-28 shrink-0 px-2 py-1.5 font-medium text-slate-700 truncate"
+                className="w-20 sm:w-28 shrink-0 px-2 py-1.5 font-medium text-slate-700 truncate"
                 title={user ? `${user.firstName} ${user.lastName}` : uid}
               >
                 {name}

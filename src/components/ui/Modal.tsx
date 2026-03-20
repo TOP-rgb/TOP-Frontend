@@ -24,13 +24,13 @@ interface ModalProps {
 }
 
 const sizeClasses = {
-  sm: 'sm:max-w-sm',
-  md: 'sm:max-w-md',
-  lg: 'sm:max-w-lg',
-  xl: 'sm:max-w-xl',
-  '2xl': 'sm:max-w-2xl',
-  '3xl': 'sm:max-w-3xl',
-  '4xl': 'sm:max-w-4xl',
+  sm:   'sm:max-w-sm',
+  md:   'sm:max-w-md',
+  lg:   'sm:max-w-lg',
+  xl:   'sm:max-w-xl',
+  '2xl':'sm:max-w-2xl',
+  '3xl':'sm:max-w-3xl',
+  '4xl':'sm:max-w-4xl',
   full: 'sm:max-w-[90vw]',
 }
 
@@ -50,7 +50,7 @@ export function Modal({
 }: ModalProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={`${sizeClasses[size]} p-0 gap-0 max-h-[90vh] flex flex-col`}>
+      <DialogContent className={`w-[calc(100vw-2rem)] ${sizeClasses[size]} p-0 gap-0 max-h-[90vh] flex flex-col`}>
         {/* Custom close button */}
         <button
           onClick={onClose}
@@ -63,7 +63,7 @@ export function Modal({
 
         {/* Header */}
         {!hideHeader && title && (
-          <DialogHeader className={`px-6 py-4 bg-[#0f1a2e] border-b border-[#2d4068] rounded-t-lg ${headerClassName}`}>
+          <DialogHeader className={`px-4 py-3 sm:px-6 sm:py-4 bg-[#0f1a2e] border-b border-[#2d4068] rounded-t-lg ${headerClassName}`}>
             <DialogTitle className="text-lg font-semibold text-white">
               {title}
             </DialogTitle>
@@ -76,13 +76,13 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className={`px-6 py-5 bg-[#152035] overflow-y-auto flex-1 min-h-0 hide-scrollbar ${contentClassName}`}>
+        <div className={`px-4 py-4 sm:px-6 sm:py-5 bg-[#152035] overflow-y-auto flex-1 min-h-0 hide-scrollbar ${contentClassName}`}>
           {children}
         </div>
 
         {/* Footer */}
         {!hideFooter && footer && (
-          <DialogFooter className={`px-6 py-4 bg-[#0f1a2e] border-t border-[#2d4068] rounded-b-lg ${footerClassName}`}>
+          <DialogFooter className={`px-4 py-3 sm:px-6 sm:py-4 bg-[#0f1a2e] border-t border-[#2d4068] rounded-b-lg ${footerClassName}`}>
             {footer}
           </DialogFooter>
         )}

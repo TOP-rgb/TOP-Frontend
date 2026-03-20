@@ -1,4 +1,4 @@
-import { Bell, Search, LogOut, Building2, Briefcase, CheckSquare, FileText, Users2, UserCircle2, X } from 'lucide-react'
+import { Bell, Search, LogOut, Building2, Briefcase, CheckSquare, FileText, Users2, UserCircle2, X, Menu } from 'lucide-react'
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { cn, formatDateWithSettings } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import type { UserRole } from '@/types'
 import { useJobs } from '@/hooks/useJobs'
 import { useInvoices } from '@/hooks/useInvoices'
@@ -61,7 +62,8 @@ function matchStr(haystack: string | undefined | null, needle: string): boolean 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const { user, logout } = useAuthStore()
-  const { sidebarCollapsed, setNotificationCount } = useUIStore()
+  const { sidebarCollapsed, toggleSidebar, setNotificationCount } = useUIStore()
+  const isMobile = useIsMobile()
   const {
     orgName, dateFormat,
     notifyTimesheetApproval, notifyInvoiceOverdue,
@@ -77,7 +79,7 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const searchWrapperRef = useRef<HTMLDivElement>(null)
   const inputRef         = useRef<HTMLInputElement>(null)
 
-  const sidebarW  = sidebarCollapsed ? 76 : 260
+  const sidebarW = isMobile ? 0 : (sidebarCollapsed ? 76 : 260)
   const isManager = user?.role !== 'employee'
 
   // ── Real data hooks ───────────────────────────────────────────────────────
@@ -365,6 +367,17 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
         transition: 'left 300ms ease-in-out'
       }}
     >
+      {/* Hamburger — mobile only */}
+      {isMobile && (
+        <button
+          className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 flex-shrink-0"
+          onClick={toggleSidebar}
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </button>
+      )}
+
       {/* Org name + page title */}
       <div className="hidden sm:flex items-center gap-2 min-w-0">
         {orgName && (
@@ -564,7 +577,7 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
         {notifOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-            <div className="absolute right-0 top-[calc(100%+8px)] z-20 bg-white rounded-xl border border-slate-200 shadow-xl w-80 ring-1 ring-black/5 overflow-hidden">
+            <div className="absolute right-0 top-[calc(100%+8px)] z-20 bg-white rounded-xl border border-slate-200 shadow-xl w-[min(320px,calc(100vw-1rem))] ring-1 ring-black/5 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
                 <p className="font-semibold text-sm text-slate-800">Notifications</p>
                 {unreadCount > 0 && <Badge variant="danger" dot>{unreadCount} new</Badge>}

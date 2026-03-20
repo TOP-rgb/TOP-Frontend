@@ -350,11 +350,11 @@ export function Notifications() {
   ]
 
   return (
-    <div style={{ fontFamily: 'inherit', maxWidth: 860 }}>
+    <div style={{ fontFamily: 'inherit', maxWidth: 860, width: '100%', padding: '0' }}>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Bell size={20} color="#2563eb" />
@@ -390,7 +390,7 @@ export function Notifications() {
 
       {/* ── Tabs ── */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #f1f3f9', padding: '0 4px' }}>
+        <div className="hide-scrollbar" style={{ display: 'flex', borderBottom: '1px solid #f1f3f9', padding: '0 4px', overflowX: 'auto' }}>
           {tabs.map(tab => {
             const isActive = activeCategory === tab.key
             const count = counts[tab.key]
@@ -424,7 +424,7 @@ export function Notifications() {
 
         {/* ── Notification list ── */}
         {filtered.length === 0 ? (
-          <div style={{ padding: '60px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, color: '#9ca3af' }}>
+          <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, color: '#9ca3af' }}>
             <div style={{ width: 52, height: 52, background: '#f8fafc', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Inbox size={24} color="#d1d5db" />
             </div>
@@ -443,7 +443,7 @@ export function Notifications() {
               <div
                 key={item.id}
                 style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 20px',
+                  display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 16px',
                   borderTop: i > 0 ? '1px solid #f1f3f9' : 'none',
                   background: item.severity === 'error' ? '#fff9f9' : '#fff',
                   transition: 'background .15s',
@@ -482,11 +482,11 @@ export function Notifications() {
 
         {/* ── Footer ── */}
         {filtered.length > 0 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 12, color: '#9ca3af' }}>
               Showing {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
             </span>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {(['timesheets', 'jobs', 'invoices', 'team', 'attendance'] as const).map(cat => {
                 const count = counts[cat]
                 if (count === 0) return null
@@ -507,7 +507,7 @@ export function Notifications() {
       </div>
 
       {/* ── Settings shortcut ── */}
-      <div style={{ marginTop: 20, padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ marginTop: 20, padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
         <Filter size={15} color="#64748b" style={{ flexShrink: 0 }} />
         <span style={{ fontSize: 12, color: '#64748b', flex: 1 }}>
           Manage which notifications are active in{' '}
@@ -515,7 +515,7 @@ export function Notifications() {
             Settings → Notifications
           </a>
         </span>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {([
             isManager ? { label: 'Timesheets', active: notifyTimesheetApproval || notifyFlaggedTimesheets } : null,
                         { label: 'Jobs',       active: notifyJobDeadline },

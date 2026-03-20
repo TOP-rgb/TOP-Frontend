@@ -1,7 +1,9 @@
 import { Outlet, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { useUIStore } from '@/store/uiStore'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -17,24 +19,40 @@ const pageTitles: Record<string, string> = {
 }
 
 export function AppLayout() {
-  const { sidebarCollapsed } = useUIStore()
+  const { sidebarCollapsed, sidebarOpen, setSidebarOpen } = useUIStore()
   const location = useLocation()
+  const isMobile = useIsMobile()
   const title = pageTitles[location.pathname]
-  const sidebarWidth = sidebarCollapsed ? 76 : 260 // Match sidebar widths
+  const sidebarWidth = sidebarCollapsed ? 76 : 260
+
+  // Close sidebar on route change on mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false)
+  }, [location.pathname, isMobile, setSidebarOpen])
 
   return (
     <div className="min-h-screen bg-slate-100 relative">
       <Sidebar />
       <Topbar pageTitle={title} />
-      <main 
+
+      {/* Mobile backdrop — closes sidebar on tap */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <main
         className="transition-all duration-300 ease-in-out"
-        style={{ 
-          marginLeft: `${sidebarWidth}px`,
-          marginTop: '60px' // Height of Topbar
+        style={{
+          marginLeft: isMobile ? 0 : `${sidebarWidth}px`,
+          marginTop: '60px',
+          overflowX: 'hidden',
         }}
       >
-        <div className="p-6 px-6 py-6 lg:p-16 xl:p-10">
-          <div className="max-w-[1600px] mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 xl:p-10">
+          <div className="max-w-[1600px] mx-auto" style={{ minWidth: 0 }}>
             <Outlet />
           </div>
         </div>

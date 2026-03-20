@@ -148,14 +148,10 @@ function MultiSelect({ config, value, onChange }: {
 
 export function FilterBar({ filters, values, onChange, onClear, activeCount }: FilterBarProps) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'flex-end', gap: 16,
-      background: '#f9fafb', borderBottom: '1px solid #f1f3f9',
-      padding: '12px 20px', flexWrap: 'wrap',
-    }}>
+    <div className="flex flex-wrap items-end gap-3 bg-slate-50 border-b border-slate-100 px-4 py-3 sm:px-5">
       {filters.map(f => (
-        <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+        <div key={f.key} className="flex flex-col gap-1 min-w-[100px]">
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
             {f.label}
           </label>
 
@@ -164,11 +160,7 @@ export function FilterBar({ filters, values, onChange, onClear, activeCount }: F
             <select
               value={(values[f.key] as string) ?? ''}
               onChange={e => onChange(f.key, e.target.value)}
-              style={{
-                padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6,
-                fontSize: 12.5, color: '#374151', background: '#fff',
-                outline: 'none', minWidth: 110, cursor: 'pointer',
-              }}
+              className="px-2.5 py-1.5 border border-slate-200 rounded-md text-[12.5px] text-slate-700 bg-white outline-none cursor-pointer min-w-[110px]"
             >
               {(f.options ?? []).map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -195,18 +187,14 @@ export function FilterBar({ filters, values, onChange, onClear, activeCount }: F
               { label: labels.off, val: false },
             ]
             return (
-              <div style={{ display: 'flex', borderRadius: 6, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+              <div className="flex rounded-md border border-slate-200 overflow-hidden">
                 {pills.map(p => (
                   <button
                     key={p.label}
                     onClick={() => onChange(f.key, p.val)}
-                    style={{
-                      padding: '5px 12px', border: 'none', cursor: 'pointer',
-                      fontSize: 12, fontWeight: 600,
-                      background: currentVal === p.val ? '#1a1f36' : '#fff',
-                      color: currentVal === p.val ? '#fff' : '#6b7280',
-                      borderRight: '1px solid #e5e7eb',
-                    }}
+                    className={`px-3 py-1.5 border-r border-slate-200 text-xs font-semibold cursor-pointer last:border-r-0 ${
+                      currentVal === p.val ? 'bg-slate-800 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+                    }`}
                   >
                     {p.label}
                   </button>
@@ -219,25 +207,19 @@ export function FilterBar({ filters, values, onChange, onClear, activeCount }: F
           {f.type === 'date-range' && (() => {
             const range = (values[f.key] as { from: string; to: string }) ?? { from: '', to: '' }
             return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="flex flex-wrap items-center gap-1.5">
                 <input
                   type="date"
                   value={range.from}
                   onChange={e => onChange(f.key, { ...range, from: e.target.value })}
-                  style={{
-                    padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6,
-                    fontSize: 12, color: '#374151', outline: 'none', width: 120,
-                  }}
+                  className="px-2 py-1.5 border border-slate-200 rounded-md text-xs text-slate-700 outline-none w-[120px]"
                 />
-                <span style={{ fontSize: 11, color: '#9ca3af' }}>to</span>
+                <span className="text-[11px] text-slate-400">to</span>
                 <input
                   type="date"
                   value={range.to}
                   onChange={e => onChange(f.key, { ...range, to: e.target.value })}
-                  style={{
-                    padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6,
-                    fontSize: 12, color: '#374151', outline: 'none', width: 120,
-                  }}
+                  className="px-2 py-1.5 border border-slate-200 rounded-md text-xs text-slate-700 outline-none w-[120px]"
                 />
               </div>
             )
@@ -245,22 +227,17 @@ export function FilterBar({ filters, values, onChange, onClear, activeCount }: F
         </div>
       ))}
 
-      {/* Spacer + Clear button */}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
-        {activeCount > 0 && (
+      {/* Clear button */}
+      {activeCount > 0 && (
+        <div className="flex items-end ml-auto pb-0.5">
           <button
             onClick={onClear}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '5px 12px', borderRadius: 6, border: 'none',
-              background: '#fee2e2', color: '#b91c1c', fontSize: 12,
-              fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-red-100 text-red-700 text-xs font-semibold cursor-pointer whitespace-nowrap hover:bg-red-200 transition-colors"
           >
             <X size={12} /> Clear Filters
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

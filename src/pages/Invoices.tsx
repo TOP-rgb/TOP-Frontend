@@ -200,7 +200,7 @@ export function Invoices() {
   return (
     <div style={{ fontFamily: 'inherit' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Invoices</h1>
           <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}{filtered.length !== enriched.length ? ` (${enriched.length} total)` : ' total'}</p>
@@ -214,7 +214,7 @@ export function Invoices() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4" style={{ gap: 14, marginBottom: 24 }}>
         <StatCard label="Total Billed" value={fmt(totalBilled)} sub={`${enriched.length} invoices`} icon={<FileText size={20} />} color="#2563eb" />
         <StatCard label="Collected" value={fmt(totalPaid)} sub={`${countPaid} paid`} icon={<Check size={20} />} color="#16a34a" />
         <StatCard label="Outstanding" value={fmt(totalOutstanding)} sub={`${countOutstanding} invoices`} icon={<Clock size={20} />} color="#f59e0b" />
@@ -250,7 +250,7 @@ export function Invoices() {
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 10 }}>
           {/* Status filters */}
-          <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 8, padding: 3 }}>
+          <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 8, padding: 3, overflowX: 'auto', maxWidth: '100%', flexShrink: 0 }} className="hide-scrollbar">
             {statusFilters.map(s => (
               <button
                 key={s}
@@ -266,13 +266,14 @@ export function Invoices() {
             ))}
           </div>
           {/* Search */}
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
             <input
               placeholder="Search invoices…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 220 }}
+              className="w-full sm:w-[220px]"
+              style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%' }}
             />
           </div>
         </div>
@@ -580,7 +581,7 @@ function CreateInvoiceModal({
                 {selectedJob && (
                   <div style={{ background: '#1e2d4a', border: '1px solid #2d4068', borderRadius: 10, padding: 16 }}>
                     <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Job Preview</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div className="modal-grid-2" style={{ display: 'grid', gap: 10 }}>
                       {[
                         { label: 'Client', value: selectedJob.clientName },
                         { label: 'Billing Type', value: selectedJob.billingType === 'fixed' ? 'Fixed Price' : 'Hourly' },
@@ -611,7 +612,7 @@ function CreateInvoiceModal({
               <h3 style={{ color: '#fff', fontWeight: 600, fontSize: 16, margin: 0 }}>Invoice Details</h3>
 
               {/* Due date + Tax */}
-              <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="modal-grid-2" style={{ display: 'grid', gap: 14 }}>
                 <div>
                   <label style={lbl}>Due Date</label>
                   <input style={darkInput} type="date" value={dueDate} onChange={e => setDueDateVal(e.target.value)} />
@@ -951,7 +952,7 @@ function EditInvoiceModal({ open, invoice, currency, currencySymbol, dateFormat,
       <div style={{ background: '#152035', borderRadius: 12, margin: -24, padding: '32px 28px' }}>
         <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, marginBottom: 24 }}>Edit Invoice — {invoice.invoiceNumber}</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div className="modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="modal-grid-2" style={{ display: 'grid', gap: 14 }}>
             <div>
               <label style={lbl}>Due Date</label>
               <input style={darkInput} type="date" value={dueDate} onChange={e => setDueDateVal(e.target.value)} />

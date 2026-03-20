@@ -479,7 +479,7 @@ function TaskDetailModal({
 
   return (
     <Modal open onClose={onClose} title="" size="3xl">
-      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden', minHeight: 420 }}>
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden' }}>
 
         {/* Left sidebar — identity */}
         <div className="modal-sidebar" style={{ width: 220, background: '#0f1a2e', padding: '28px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
@@ -925,7 +925,7 @@ export function Tasks() {
       <div style={{ fontFamily: 'inherit', minHeight: '100%' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>My Job & Tasks</h1>
           {canEdit && (
             <button onClick={() => { setSelected(null); setShowModal(true) }}
@@ -937,7 +937,7 @@ export function Tasks() {
 
         {/* Stats */}
         {/* Stats */}
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 24 }}>
+<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 14, marginBottom: 24 }}>
   {[
     { label: 'Total Tasks', value: userTasks.length, bar: '#6366f1', bg: '#eef2ff', fg: '#4338ca' },
     // ✅ Dynamic — use layout status options instead of hardcoded ones
@@ -991,8 +991,8 @@ export function Tasks() {
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 }}>
 
           {/* Tabs + search toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9' }}>
-            <div style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9', overflowX: 'auto' }} className="hide-scrollbar">
+            <div style={{ display: 'flex', flexShrink: 0 }}>
               {statusTabs.map(tab => {
                 const active = statusFilter === tab.key
                 return (
@@ -1097,7 +1097,7 @@ export function Tasks() {
           </div>
 
           {/* Table with horizontal scroll */}
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${Math.max(1000, activeTaskCols.length * 140)}px` }}>
               <thead>
                 <tr style={{ background: '#f9fafb' }}>
@@ -1568,7 +1568,7 @@ function TaskModal({ open, onClose, task, jobs, users, taskTypes, dateFormat, on
 
   return (
     <Modal open={open} onClose={onClose} title="" size="xl">
-      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', minHeight: 420, overflow: 'hidden' }}>
+      <div className="modal-flex" style={{ background: '#152035', borderRadius: 12, margin: -24, padding: 0, display: 'flex', overflow: 'hidden' }}>
 
         {/* Left step sidebar */}
         <div className="modal-sidebar" style={{ width: 200, background: '#0f1a2e', padding: '32px 20px', flexShrink: 0 }}>

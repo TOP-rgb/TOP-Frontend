@@ -37,7 +37,7 @@ export function Clients() {
   return (
     <div style={{ fontFamily: 'inherit' }}>
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Client Management</h1>
         <button
           onClick={() => { setSelected(null); setShowModal(true) }}
@@ -50,11 +50,11 @@ export function Clients() {
       {/* Table Card */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
         {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f1f3f9' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, padding: '14px 20px', borderBottom: '1px solid #f1f3f9' }}>
           <span style={{ fontWeight: 700, fontSize: 13, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>All Clients</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, flex: 1, justifyContent: 'flex-end' }}>
             {/* Status filter */}
-            <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 7, padding: '3px' }}>
+            <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 7, padding: '3px', overflowX: 'auto', flexShrink: 0 }} className="hide-scrollbar">
               {(['all', 'active', 'inactive'] as const).map(s => (
                 <button
                   key={s}
@@ -64,32 +64,36 @@ export function Clients() {
                     background: statusFilter === s ? '#fff' : 'transparent',
                     color: statusFilter === s ? '#1a1f36' : '#6b7280',
                     boxShadow: statusFilter === s ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
-                    textTransform: 'capitalize',
+                    textTransform: 'capitalize', whiteSpace: 'nowrap',
                   }}
                 >{s}</button>
               ))}
             </div>
             {/* Search */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 120, maxWidth: 220 }}>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
               <input
                 placeholder="Search..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 200 }}
+                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%' }}
               />
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto' }} className="hide-scrollbar">
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Contact Name', 'Company', 'Onboarding Date', 'Email', 'Phone No.', 'Status', 'Action'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
+                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Contact Name</th>
+                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Company</th>
+                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Onboarding Date</th>
+                <th className="hidden sm:table-cell" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Email</th>
+                <th className="hidden md:table-cell" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Phone No.</th>
+                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Status</th>
+                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -100,8 +104,8 @@ export function Clients() {
                   <td style={{ padding: '13px 18px', fontSize: 14, fontWeight: 500, color: '#1a1f36' }}>{client.name}</td>
                   <td style={{ padding: '13px 18px', fontSize: 14, color: '#374151' }}>{client.company}</td>
                   <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280' }}>{client.createdAt?.slice(0, 10) ?? '—'}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{client.email}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{client.phone || '—'}</td>
+                  <td className="hidden sm:table-cell" style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{client.email}</td>
+                  <td className="hidden md:table-cell" style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{client.phone || '—'}</td>
                   <td style={{ padding: '13px 18px' }}>
                     <span style={{ color: client.status === 'active' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 13 }}>
                       {client.status.toUpperCase()}

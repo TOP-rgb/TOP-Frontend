@@ -211,16 +211,16 @@ function OrganisationSection({ data, saving, onSave }: { data: OrgSettings; savi
         </div>
       </div>
       <div style={cardBody}>
-        <div style={fieldRow}>
+        <div className="modal-grid-2" style={fieldRow}>
           <div><label style={label}>Company Name</label><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="Acme Pty Ltd" /></div>
           <div><label style={label}>ABN / Tax ID</label><input style={inputStyle} value={form.abn} onChange={set('abn')} placeholder="12 345 678 901" /></div>
         </div>
         <div style={{ marginBottom: 16 }}><label style={label}>Address</label><input style={inputStyle} value={form.address} onChange={set('address')} placeholder="123 Main St, Sydney NSW 2000" /></div>
-        <div style={fieldRow}>
+        <div className="modal-grid-2" style={fieldRow}>
           <div><label style={label}>Phone</label><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+61 2 9000 0000" /></div>
           <div><label style={label}>Website</label><input style={inputStyle} value={form.website} onChange={set('website')} placeholder="https://example.com" /></div>
         </div>
-        <div style={fieldRow}>
+        <div className="modal-grid-2" style={fieldRow}>
           <div>
             <label style={label}>Timezone</label>
             <select style={selectStyle} value={form.timezone} onChange={set('timezone')}>
@@ -281,7 +281,7 @@ function LocalisationSection({ data, saving, onSave }: { data: OrgSettings; savi
         </div>
       </div>
       <div style={cardBody}>
-        <div style={fieldRow}>
+        <div className="modal-grid-2" style={fieldRow}>
           <div>
             <label style={label}>Currency</label>
             <select style={selectStyle} value={form.currency} onChange={set('currency')}>
@@ -735,7 +735,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
             </div>
           </div>
           <div style={cardBody}>
-            <div style={fieldRow}>
+            <div className="modal-grid-2" style={fieldRow}>
               <div>
                 <label style={label}>Daily Hours Threshold</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -811,7 +811,7 @@ function BillingSection({ data, saving, onSave }: { data: OrgSettings; saving: S
         </div>
       </div>
       <div style={cardBody}>
-        <div style={fieldRow}>
+        <div className="modal-grid-2" style={fieldRow}>
           <div>
             <label style={label}>Default Hourly Rate</label>
             <div style={{ position: 'relative' }}>
@@ -831,7 +831,7 @@ function BillingSection({ data, saving, onSave }: { data: OrgSettings; saving: S
             </select>
           </div>
         </div>
-        <div style={fieldRow}>
+        <div className="modal-grid-2" style={fieldRow}>
           <div>
             <label style={label}>Default Tax Rate (%)</label>
             <div style={{ position: 'relative' }}>
@@ -1397,14 +1397,14 @@ export function Settings() {
       </div>
 
       {/* Two-column layout */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start">
         {/* Left nav */}
-        <div style={{ width: 220, flexShrink: 0, position: 'sticky', top: 80 }}>
+        <div className="w-full md:w-[220px] md:flex-shrink-0 md:sticky md:top-20">
           <SettingsNav active={activeTab} onSelect={setActiveTab} />
         </div>
 
         {/* Right content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0 w-full">
           {loading ? (
             <SettingsSkeleton />
           ) : (

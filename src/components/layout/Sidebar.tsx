@@ -3,11 +3,12 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   LayoutDashboard, Building2, Briefcase, CheckSquare,
   Clock, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
   Calendar, FolderOpen, HeadphonesIcon, Receipt, UserCog, Bell,
-  ScanLine, CalendarClock
+  ScanLine, CalendarClock, X
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -43,18 +44,25 @@ const ICON_BG_ACTIVE = '#3b82f6'   // blue-500
 
 export function Sidebar() {
   const { user, logout } = useAuthStore()
-  const { sidebarCollapsed, toggleCollapsed, notificationCount } = useUIStore()
+  const { sidebarCollapsed, toggleCollapsed, sidebarOpen, setSidebarOpen, notificationCount } = useUIStore()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   const filtered = navItems.filter(item => user?.role && item.roles.includes(user.role))
 
   const handleLogout = () => { logout(); navigate('/login') }
+  const handleNavClick = () => { if (isMobile) setSidebarOpen(false) }
 
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300 ',
-        sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'
+        'fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300',
+        // Mobile: slide in/out as drawer; Desktop: always visible
+        isMobile
+          ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
+          : 'translate-x-0',
+        // Width: mobile always full, desktop collapsed/expanded
+        isMobile ? 'w-[260px]' : (sidebarCollapsed ? 'w-[72px]' : 'w-[260px]')
       )}
       style={{ backgroundColor: SIDEBAR_BG }}
     >
@@ -86,13 +94,25 @@ export function Sidebar() {
           </div>
         )}
 
-        <button
-          onClick={toggleCollapsed}
-          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
+        {isMobile ? (
+          // Mobile: show X close button
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Close menu"
+          >
+            <X size={16} />
+          </button>
+        ) : (
+          // Desktop: show collapse/expand toggle
+          <button
+            onClick={toggleCollapsed}
+            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        )}
       </div>
 
       {/* Navigation - more padding top + bottom on list */}
@@ -102,6 +122,7 @@ export function Sidebar() {
             key={item.path}
             to={item.path}
             end
+            onClick={handleNavClick}
             className={({ isActive }) =>
               cn(
                 'group relative flex items-center gap-3 py-3.5 px-3 mb-1.5 text-sm font-medium rounded-r-xl transition-all',
@@ -139,7 +160,7 @@ export function Sidebar() {
 
         {/* Logout - consistent padding */}
         <button
-          onClick={handleLogout}
+          onClick={() => { handleNavClick(); handleLogout() }}
           className={cn(
             'flex items-center gap-3 py-3.5 px-3 mt-3 mb-2 w-full text-sm font-medium rounded-r-xl transition-all',
             'text-slate-300 hover:bg-white/8 hover:text-red-300'

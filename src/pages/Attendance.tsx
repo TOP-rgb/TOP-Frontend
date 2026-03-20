@@ -609,14 +609,14 @@ export function Attendance() {
   }, [calendarHolidays])
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Attendance</h1>
           <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           {todayData?.shift && (
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+            <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
               <span className="font-medium text-slate-500">{todayData.shift.name}</span>
               <span>·</span>
               <span>{todayData.shift.startTime} – {todayData.shift.endTime}</span>
@@ -626,7 +626,7 @@ export function Attendance() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {statusBadge}
           {/* Work mode selector — only shows modes the employee is whitelisted for */}
           {canCheckIn && allowedModes.length > 1 && (
@@ -676,7 +676,7 @@ export function Attendance() {
             <button
               onClick={handleCheckIn}
               disabled={checkingIn}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-60 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-60 whitespace-nowrap ${
                 workMode === 'WFH'        ? 'bg-purple-600 hover:bg-purple-700' :
                 workMode === 'TRAVELLING' ? 'bg-amber-500 hover:bg-amber-600'   :
                                             'bg-blue-600 hover:bg-blue-700'
@@ -690,7 +690,7 @@ export function Attendance() {
             <button
               onClick={handleCheckOut}
               disabled={checkingIn}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium transition-colors disabled:opacity-60"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium transition-colors disabled:opacity-60 whitespace-nowrap"
             >
               {checkingIn ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
               Check Out
@@ -1184,7 +1184,7 @@ export function Attendance() {
                         <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: b.leaveType?.color ?? '#2563eb' }} />
                         <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">{b.leaveType?.name}</span>
                       </div>
-                      <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
                         {[['Allocated', b.allocated], ['Used', b.used], ['Pending', b.pending], ['Remaining', remaining]].map(([l, v]) => (
                           <div key={l as string}>
                             <div className="font-semibold text-slate-900 dark:text-slate-100">{(v as number).toFixed(1)}</div>
@@ -1570,7 +1570,7 @@ export function Attendance() {
           ) : mgr.teamStatus ? (
             <div className="space-y-6">
               {/* Summary cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {[
                   { label: 'Present',     count: mgr.teamStatus.present.length,    color: 'text-emerald-600' },
                   { label: 'Late',        count: mgr.teamStatus.late.length,        color: 'text-amber-600' },
@@ -2009,9 +2009,12 @@ export function Attendance() {
               className={DK_INPUT} style={{ colorScheme: 'dark' }}
             >
               <option value="">Select leave type…</option>
-              {leaves.leaveTypes.filter(t => t.isActive).map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
+              {leaves.leaveTypes
+                .filter(t => t.isActive)
+                .filter(t => t.allowedEmployeeTypes.length === 0 || t.allowedEmployeeTypes.includes(user?.employeeType ?? 'PERMANENT'))
+                .map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
             </select>
             {(() => {
               const sel = leaves.leaveTypes.find(t => t.id === leaveForm.leaveTypeId)

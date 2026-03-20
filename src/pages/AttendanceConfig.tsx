@@ -94,7 +94,7 @@ export function AttendanceConfig() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700 overflow-x-auto hide-scrollbar">
         {(
           [
             { id: 'shifts',      label: 'Shifts' },
@@ -110,7 +110,7 @@ export function AttendanceConfig() {
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
               activeTab === t.id
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -1630,7 +1630,7 @@ function AttendanceRulesTab() {
 
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+            <label className="w-full sm:w-40 text-sm text-slate-700 dark:text-slate-300 sm:shrink-0">
               Absent threshold
             </label>
             <div className="flex items-center gap-2">
@@ -1646,7 +1646,7 @@ function AttendanceRulesTab() {
           </div>
 
           <div className="flex items-center gap-3">
-            <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+            <label className="w-full sm:w-40 text-sm text-slate-700 dark:text-slate-300 sm:shrink-0">
               Half-day threshold
             </label>
             <div className="flex items-center gap-2">
@@ -1673,7 +1673,7 @@ function AttendanceRulesTab() {
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+          <label className="w-full sm:w-40 text-sm text-slate-700 dark:text-slate-300 sm:shrink-0">
             Overtime buffer
           </label>
           <div className="flex items-center gap-2">
@@ -1699,7 +1699,7 @@ function AttendanceRulesTab() {
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="w-40 text-sm text-slate-700 dark:text-slate-300 shrink-0">
+          <label className="w-full sm:w-40 text-sm text-slate-700 dark:text-slate-300 sm:shrink-0">
             Close hour
           </label>
           <div className="flex items-center gap-2">

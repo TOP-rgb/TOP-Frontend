@@ -268,7 +268,7 @@ function PreviewPanel({ doc, onClose, onDownload, onDelete }: {
   const StorageIcon = storage.icon
 
   return (
-    <div className="w-72 shrink-0 border-l border-slate-100 flex flex-col">
+    <div className="hidden md:flex md:flex-col md:w-72 md:shrink-0 border-l border-slate-100">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <span className="text-sm font-medium text-slate-700">Details</span>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -373,6 +373,7 @@ export function Documents() {
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [showMobileFolders, setShowMobileFolders] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── Storage connection status ──────────────────────────────────────────────
@@ -570,19 +571,37 @@ export function Documents() {
   const breadcrumb = getBreadcrumb()
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-white">
+    <div className="h-[calc(100vh-4rem)] flex bg-white overflow-hidden">
+      {/* Mobile Folders overlay backdrop */}
+      {showMobileFolders && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => setShowMobileFolders(false)}
+        />
+      )}
+
       {/* Left: Folder Tree */}
-      <div className="w-56 shrink-0 border-r border-slate-100 flex flex-col">
+      <div className={`${showMobileFolders ? 'flex' : 'hidden'} md:flex flex-col md:w-56 md:shrink-0 border-r border-slate-100 md:relative fixed left-0 top-0 h-full w-[260px] bg-white z-40 md:z-auto`}>
         <div className="px-3 py-3 border-b border-slate-100">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Folders</span>
-            <button
-              onClick={() => handleNewFolder(null)}
-              className="text-slate-400 hover:text-blue-600 transition-colors"
-              title="New Root Folder"
-            >
-              <FolderPlus className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleNewFolder(null)}
+                className="text-slate-400 hover:text-blue-600 transition-colors"
+                title="New Root Folder"
+              >
+                <FolderPlus className="w-4 h-4" />
+              </button>
+              {/* Close button — mobile only */}
+              <button
+                onClick={() => setShowMobileFolders(false)}
+                className="md:hidden ml-1 text-slate-400 hover:text-slate-600"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -592,7 +611,7 @@ export function Documents() {
             className={`flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm ${
               activeFolderId === null && activeTaskId === null ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-700'
             }`}
-            onClick={() => { setActiveFolderId(null); setActiveTaskId(null) }}
+            onClick={() => { setActiveFolderId(null); setActiveTaskId(null); setShowMobileFolders(false) }}
           >
             <Folder className="w-4 h-4 text-slate-400" />
             All Files
@@ -603,7 +622,7 @@ export function Documents() {
               key={folder.id}
               folder={folder}
               activeId={activeFolderId}
-              onSelect={(id) => { setActiveFolderId(id); setActiveTaskId(null) }}
+              onSelect={(id) => { setActiveFolderId(id); setActiveTaskId(null); setShowMobileFolders(false) }}
               onRename={async (id, name) => {
                 const ok = await renameFolder(id, name)
                 if (!ok) toast.error('Failed to rename folder')
@@ -632,7 +651,7 @@ export function Documents() {
                   className={`flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm ml-4 ${
                     activeTaskId === tg.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-600'
                   }`}
-                  onClick={() => { setActiveTaskId(tg.id); setActiveFolderId(null) }}
+                  onClick={() => { setActiveTaskId(tg.id); setActiveFolderId(null); setShowMobileFolders(false) }}
                 >
                   <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                   <span className="flex-1 min-w-0 truncate">{tg.title}</span>
@@ -757,7 +776,16 @@ export function Documents() {
         ) : null}
 
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 border-b border-slate-100">
+          {/* Mobile Folders toggle — hidden on desktop */}
+          <button
+            onClick={() => setShowMobileFolders(true)}
+            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 shrink-0"
+          >
+            <Folder className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-medium">Folders</span>
+          </button>
+
           {/* Breadcrumb */}
           <div className="flex items-center gap-1 text-sm flex-1 min-w-0">
             {breadcrumb.map((crumb, i) => (
@@ -784,7 +812,7 @@ export function Documents() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search files…"
-              className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 w-48"
+              className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 w-32 sm:w-48"
             />
           </div>
 
@@ -880,7 +908,8 @@ export function Documents() {
               </button>
             </div>
           ) : viewMode === 'list' ? (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto hide-scrollbar">
+            <table className="w-full text-sm min-w-[520px]">
               <thead>
                 <tr className="border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wider">
                   <th className="text-left px-4 py-2 font-medium">Name</th>
@@ -930,6 +959,7 @@ export function Documents() {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             /* Grid view */
             <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">

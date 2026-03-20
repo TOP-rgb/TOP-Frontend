@@ -85,7 +85,7 @@ export function Users() {
   return (
     <div style={{ fontFamily: 'inherit' }}>
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>User Management</h1>
         {currentUser?.role === 'admin' && (
           <button
@@ -125,7 +125,7 @@ export function Users() {
         {/* Tabs + Search toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9' }}>
           {/* Role tabs */}
-          <div style={{ display: 'flex', gap: 0 }}>
+          <div className="hide-scrollbar" style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
             {roleTabs.map(tab => (
               <button
                 key={tab.key}
@@ -151,7 +151,7 @@ export function Users() {
                 placeholder="Search users..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 200 }}
+                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', maxWidth: 200 }}
               />
             </div>
           </div>

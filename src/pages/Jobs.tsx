@@ -386,7 +386,7 @@ const deadlineAlertJobs = notifyJobDeadline
                 placeholder="Search..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 180 }}
+                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', maxWidth: 180 }}
               />
             </div>
             {/* Filter panel */}
@@ -414,7 +414,7 @@ const deadlineAlertJobs = notifyJobDeadline
                 <div style={{
                   position: 'absolute', right: 0, top: '100%', marginTop: 6,
                   background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
-                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 300, zIndex: 50,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: '100%', maxWidth: 300, minWidth: 260, zIndex: 50,
                 }}>
                   {/* Panel header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>

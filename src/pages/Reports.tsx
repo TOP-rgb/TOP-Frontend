@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -160,7 +161,7 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 20 }}>
         {/* Exception breakdown */}
         {excData.length > 0 && (
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
@@ -358,7 +359,7 @@ function KpiCard({
 
 function Card({ title, children, badge }: { title: string; children: React.ReactNode; badge?: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 22px' }}>
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 22px', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1f36', margin: 0 }}>{title}</h3>
         {badge}
@@ -397,17 +398,18 @@ function EmptyState({ text }: { text: string }) {
 function OverviewTab({ d }: { d: ReportsData['overview'] }) {
   const { currency, currencySymbol } = useSettingsStore()
   const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
-  
+  const isMobile = useIsMobile()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
         <KpiCard label="Total Revenue" value={fmt(d.totalRevenue)} sub={`${d.totalJobs} jobs`} icon={<span style={{fontWeight:700,fontSize:16}}>{currencySymbol}</span>} color="#22c55e" />
         <KpiCard label="Net Profit" value={fmt(d.totalProfit)} sub={`${d.avgMargin.toFixed(1)}% avg margin`} icon={<TrendingUp size={18} />} color="#3b82f6" />
         <KpiCard label="Hours Logged" value={`${d.totalHours.toFixed(1)}h`} sub={`${d.billableHours.toFixed(1)}h billable`} icon={<Clock size={18} />} color="#f59e0b" />
         <KpiCard label="Active Clients" value={String(d.activeClients)} sub={`${d.completedJobs}/${d.totalJobs} jobs done`} icon={<Users size={18} />} color="#a855f7" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : 'minmax(0,2fr) minmax(0,1fr)', gap: 16 }}>
         <Card title="Revenue vs Cost vs Profit">
           {d.revenueByMonth.length === 0 ? <EmptyState text="No revenue data for this period" /> : (
             <ResponsiveContainer width="100%" height={240}>
@@ -462,23 +464,24 @@ function OverviewTab({ d }: { d: ReportsData['overview'] }) {
 function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsData['overview'] }) {
   const { currency, currencySymbol, dateFormat } = useSettingsStore()
   const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
-  
+  const isMobile = useIsMobile()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
         <KpiCard label="Completed Jobs" value={`${overview.completedJobs}/${overview.totalJobs}`} sub="completed or invoiced" icon={<CheckCircle size={18} />} color="#22c55e" />
         <KpiCard label="Avg Job Margin" value={`${overview.avgMargin.toFixed(1)}%`} sub="across completed jobs" icon={<Target size={18} />} color="#3b82f6" />
         <KpiCard label="Overdue Jobs" value={String(d.overdueJobs.length)} sub="past deadline" icon={<AlertCircle size={18} />} color="#ef4444" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : 'minmax(0,1fr) minmax(0,1fr)', gap: 16 }}>
         <Card title="Quoted vs Actual Hours">
           {d.quotedVsActualHours.length === 0 ? <EmptyState text="No jobs with hour data" /> : (
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={d.quotedVsActualHours} layout="vertical" barGap={2}>
+              <BarChart data={d.quotedVsActualHours} layout="vertical" barGap={2} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="title" width={90} tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="title" width={65} tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={v => fmtHours(v)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="quoted" name="Quoted" fill="#94a3b8" radius={[0, 4, 4, 0]} />
@@ -532,6 +535,7 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
             </span>
           }
         >
+          <div className="overflow-x-auto">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#fef2f2' }}>
@@ -554,6 +558,7 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </div>
@@ -563,15 +568,16 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
 // ── Tab: Time ─────────────────────────────────────────────────────────────────
 
 function TimeTab({ d }: { d: ReportsData['time'] }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
         <KpiCard label="Total Hours" value={`${d.totalHours.toFixed(1)}h`} sub={`${d.byEmployee.length} employees`} icon={<Clock size={18} />} color="#3b82f6" />
         <KpiCard label="Billable Rate" value={`${d.billablePct}%`} sub={`${d.billableHours.toFixed(1)}h billable`} icon={<Target size={18} />} color="#22c55e" />
         <KpiCard label="Pending Approval" value={String(d.pendingApproval)} sub={`${d.approvalRate}% approval rate`} icon={<AlertCircle size={18} />} color="#f59e0b" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : 'minmax(0,2fr) minmax(0,1fr)', gap: 16 }}>
         <Card title="Hours Over Time">
           {d.totalHoursByPeriod.length === 0 ? <EmptyState text="No time entries for this period" /> : (
             <ResponsiveContainer width="100%" height={240}>
@@ -634,6 +640,7 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
 
       <Card title="Time by Employee">
         {d.byEmployee.length === 0 ? <EmptyState text="No time entries in this period" /> : (
+          <div className="overflow-x-auto">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
@@ -663,6 +670,7 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -674,17 +682,18 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
 function FinanceTab({ d }: { d: ReportsData['finance'] }) {
   const { currency, currencySymbol } = useSettingsStore()
   const fmt = (n: number) => makeFmt(currency, currencySymbol)(n)
-  
+  const isMobile = useIsMobile()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14 }}>
         <KpiCard label="Total Invoiced" value={fmt(d.invoiced)} sub={`${d.invoiceStatusBreakdown.reduce((s, i) => s + i.count, 0)} invoices`} icon={<FileText size={18} />} color="#3b82f6" />
         <KpiCard label="Collected" value={fmt(d.collected)} sub={`${Math.round(d.invoiced > 0 ? (d.collected / d.invoiced) * 100 : 0)}% of invoiced`} icon={<CheckCircle size={18} />} color="#22c55e" />
         <KpiCard label="Outstanding" value={fmt(d.outstanding)} sub="sent & unpaid" icon={<Clock size={18} />} color="#f59e0b" />
         <KpiCard label="Overdue" value={fmt(d.overdue)} sub={`${d.overdueCount} invoice${d.overdueCount !== 1 ? 's' : ''}`} icon={<AlertCircle size={18} />} color="#ef4444" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : 'minmax(0,2fr) minmax(0,1fr)', gap: 16 }}>
         <Card title="Invoiced vs Collected by Month">
           {d.revenueByMonth.length === 0 ? <EmptyState text="No invoices in this period" /> : (
             <ResponsiveContainer width="100%" height={240}>
@@ -732,6 +741,7 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
 
       <Card title="Top Clients by Invoiced Amount">
         {d.topClientsByRevenue.length === 0 ? <EmptyState text="No invoice data for this period" /> : (
+          <div className="overflow-x-auto">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
@@ -766,6 +776,7 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -805,14 +816,14 @@ export function Reports() {
   }
 
   return (
-    <div style={{ fontFamily: 'inherit' }}>
+    <div style={{ fontFamily: 'inherit', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Reports & Analytics</h1>
           <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>Insights across jobs, time, and finances</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Download CSV */}
           <button
             onClick={handleDownload}
@@ -847,7 +858,7 @@ export function Reports() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
+      <div className="hide-scrollbar" style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 10, padding: 4, marginBottom: 20, overflowX: 'auto', maxWidth: '100%' }}>
         {TABS.filter(t => !t.managerOnly || isManager).map(tab => (
           <button
             key={tab.id}
@@ -855,7 +866,7 @@ export function Reports() {
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '7px 18px', borderRadius: 7, border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 600,
+              fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
               background: activeTab === tab.id ? '#fff' : 'transparent',
               color: activeTab === tab.id ? '#1a1f36' : '#6b7280',
               boxShadow: activeTab === tab.id ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
