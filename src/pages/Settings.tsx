@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Building2, Globe, Users, Briefcase, DollarSign, Bell,
   Plug, AlertTriangle, Loader2, Check, Plus, Trash2,
-  Download, Shield, RefreshCw, Eye, EyeOff, ChevronRight,
-  GripVertical, Edit2, X,
+  Download, Shield, ChevronRight,
+  GripVertical, Edit2, X, Upload, Camera,
 } from 'lucide-react'
 import { useSettings, type OrgSettings, type TaskType, type SettingsSection } from '@/hooks/useSettings'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -51,27 +51,24 @@ const NUMBER_FORMATS = [
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: '#fff',
   borderRadius: 12,
-  border: '1px solid #e5e7eb',
   marginBottom: 20,
   overflow: 'hidden',
 }
 
 const cardHead: React.CSSProperties = {
-  padding: '18px 24px 14px',
-  borderBottom: '1px solid #f3f4f6',
+  padding: '14px 16px',
   display: 'flex',
   alignItems: 'flex-start',
   justifyContent: 'space-between',
-  gap: 12,
+  flexWrap: 'wrap',
+  gap: 10,
 }
 
-const cardBody: React.CSSProperties = { padding: '20px 24px' }
+const cardBody: React.CSSProperties = { padding: '16px' }
 
 const cardFoot: React.CSSProperties = {
-  padding: '14px 24px',
-  borderTop: '1px solid #f3f4f6',
+  padding: '12px 16px',
   display: 'flex',
   justifyContent: 'flex-end',
   gap: 8,
@@ -88,7 +85,6 @@ const label: React.CSSProperties = {
   display: 'block',
   fontSize: 13,
   fontWeight: 500,
-  color: '#374151',
   marginBottom: 6,
 }
 
@@ -98,10 +94,8 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid #d1d5db',
   borderRadius: 8,
   fontSize: 14,
-  color: '#111827',
   outline: 'none',
   boxSizing: 'border-box',
-  background: '#fff',
 }
 
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' }
@@ -142,46 +136,88 @@ const NAV_GROUPS: { label: string; items: { id: SettingsTab; label: string; icon
 ]
 
 function SettingsNav({ active, onSelect }: { active: SettingsTab; onSelect: (t: SettingsTab) => void }) {
+  const allItems = NAV_GROUPS.flatMap(g => g.items)
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', padding: '8px 0' }}>
-      {NAV_GROUPS.map((group) => (
-        <div key={group.label}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', padding: '12px 16px 4px' }}>
-            {group.label}
+    <>
+      {/* Desktop: vertical sidebar */}
+      <div className="hidden md:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, overflow: 'hidden', padding: '8px 0' }}>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', padding: '12px 16px 4px' }}>
+              {group.label}
+            </div>
+            {group.items.map((item) => {
+              const isActive = active === item.id
+              const isDanger = item.id === 'danger'
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onSelect(item.id)}
+                  className={[
+                    'w-full text-left flex items-center gap-2.5 px-4 py-2 border-none cursor-pointer text-[13px] font-medium transition-all duration-150',
+                    isActive
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-r-2 border-blue-500'
+                      : isDanger
+                        ? 'bg-transparent text-red-500 border-r-2 border-transparent hover:bg-red-50 dark:hover:bg-red-900/20'
+                        : 'bg-transparent text-slate-700 dark:text-slate-300 border-r-2 border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50',
+                  ].join(' ')}
+                >
+                  <span className={
+                    isActive ? 'text-blue-500' : isDanger ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'
+                  }>{item.icon}</span>
+                  {item.label}
+                  {isActive && <ChevronRight size={13} className="ml-auto text-blue-500" />}
+                </button>
+              )
+            })}
           </div>
-          {group.items.map((item) => {
+        ))}
+      </div>
+
+      {/* Mobile: horizontal scrollable tab bar */}
+      <div className="md:hidden w-full overflow-x-auto hide-scrollbar bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12 }}>
+        <div style={{ display: 'flex', padding: '6px', gap: 4, minWidth: 'max-content' }}>
+          {allItems.map((item) => {
             const isActive = active === item.id
             const isDanger = item.id === 'danger'
             return (
               <button
                 key={item.id}
                 onClick={() => onSelect(item.id)}
-                style={{
-                  width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 16px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                  background: isActive ? '#f0f4ff' : 'transparent',
-                  color: isDanger ? '#ef4444' : isActive ? '#3b82f6' : '#374151',
-                  borderRight: isActive ? '2px solid #3b82f6' : '2px solid transparent',
-                  transition: 'all 0.15s',
-                }}
+                className={[
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-none cursor-pointer text-xs font-semibold whitespace-nowrap transition-all duration-150',
+                  isActive
+                    ? isDanger
+                      ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                      : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : isDanger
+                      ? 'bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                      : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50',
+                ].join(' ')}
               >
-                <span style={{ color: isDanger ? '#ef4444' : isActive ? '#3b82f6' : '#9ca3af' }}>{item.icon}</span>
+                <span className={
+                  isActive ? (isDanger ? 'text-red-500' : 'text-blue-500') : isDanger ? 'text-red-400' : 'text-slate-400 dark:text-slate-500'
+                }>{item.icon}</span>
                 {item.label}
-                {isActive && <ChevronRight size={13} style={{ marginLeft: 'auto', color: '#3b82f6' }} />}
               </button>
             )
           })}
         </div>
-      ))}
-    </div>
+      </div>
+    </>
   )
 }
 
 // ── Organisation Section ──────────────────────────────────────────────────────
 
 function OrganisationSection({ data, saving, onSave }: { data: OrgSettings; saving: SettingsSection | null; onSave: (s: SettingsSection, p: Partial<OrgSettings>) => Promise<boolean> }) {
-  const [form, setForm] = useState({ name: data.orgName, abn: data.abn ?? '', address: data.address ?? '', phone: data.phone ?? '', website: data.website ?? '', timezone: data.timezone, logoUrl: data.logoUrl ?? '' })
-  useEffect(() => { setForm({ name: data.orgName, abn: data.abn ?? '', address: data.address ?? '', phone: data.phone ?? '', website: data.website ?? '', timezone: data.timezone, logoUrl: data.logoUrl ?? '' }) }, [data])
+  const { orgLogoUrl: storeLogoUrl, loadSettings } = useSettingsStore()
+  const [form, setForm] = useState({ name: data.orgName, abn: data.abn ?? '', address: data.address ?? '', phone: data.phone ?? '', website: data.website ?? '', timezone: data.timezone })
+  useEffect(() => { setForm({ name: data.orgName, abn: data.abn ?? '', address: data.address ?? '', phone: data.phone ?? '', website: data.website ?? '', timezone: data.timezone }) }, [data])
+
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoRemoving, setLogoRemoving] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -191,46 +227,116 @@ function OrganisationSection({ data, saving, onSave }: { data: OrgSettings; savi
     else toast.error('Failed to save profile')
   }
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); return }
+    setLogoUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('logo', file)
+      const { api } = await import('@/lib/api')
+      const res = await api.upload<{ success: boolean; data: { logoUrl: string } }>('/settings/logo', formData)
+      if ((res as { success?: boolean }).success) {
+        await loadSettings()
+        toast.success('Logo uploaded')
+      } else {
+        toast.error('Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setLogoUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    setLogoRemoving(true)
+    try {
+      const { api } = await import('@/lib/api')
+      const res = await api.delete<{ success: boolean }>('/settings/logo')
+      if ((res as { success?: boolean }).success) { await loadSettings(); toast.success('Logo removed') }
+      else toast.error('Failed to remove logo')
+    } catch { toast.error('Failed to remove logo') }
+    finally { setLogoRemoving(false) }
+  }
+
   const initials = form.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || '??'
+  const logoUrl = storeLogoUrl || data.logoUrl
 
   return (
-    <div style={card}>
-      <div style={cardHead}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+      <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, background: '#eff6ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Building2 size={18} style={{ color: '#3b82f6' }} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Organisation Profile</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>Update your organisation's public details</div>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Organisation Profile</div>
+            <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Update your organisation's public details</div>
           </div>
         </div>
-        {/* Avatar preview */}
-        <div style={{ width: 52, height: 52, borderRadius: 10, background: '#1a1f36', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
-          {form.logoUrl ? <img src={form.logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} /> : initials}
+        {/* Logo preview */}
+        <div style={{ width: 52, height: 52, borderRadius: 10, background: logoUrl ? '#f8fafc' : '#1a1f36', border: logoUrl ? '1px solid #e5e7eb' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden', padding: logoUrl ? 4 : 0 }}>
+          {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : initials}
         </div>
       </div>
       <div style={cardBody}>
         <div className="modal-grid-2" style={fieldRow}>
-          <div><label style={label}>Company Name</label><input style={inputStyle} value={form.name} onChange={set('name')} placeholder="Acme Pty Ltd" /></div>
-          <div><label style={label}>ABN / Tax ID</label><input style={inputStyle} value={form.abn} onChange={set('abn')} placeholder="12 345 678 901" /></div>
+          <div><label className="text-slate-700 dark:text-slate-300" style={label}>Company Name</label><input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} value={form.name} onChange={set('name')} placeholder="Acme Pty Ltd" /></div>
+          <div><label className="text-slate-700 dark:text-slate-300" style={label}>ABN / Tax ID</label><input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} value={form.abn} onChange={set('abn')} placeholder="12 345 678 901" /></div>
         </div>
-        <div style={{ marginBottom: 16 }}><label style={label}>Address</label><input style={inputStyle} value={form.address} onChange={set('address')} placeholder="123 Main St, Sydney NSW 2000" /></div>
+        <div style={{ marginBottom: 16 }}><label className="text-slate-700 dark:text-slate-300" style={label}>Address</label><input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} value={form.address} onChange={set('address')} placeholder="123 Main St, Sydney NSW 2000" /></div>
         <div className="modal-grid-2" style={fieldRow}>
-          <div><label style={label}>Phone</label><input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+61 2 9000 0000" /></div>
-          <div><label style={label}>Website</label><input style={inputStyle} value={form.website} onChange={set('website')} placeholder="https://example.com" /></div>
+          <div><label className="text-slate-700 dark:text-slate-300" style={label}>Phone</label><input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+61 2 9000 0000" /></div>
+          <div><label className="text-slate-700 dark:text-slate-300" style={label}>Website</label><input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} value={form.website} onChange={set('website')} placeholder="https://example.com" /></div>
         </div>
         <div className="modal-grid-2" style={fieldRow}>
           <div>
-            <label style={label}>Timezone</label>
-            <select style={selectStyle} value={form.timezone} onChange={set('timezone')}>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Timezone</label>
+            <select className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={selectStyle} value={form.timezone} onChange={set('timezone')}>
               {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>)}
             </select>
           </div>
-          <div><label style={label}>Logo URL</label><input style={inputStyle} value={form.logoUrl} onChange={set('logoUrl')} placeholder="https://example.com/logo.png" /></div>
+          <div>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Organisation Logo</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+              {/* Preview box */}
+              <div style={{ width: 56, height: 56, borderRadius: 10, background: logoUrl ? '#f8fafc' : '#1a1f36', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden', border: '2px solid #e5e7eb', padding: logoUrl ? 4 : 0 }}>
+                {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <span style={{ fontSize: 13 }}>{initials}</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoUploading}
+                  className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', border: '1px solid', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: logoUploading ? 'not-allowed' : 'pointer', opacity: logoUploading ? 0.6 : 1 }}
+                >
+                  {logoUploading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Camera size={12} />}
+                  {logoUploading ? 'Uploading…' : (logoUrl ? 'Change Logo' : 'Upload Logo')}
+                </button>
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleLogoRemove}
+                    disabled={logoRemoving}
+                    className="border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}
+                  >
+                    {logoRemoving ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={10} />}
+                    Remove
+                  </button>
+                )}
+              </div>
+              <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+            </div>
+            <p className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11, marginTop: 5 }}>PNG, JPG or SVG · max 2 MB</p>
+          </div>
         </div>
       </div>
-      <div style={cardFoot}><SaveButton saving={saving} section="profile" onClick={handleSave} /></div>
+      <div className="border-t border-slate-100 dark:border-slate-700/50" style={cardFoot}><SaveButton saving={saving} section="profile" onClick={handleSave} /></div>
     </div>
   )
 }
@@ -261,48 +367,48 @@ function LocalisationSection({ data, saving, onSave }: { data: OrgSettings; savi
   }
 
   return (
-    <div style={card}>
-      <div style={cardHead}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+      <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, background: '#f0fdf4', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="bg-green-50 dark:bg-green-900/30" style={{ width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Globe size={18} style={{ color: '#22c55e' }} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Localisation</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>Currency, date format, and number formatting</div>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Localisation</div>
+            <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Currency, date format, and number formatting</div>
           </div>
         </div>
         {/* Live preview */}
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 14px', fontSize: 13, color: '#374151' }}>
-          <span style={{ color: '#9ca3af', marginRight: 6 }}>Preview:</span>
+        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" style={{ borderRadius: 8, padding: '6px 14px', fontSize: 13 }}>
+          <span className="text-slate-400 dark:text-slate-500" style={{ marginRight: 6 }}>Preview:</span>
           <strong>{previewAmount}</strong>
-          <span style={{ color: '#d1d5db', margin: '0 8px' }}>·</span>
+          <span className="text-slate-300 dark:text-slate-600" style={{ margin: '0 8px' }}>·</span>
           <strong>{form.dateFormat === 'DD/MM/YYYY' ? '25/02/2026' : form.dateFormat === 'MM/DD/YYYY' ? '02/25/2026' : '2026-02-25'}</strong>
         </div>
       </div>
       <div style={cardBody}>
         <div className="modal-grid-2" style={fieldRow}>
           <div>
-            <label style={label}>Currency</label>
-            <select style={selectStyle} value={form.currency} onChange={set('currency')}>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Currency</label>
+            <select className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={selectStyle} value={form.currency} onChange={set('currency')}>
               {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
             </select>
           </div>
           <div>
-            <label style={label}>Date Format</label>
-            <select style={selectStyle} value={form.dateFormat} onChange={set('dateFormat')}>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Date Format</label>
+            <select className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={selectStyle} value={form.dateFormat} onChange={set('dateFormat')}>
               {DATE_FORMATS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
           </div>
         </div>
-        <div style={{ maxWidth: '50%' }}>
-          <label style={label}>Number Format</label>
-          <select style={selectStyle} value={form.numberFormat} onChange={set('numberFormat')}>
+        <div>
+          <label className="text-slate-700 dark:text-slate-300" style={label}>Number Format</label>
+          <select className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={selectStyle} value={form.numberFormat} onChange={set('numberFormat')}>
             {NUMBER_FORMATS.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
           </select>
         </div>
       </div>
-      <div style={cardFoot}><SaveButton saving={saving} section="localisation" onClick={handleSave} /></div>
+      <div className="border-t border-slate-100 dark:border-slate-700/50" style={cardFoot}><SaveButton saving={saving} section="localisation" onClick={handleSave} /></div>
     </div>
   )
 }
@@ -329,15 +435,15 @@ function NotificationsSection({ data, saving, onSave }: { data: OrgSettings; sav
   }
 
   return (
-    <div style={card}>
-      <div style={cardHead}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+      <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, background: '#fff7ed', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="bg-orange-50 dark:bg-orange-900/20" style={{ width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Bell size={18} style={{ color: '#f97316' }} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Notifications</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>Configure which events trigger alerts</div>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Notifications</div>
+            <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Configure which events trigger alerts</div>
           </div>
         </div>
       </div>
@@ -349,11 +455,11 @@ function NotificationsSection({ data, saving, onSave }: { data: OrgSettings; sav
         <Switch checked={form.notifyNewUser} onCheckedChange={toggle('notifyNewUser')} label="New User Added" description="Alert when a new user joins the organisation" />
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
           <label style={{ ...label, marginBottom: 0, whiteSpace: 'nowrap' }}>Flag invoice overdue after</label>
-          <input type="number" min={1} max={90} style={{ ...inputStyle, width: 70 }} value={form.overdueInvoiceDays} onChange={e => setForm(f => ({ ...f, overdueInvoiceDays: Number(e.target.value) }))} />
-          <span style={{ fontSize: 13, color: '#6b7280' }}>days</span>
+          <input type="number" min={1} max={90} className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle, width: 70 }} value={form.overdueInvoiceDays} onChange={e => setForm(f => ({ ...f, overdueInvoiceDays: Number(e.target.value) }))} />
+          <span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13 }}>days</span>
         </div>
       </div>
-      <div style={cardFoot}><SaveButton saving={saving} section="notifications" onClick={handleSave} /></div>
+      <div className="border-t border-slate-100 dark:border-slate-700/50" style={cardFoot}><SaveButton saving={saving} section="notifications" onClick={handleSave} /></div>
     </div>
   )
 }
@@ -384,44 +490,44 @@ function TeamSection() {
 
   return (
     <div>
-      <div style={card}>
-        <div style={cardHead}>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+        <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, background: '#f0f4ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Users size={18} style={{ color: '#3b82f6' }} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Team Members</div>
-              <div style={{ fontSize: 12, color: '#9ca3af' }}>{users.length} members · {departments.length} department{departments.length !== 1 ? 's' : ''}</div>
+              <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Team Members</div>
+              <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>{users.length} members · {departments.length} department{departments.length !== 1 ? 's' : ''}</div>
             </div>
           </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>
+            <div className="text-slate-400 dark:text-slate-500" style={{ padding: 40, textAlign: 'center' }}>
               <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', margin: '0 auto' }} />
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr className="bg-slate-50 dark:bg-slate-800/60">
                   {['Name', 'Email', 'Role', 'Department', 'Status', ''].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6' }}>{h}</th>
+                    <th key={h} className="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700" style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {users.map(u => (
-                  <tr key={u.id} style={{ borderBottom: '1px solid #f9fafb' }}>
+                  <tr key={u.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1a1f36', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
                           {u.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>{u.name}</span>
+                        <span className="text-slate-900 dark:text-slate-100" style={{ fontSize: 13, fontWeight: 500 }}>{u.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{u.email}</td>
+                    <td className="text-slate-500 dark:text-slate-400" style={{ padding: '12px 16px', fontSize: 13 }}>{u.email}</td>
                     <td style={{ padding: '12px 16px' }}>
                       {editingRole === u.id ? (
                         <select
@@ -429,7 +535,7 @@ function TeamSection() {
                           defaultValue={u.role}
                           onBlur={() => setEditingRole(null)}
                           onChange={e => handleRoleChange(u.id, e.target.value)}
-                          style={{ ...selectStyle, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                          className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...selectStyle, width: 'auto', fontSize: 12, padding: '4px 8px' }}
                         >
                           <option value="employee">Employee</option>
                           <option value="manager">Manager</option>
@@ -441,9 +547,9 @@ function TeamSection() {
                         </button>
                       )}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{u.department || '—'}</td>
+                    <td className="text-slate-500 dark:text-slate-400" style={{ padding: '12px 16px', fontSize: 13 }}>{u.department || '—'}</td>
                     <td style={{ padding: '12px 16px' }}>
-                      <span style={{ display: 'inline-flex', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: u.status === 'active' ? '#f0fdf4' : '#f9fafb', color: u.status === 'active' ? '#16a34a' : '#9ca3af' }}>
+                      <span className={u.status === 'active' ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'} style={{ display: 'inline-flex', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>
                         {u.status}
                       </span>
                     </td>
@@ -465,13 +571,13 @@ function TeamSection() {
 
       {/* Departments summary */}
       {departments.length > 0 && (
-        <div style={card}>
-          <div style={cardHead}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Departments</div>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+          <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 14, fontWeight: 600 }}>Departments</div>
           </div>
           <div style={{ ...cardBody, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {departments.map(d => (
-              <span key={d} style={{ padding: '4px 12px', background: '#f3f4f6', borderRadius: 20, fontSize: 13, color: '#374151', fontWeight: 500 }}>{d}</span>
+              <span key={d} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300" style={{ padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 500 }}>{d}</span>
             ))}
           </div>
         </div>
@@ -567,16 +673,16 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
   return (
     <div>
       {/* Sub-tab switcher */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 24, background: '#f3f4f6', padding: 4, borderRadius: 10, width: 'fit-content' }}>
+      <div className="hide-scrollbar bg-slate-100 dark:bg-slate-800/60" style={{ display: 'flex', gap: 2, marginBottom: 24, padding: 4, borderRadius: 10, overflowX: 'auto' }}>
         {subTabs.map(t => (
           <button
             key={t.key}
             onClick={() => setSubTab(t.key)}
+            className={subTab === t.key ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-100 hover:text-slate-700 dark:hover:text-white'}
             style={{
-              padding: '7px 18px', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', transition: 'all .15s',
-              background: subTab === t.key ? '#fff' : 'transparent',
-              color: subTab === t.key ? '#1a1f36' : '#6b7280',
+              padding: '7px 14px', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap', flexShrink: 0,
+              background: subTab === t.key ? undefined : 'transparent',
               boxShadow: subTab === t.key ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
             }}
           >
@@ -587,7 +693,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
 
       {/* ── Job Layouts tab ── */}
       {subTab === 'jobLayouts' && (
-        <div style={card}>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
           <div style={cardBody}>
             <LayoutBuilder
               title="Job Layouts"
@@ -608,7 +714,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
 
       {/* ── Task Layouts tab ── */}
       {subTab === 'taskLayouts' && (
-        <div style={card}>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
           <div style={cardBody}>
             <LayoutBuilder
               title="Task Layouts"
@@ -631,15 +737,15 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
       {subTab === 'taskTypes' && (
         <div>
           {/* Task Type Manager */}
-          <div style={card}>
-            <div style={cardHead}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+            <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, background: '#faf5ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Briefcase size={18} style={{ color: '#8b5cf6' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Task Types</div>
-                  <div style={{ fontSize: 12, color: '#9ca3af' }}>Manage the catalog of task types used when creating tasks</div>
+                  <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Task Types</div>
+                  <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Manage the catalog of task types used when creating tasks</div>
                 </div>
               </div>
               <button
@@ -653,25 +759,27 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
             <div style={cardBody}>
               {/* Add form */}
               {adding && (
-                <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={label}>Name</label>
-                      <input style={inputStyle} placeholder="e.g. Tax Return" value={newType.name} onChange={e => setNewType(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && handleAddType()} autoFocus />
-                    </div>
+                <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div>
-                      <label style={label}>Colour</label>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-                        {PRESET_COLORS.map(c => (
-                          <button key={c} onClick={() => setNewType(f => ({ ...f, color: c }))} style={{ width: 24, height: 24, borderRadius: '50%', background: c, border: newType.color === c ? '3px solid #111' : '2px solid transparent', cursor: 'pointer' }} />
-                        ))}
+                      <label className="text-slate-700 dark:text-slate-300" style={label}>Name</label>
+                      <input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} placeholder="e.g. Tax Return" value={newType.name} onChange={e => setNewType(f => ({ ...f, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && handleAddType()} autoFocus />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                      <div>
+                        <label className="text-slate-700 dark:text-slate-300" style={label}>Colour</label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                          {PRESET_COLORS.map(c => (
+                            <button key={c} onClick={() => setNewType(f => ({ ...f, color: c }))} style={{ width: 24, height: 24, borderRadius: '50%', background: c, border: newType.color === c ? '3px solid #111' : '2px solid transparent', cursor: 'pointer' }} />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-slate-700 dark:text-slate-300" style={label}>Billable</label>
+                        <Switch checked={newType.billableByDefault} onCheckedChange={v => setNewType(f => ({ ...f, billableByDefault: v }))} />
                       </div>
                     </div>
-                    <div>
-                      <label style={label}>Billable</label>
-                      <Switch checked={newType.billableByDefault} onCheckedChange={v => setNewType(f => ({ ...f, billableByDefault: v }))} />
-                    </div>
-                    <button onClick={handleAddType} style={{ padding: '8px 18px', background: '#1a1f36', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 2 }}>
+                    <button onClick={handleAddType} style={{ padding: '8px 18px', background: '#1a1f36', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-end' }}>
                       Add
                     </button>
                   </div>
@@ -680,34 +788,36 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
 
               {/* Task type list */}
               {activeTypes.length === 0 && !adding ? (
-                <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 13 }}>
+                <div className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '32px 0', fontSize: 13 }}>
                   No task types yet. Click "Add Type" to create your first one.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {activeTypes.map(t => (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid #f3f4f6', background: editingId === t.id ? '#f9fafb' : '#fff' }}>
+                    <div key={t.id} className={`border ${editingId === t.id ? 'bg-slate-50 dark:bg-slate-700/50' : 'bg-white dark:bg-slate-800'} border-slate-100 dark:border-slate-700/50`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8 }}>
                       <GripVertical size={14} style={{ color: '#d1d5db', cursor: 'grab' }} />
                       {editingId === t.id ? (
-                        <>
-                          <div style={{ flex: 1, display: 'flex', gap: 10, alignItems: 'center' }}>
-                            <input style={{ ...inputStyle, width: 160 }} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} autoFocus />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle }} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} autoFocus />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', gap: 4 }}>
                               {PRESET_COLORS.map(c => <button key={c} onClick={() => setEditForm(f => ({ ...f, color: c }))} style={{ width: 18, height: 18, borderRadius: '50%', background: c, border: editForm.color === c ? '2px solid #111' : '1px solid transparent', cursor: 'pointer' }} />)}
                             </div>
                             <Switch checked={editForm.billableByDefault} onCheckedChange={v => setEditForm(f => ({ ...f, billableByDefault: v }))} label="Billable" />
+                            <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                              <button onClick={() => handleEditSave(t.id)} style={{ padding: '4px 12px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}><Check size={12} /></button>
+                              <button onClick={() => setEditingId(null)} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300" style={{ padding: '4px 10px', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}><X size={12} /></button>
+                            </div>
                           </div>
-                          <button onClick={() => handleEditSave(t.id)} style={{ padding: '4px 12px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}><Check size={12} /></button>
-                          <button onClick={() => setEditingId(null)} style={{ padding: '4px 10px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}><X size={12} /></button>
-                        </>
+                        </div>
                       ) : (
                         <>
                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: t.color, flexShrink: 0 }} />
-                          <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: '#111827' }}>{t.name}</span>
-                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: t.billableByDefault ? '#f0fdf4' : '#f9fafb', color: t.billableByDefault ? '#16a34a' : '#9ca3af', fontWeight: 600 }}>
+                          <span className="text-slate-900 dark:text-slate-100" style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{t.name}</span>
+                          <span className={t.billableByDefault ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>
                             {t.billableByDefault ? 'Billable' : 'Non-billable'}
                           </span>
-                          <button onClick={() => startEdit(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><Edit2 size={14} /></button>
+                          <button onClick={() => startEdit(t)} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><Edit2 size={14} /></button>
                           <button onClick={() => handleDelete(t.id, t.name)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fca5a5', padding: 4 }}><Trash2 size={14} /></button>
                         </>
                       )}
@@ -722,32 +832,32 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
 
       {/* ── Workflow tab ── */}
       {subTab === 'workflow' && (
-        <div style={card}>
-          <div style={cardHead}>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+          <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, background: '#fff7ed', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="bg-orange-50 dark:bg-orange-900/20" style={{ width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Shield size={18} style={{ color: '#f97316' }} />
               </div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Approval Workflow</div>
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Configure timesheet flagging thresholds and job financial rules</div>
+                <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Approval Workflow</div>
+                <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Configure timesheet flagging thresholds and job financial rules</div>
               </div>
             </div>
           </div>
           <div style={cardBody}>
             <div className="modal-grid-2" style={fieldRow}>
               <div>
-                <label style={label}>Daily Hours Threshold</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="number" min={0} max={24} step={0.5} style={{ ...inputStyle, width: 80 }} value={wf.dailyHoursThreshold} onChange={e => setWf(f => ({ ...f, dailyHoursThreshold: Number(e.target.value) }))} />
-                  <span style={{ fontSize: 13, color: '#6b7280' }}>hours/day before flagging</span>
+                <label className="text-slate-700 dark:text-slate-300" style={label}>Daily Hours Threshold</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <input type="number" min={0} max={24} step={0.5} className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle, width: 80, flexShrink: 0 }} value={wf.dailyHoursThreshold} onChange={e => setWf(f => ({ ...f, dailyHoursThreshold: Number(e.target.value) }))} />
+                  <span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13 }}>hours/day before flagging</span>
                 </div>
               </div>
               <div>
-                <label style={label}>Hourly Cost Ratio</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="number" min={0} max={1} step={0.01} style={{ ...inputStyle, width: 80 }} value={wf.hourlyCostRatio} onChange={e => setWf(f => ({ ...f, hourlyCostRatio: Number(e.target.value) }))} />
-                  <span style={{ fontSize: 13, color: '#6b7280' }}>(e.g. 0.70 = 70% of revenue)</span>
+                <label className="text-slate-700 dark:text-slate-300" style={label}>Hourly Cost Ratio</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <input type="number" min={0} max={1} step={0.01} className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle, width: 80, flexShrink: 0 }} value={wf.hourlyCostRatio} onChange={e => setWf(f => ({ ...f, hourlyCostRatio: Number(e.target.value) }))} />
+                  <span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13 }}>e.g. 0.70 = 70% of revenue</span>
                 </div>
               </div>
             </div>
@@ -759,7 +869,7 @@ function JobsSection({ taskTypes, saving, onSave, createTaskType, updateTaskType
             <Switch checked={wf.requireClientForJob} onCheckedChange={v => setWf(f => ({ ...f, requireClientForJob: v }))} label="Require Client for Job" description="Jobs must be linked to a client before creation" />
             <Switch checked={wf.managerScopedView} onCheckedChange={v => setWf(f => ({ ...f, managerScopedView: v }))} label="Manager Scoped View" description="When enabled, managers only see jobs assigned to them, tasks they created, and the related invoices and reports" />
           </div>
-          <div style={cardFoot}><SaveButton saving={saving} section="workflow" onClick={handleWfSave} /></div>
+          <div className="border-t border-slate-100 dark:border-slate-700/50" style={cardFoot}><SaveButton saving={saving} section="workflow" onClick={handleWfSave} /></div>
         </div>
       )}
     </div>
@@ -793,37 +903,37 @@ function BillingSection({ data, saving, onSave }: { data: OrgSettings; saving: S
   }
 
   return (
-    <div style={card}>
-      <div style={cardHead}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
+      <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, background: '#fefce8', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <DollarSign size={18} style={{ color: '#eab308' }} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Billing & Rates</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>Default rates, invoice settings, and tax configuration</div>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Billing & Rates</div>
+            <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Default rates, invoice settings, and tax configuration</div>
           </div>
         </div>
         {/* Invoice preview */}
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 14px', fontSize: 13, color: '#374151' }}>
-          <span style={{ color: '#9ca3af', marginRight: 6 }}>Next invoice:</span>
+        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300" style={{ borderRadius: 8, padding: '6px 14px', fontSize: 13 }}>
+          <span className="text-slate-400 dark:text-slate-500" style={{ marginRight: 6 }}>Next invoice:</span>
           <strong>{(form.invoicePrefix || 'INV').toUpperCase()}-0001</strong>
         </div>
       </div>
       <div style={cardBody}>
         <div className="modal-grid-2" style={fieldRow}>
           <div>
-            <label style={label}>Default Hourly Rate</label>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Default Hourly Rate</label>
             <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontSize: 14 }}>
+            <span className="text-slate-500 dark:text-slate-400" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>
   {currencySymbol}
 </span>
-              <input type="number" min={0} step={5} style={{ ...inputStyle, paddingLeft: 26 }} value={form.defaultHourlyRate} onChange={e => setForm(f => ({ ...f, defaultHourlyRate: e.target.value }))} placeholder="150" />
+              <input type="number" min={0} step={5} className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle, paddingLeft: 26 }} value={form.defaultHourlyRate} onChange={e => setForm(f => ({ ...f, defaultHourlyRate: e.target.value }))} placeholder="150" />
             </div>
           </div>
           <div>
-            <label style={label}>Billing Increment</label>
-            <select style={selectStyle} value={form.billingIncrement} onChange={set('billingIncrement')}>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Billing Increment</label>
+            <select className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={selectStyle} value={form.billingIncrement} onChange={set('billingIncrement')}>
               <option value={6}>6 minutes</option>
               <option value={15}>15 minutes</option>
               <option value={30}>30 minutes</option>
@@ -833,92 +943,33 @@ function BillingSection({ data, saving, onSave }: { data: OrgSettings; saving: S
         </div>
         <div className="modal-grid-2" style={fieldRow}>
           <div>
-            <label style={label}>Default Tax Rate (%)</label>
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Default Tax Rate (%)</label>
             <div style={{ position: 'relative' }}>
-              <input type="number" min={0} max={100} step={0.5} style={{ ...inputStyle, paddingRight: 28 }} value={form.defaultTaxRate} onChange={set('defaultTaxRate')} />
-              <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontSize: 14 }}>%</span>
+              <input type="number" min={0} max={100} step={0.5} className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle, paddingRight: 28 }} value={form.defaultTaxRate} onChange={set('defaultTaxRate')} />
+              <span className="text-slate-500 dark:text-slate-400" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>%</span>
             </div>
           </div>
           <div>
-            <label style={label}>Invoice Number Prefix</label>
-            <input style={inputStyle} value={form.invoicePrefix} onChange={set('invoicePrefix')} placeholder="INV" maxLength={10} />
+            <label className="text-slate-700 dark:text-slate-300" style={label}>Invoice Number Prefix</label>
+            <input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={inputStyle} value={form.invoicePrefix} onChange={set('invoicePrefix')} placeholder="INV" maxLength={10} />
           </div>
         </div>
         <div style={{ maxWidth: '50%' }}>
-          <label style={label}>Payment Terms (days)</label>
+          <label className="text-slate-700 dark:text-slate-300" style={label}>Payment Terms (days)</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input type="number" min={1} max={365} style={{ ...inputStyle, width: 80 }} value={form.invoicePaymentTermsDays} onChange={set('invoicePaymentTermsDays')} />
-            <span style={{ fontSize: 13, color: '#6b7280' }}>days after invoice date</span>
+            <input type="number" min={1} max={365} className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-600" style={{ ...inputStyle, width: 80 }} value={form.invoicePaymentTermsDays} onChange={set('invoicePaymentTermsDays')} />
+            <span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13 }}>days after invoice date</span>
           </div>
         </div>
       </div>
-      <div style={cardFoot}><SaveButton saving={saving} section="billing" onClick={handleSave} /></div>
+      <div className="border-t border-slate-100 dark:border-slate-700/50" style={cardFoot}><SaveButton saving={saving} section="billing" onClick={handleSave} /></div>
     </div>
   )
 }
 
 // ── Integrations Section ──────────────────────────────────────────────────────
 
-interface Integration {
-  id: string
-  service: string
-  label: string | null
-  apiKey: string | null
-  webhookUrl: string | null
-  isActive: boolean
-  config: Record<string, string> | null
-}
-
 function IntegrationsSection() {
-  const [integrations, setIntegrations] = useState<Integration[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState<string | null>(null)
-  const [showKey, setShowKey] = useState(false)
-  const [rawKey, setRawKey] = useState<string | null>(null)
-
-  const [forms, setForms] = useState<Record<string, Record<string, string | boolean>>>({})
-
-  useEffect(() => {
-    api.get<{ success: boolean; data: Integration[] }>('/settings/integrations')
-      .then(res => {
-        if (res.success) {
-          setIntegrations(res.data ?? [])
-          const initial: Record<string, Record<string, string | boolean>> = {}
-          for (const intg of res.data ?? []) {
-            initial[intg.service] = { webhookUrl: intg.webhookUrl ?? '', isActive: intg.isActive, label: intg.label ?? '', apiKey: '' }
-          }
-          setForms(initial)
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [])
-
-  const getIntg = (service: string) => integrations.find(i => i.service === service)
-  const getForm = (service: string) => forms[service] ?? {}
-  const setFormField = (service: string, key: string, value: string | boolean) =>
-    setForms(f => ({ ...f, [service]: { ...f[service], [key]: value } }))
-
-  const save = async (service: string, extra?: Record<string, string | boolean>) => {
-    setSaving(service)
-    try {
-      const payload = { ...getForm(service), ...extra }
-      const res = await api.put<{ success: boolean; data: Integration & { rawApiKey?: string } }>(`/settings/integrations/${service}`, payload)
-      if (res.success) {
-        setIntegrations(prev => {
-          const exists = prev.find(i => i.service === service)
-          if (exists) return prev.map(i => i.service === service ? { ...i, ...res.data } : i)
-          return [...prev, res.data as Integration]
-        })
-        if (res.data?.rawApiKey) setRawKey(res.data.rawApiKey)
-        toast.success('Integration saved')
-      } else {
-        toast.error('Failed to save')
-      }
-    } catch { toast.error('Failed to save') }
-    finally { setSaving(null) }
-  }
-
-  const regenerateKey = () => save('api_key', { apiKey: 'regenerate' })
 
   // ── Document Storage ──────────────────────────────────────────────────────
   const API_BASE_URL = (import.meta as { env: Record<string, string> }).env.VITE_API_URL || 'https://top-backend-l2ax.onrender.com/api'
@@ -1046,45 +1097,25 @@ function IntegrationsSection() {
     finally { setStorageSaving(false) }
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>
-
-  const serviceCards: { service: string; title: string; icon: string; description: string; hasApiKey: boolean; hasWebhook: boolean; hasLabel: boolean }[] = [
-    { service: 'api_key', title: 'Internal API Key', icon: '🔑', description: 'Use this key to authenticate API requests to TOP JOBS from external tools.', hasApiKey: true, hasWebhook: false, hasLabel: false },
-    { service: 'webhook', title: 'Webhooks', icon: '🔗', description: 'Receive real-time event notifications at your endpoint when timesheets, jobs, or invoices change.', hasApiKey: false, hasWebhook: true, hasLabel: true },
-    { service: 'xero', title: 'Xero', icon: '💼', description: 'Sync invoices and financial data with Xero accounting software.', hasApiKey: true, hasWebhook: false, hasLabel: false },
-    { service: 'slack', title: 'Slack', icon: '💬', description: 'Send notifications to a Slack channel for approvals, overdue invoices, and flagged timesheets.', hasApiKey: false, hasWebhook: true, hasLabel: true },
-  ]
-
   return (
     <div>
-      {/* Show raw API key banner */}
-      {rawKey && (
-        <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#854d0e', marginBottom: 4 }}>⚠️ Copy your API key now — it won't be shown again</div>
-            <code style={{ fontSize: 13, background: '#fff', padding: '4px 10px', borderRadius: 6, border: '1px solid #fde047', userSelect: 'all', letterSpacing: 1 }}>{rawKey}</code>
-          </div>
-          <button onClick={() => setRawKey(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#854d0e' }}><X size={18} /></button>
-        </div>
-      )}
-
       {/* ── Document Storage card ── */}
-      <div style={card}>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={card}>
         {/* <div style={cardHead}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ fontSize: 24 }}>🗄️</div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Document Storage</div>
+              <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Document Storage</div>
               <div style={{ fontSize: 12, color: '#9ca3af', maxWidth: 440 }}>
                 Choose where uploaded files are stored. Google Drive and OneDrive require OAuth connection.
               </div>
             </div>
           </div>
-          {storageSaving && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: '#6b7280' }} />}
+          {storageSaving && <Loader2 size={16} className="text-slate-500 dark:text-slate-400" style={{ animation: 'spin 1s linear infinite' }} />}
         </div> */}
         <div style={cardBody}>
           {storageLoading ? (
-            <div style={{ color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+            <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 13 }}>Loading…</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               
@@ -1100,8 +1131,8 @@ function IntegrationsSection() {
               { key: 'allowUserMicrosoftDrive',    label: 'Allow OneDrive',           desc: 'Let users connect their personal Microsoft OneDrive for file storage.' },
             ]
             return (
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+              <div className="border-t border-slate-200 dark:border-slate-700" style={{ marginTop: 16, paddingTop: 16 }}>
+                <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
                   User Integration Permissions
                 </div>
                 {permRows.map(({ key, label, desc }) => {
@@ -1110,8 +1141,8 @@ function IntegrationsSection() {
                   return (
                     <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 10 }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{label}</div>
-                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 1 }}>{desc}</div>
+                        <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
+                        <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12, marginTop: 1 }}>{desc}</div>
                       </div>
                       <button
                         onClick={() => togglePerm(key)}
@@ -1145,76 +1176,6 @@ function IntegrationsSection() {
         </div>
       </div>
 
-      {serviceCards.map(({ service, title, icon, description, hasApiKey, hasWebhook, hasLabel }) => {
-        const intg = getIntg(service)
-        const form = getForm(service)
-        const isConnected = intg?.isActive ?? false
-        const isSavingThis = saving === service
-
-        return (
-          <div key={service} style={card}>
-            <div style={cardHead}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ fontSize: 24 }}>{icon}</div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {title}
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: isConnected ? '#f0fdf4' : '#f9fafb', color: isConnected ? '#16a34a' : '#9ca3af' }}>
-                      {isConnected ? '● Connected' : '○ Not connected'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#9ca3af', maxWidth: 400 }}>{description}</div>
-                </div>
-              </div>
-              <Switch checked={form.isActive as boolean ?? false} onCheckedChange={v => setFormField(service, 'isActive', v)} />
-            </div>
-            <div style={cardBody}>
-              {hasLabel && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={label}>Label / Channel</label>
-                  <input style={{ ...inputStyle, maxWidth: 300 }} placeholder={service === 'slack' ? '#general' : 'My Webhook'} value={form.label as string ?? ''} onChange={e => setFormField(service, 'label', e.target.value)} />
-                </div>
-              )}
-              {hasApiKey && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={label}>{service === 'api_key' ? 'API Key' : 'API Key / Client Secret'}</label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
-                      <input type={showKey ? 'text' : 'password'} style={{ ...inputStyle, paddingRight: 40 }} value={intg?.apiKey ? (showKey ? intg.apiKey : '••••••••' + (intg.apiKey.slice(-4) || '')) : (form.apiKey as string ?? '')} onChange={e => setFormField(service, 'apiKey', e.target.value)} placeholder={intg?.apiKey ? '(set)' : 'Paste API key here'} readOnly={service === 'api_key' && !!intg?.apiKey} />
-                      {service === 'api_key' && intg?.apiKey && (
-                        <button onClick={() => setShowKey(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                          {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
-                        </button>
-                      )}
-                    </div>
-                    {service === 'api_key' && (
-                      <button onClick={regenerateKey} disabled={isSavingThis} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-                        <RefreshCw size={13} /> Regenerate
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-              {hasWebhook && (
-                <div>
-                  <label style={label}>Webhook URL</label>
-                  <input style={{ ...inputStyle, maxWidth: 440 }} placeholder="https://hooks.example.com/..." value={form.webhookUrl as string ?? ''} onChange={e => setFormField(service, 'webhookUrl', e.target.value)} />
-                </div>
-              )}
-            </div>
-            <div style={cardFoot}>
-              <button
-                onClick={() => save(service)}
-                disabled={isSavingThis}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: isSavingThis ? '#9ca3af' : '#1a1f36', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: isSavingThis ? 'not-allowed' : 'pointer' }}
-              >
-                {isSavingThis ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={14} />}
-                {isSavingThis ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -1239,7 +1200,7 @@ function DangerSection({ data }: { data: OrgSettings }) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `top-jobs-export-${data.orgSlug}-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `top-jobs-export-${data.orgSlug}-${new Date().toISOString().slice(0, 10)}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Data exported successfully')
@@ -1265,24 +1226,24 @@ function DangerSection({ data }: { data: OrgSettings }) {
   return (
     <div>
       {/* Export */}
-      <div style={{ ...card, border: '1px solid #fecaca' }}>
-        <div style={cardHead}>
+      <div className="bg-white dark:bg-slate-800" style={{ ...card, border: '1px solid #fecaca' }}>
+        <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, background: '#fff5f5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="bg-red-50 dark:bg-red-900/20" style={{ width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Download size={18} style={{ color: '#ef4444' }} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Export All Data</div>
-              <div style={{ fontSize: 12, color: '#9ca3af' }}>Download a complete JSON export of all your organisation's data</div>
+              <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Export All Data</div>
+              <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Download a complete Excel export of all your organisation's data</div>
             </div>
           </div>
         </div>
-        <div style={{ ...cardBody, background: '#fff5f5' }}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14 }}>This export includes all users, clients, jobs, tasks, timesheets, invoices, and settings. The file may be large for organisations with extensive data.</p>
+        <div className="bg-red-50 dark:bg-red-950/20" style={cardBody}>
+          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, marginBottom: 14 }}>This export includes all users, clients, jobs, tasks, timesheets, invoices, attendance, leave, shifts, and more — each as a separate sheet. The file may be large for organisations with extensive data.</p>
           <button
             onClick={handleExport}
             disabled={exporting}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: '#fff', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: 13, fontWeight: 500, cursor: exporting ? 'not-allowed' : 'pointer' }}
+            className="bg-white dark:bg-slate-800" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', border: '1px solid #fecaca', borderRadius: 8, color: '#ef4444', fontSize: 13, fontWeight: 500, cursor: exporting ? 'not-allowed' : 'pointer' }}
           >
             {exporting ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={14} />}
             {exporting ? 'Exporting…' : 'Export Data'}
@@ -1291,20 +1252,20 @@ function DangerSection({ data }: { data: OrgSettings }) {
       </div>
 
       {/* Deactivate */}
-      <div style={{ ...card, border: '1px solid #fecaca' }}>
-        <div style={cardHead}>
+      <div className="bg-white dark:bg-slate-800" style={{ ...card, border: '1px solid #fecaca' }}>
+        <div className="border-b border-slate-100 dark:border-slate-700/50" style={cardHead}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, background: '#fff5f5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="bg-red-50 dark:bg-red-900/20" style={{ width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <AlertTriangle size={18} style={{ color: '#ef4444' }} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>Deactivate Organisation</div>
-              <div style={{ fontSize: 12, color: '#9ca3af' }}>Set all users to inactive and close all open jobs</div>
+              <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 15, fontWeight: 600 }}>Deactivate Organisation</div>
+              <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>Set all users to inactive and close all open jobs</div>
             </div>
           </div>
         </div>
-        <div style={{ ...cardBody, background: '#fff5f5' }}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14 }}>This will set all users to inactive and all open jobs to closed. <strong>No data is deleted.</strong> You can reactivate by contacting support.</p>
+        <div className="bg-red-50 dark:bg-red-950/20" style={cardBody}>
+          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, marginBottom: 14 }}>This will set all users to inactive and all open jobs to closed. <strong>No data is deleted.</strong> You can reactivate by contacting support.</p>
           <button
             onClick={() => setShowModal(true)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', background: '#ef4444', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
@@ -1317,12 +1278,12 @@ function DangerSection({ data }: { data: OrgSettings }) {
       {/* Confirm Modal */}
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 28, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Confirm Deactivation</div>
-            <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 18 }}>Type your organisation slug <strong style={{ color: '#111827' }}>{data.orgSlug}</strong> to confirm.</p>
-            <input style={{ ...inputStyle, marginBottom: 16, border: '1px solid #fecaca' }} placeholder={data.orgSlug} value={confirmSlug} onChange={e => setConfirmSlug(e.target.value)} />
+          <div className="bg-white dark:bg-slate-800" style={{ borderRadius: 14, padding: 28, maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Confirm Deactivation</div>
+            <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 14, marginBottom: 18 }}>Type your organisation slug <strong className="text-slate-900 dark:text-slate-100">{data.orgSlug}</strong> to confirm.</p>
+            <input className="bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100" style={{ ...inputStyle, marginBottom: 16, border: '1px solid #fecaca' }} placeholder={data.orgSlug} value={confirmSlug} onChange={e => setConfirmSlug(e.target.value)} />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowModal(false); setConfirmSlug('') }} style={{ padding: '8px 16px', background: '#f3f4f6', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setShowModal(false); setConfirmSlug('') }} className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300" style={{ padding: '8px 16px', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
               <button
                 onClick={handleDeactivate}
                 disabled={confirmSlug !== data.orgSlug || deactivating}
@@ -1342,9 +1303,9 @@ function DangerSection({ data }: { data: OrgSettings }) {
 
 function SettingsSkeleton() {
   return (
-    <div style={{ ...card, padding: 24 }}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ ...card, padding: 24 }}>
       {[180, 120, 100].map((h, i) => (
-        <div key={i} style={{ height: h, background: '#f3f4f6', borderRadius: 8, marginBottom: 16, animation: 'pulse 1.5s infinite' }} />
+        <div key={i} className="bg-slate-100 dark:bg-slate-700" style={{ height: h, borderRadius: 8, marginBottom: 16, animation: 'pulse 1.5s infinite' }} />
       ))}
     </div>
   )
@@ -1390,16 +1351,21 @@ export function Settings() {
     <div style={{ fontFamily: 'inherit' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Settings</h1>
-        <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>
+        <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Settings</h1>
+        <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, margin: '3px 0 0' }}>
           Manage your organisation's configuration
         </p>
       </div>
 
+      {/* Mobile: horizontal tab bar */}
+      <div className="md:hidden mb-4">
+        <SettingsNav active={activeTab} onSelect={setActiveTab} />
+      </div>
+
       {/* Two-column layout */}
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start">
-        {/* Left nav */}
-        <div className="w-full md:w-[220px] md:flex-shrink-0 md:sticky md:top-20">
+        {/* Left nav — desktop only */}
+        <div className="hidden md:block md:w-[220px] md:flex-shrink-0 md:sticky md:top-20">
           <SettingsNav active={activeTab} onSelect={setActiveTab} />
         </div>
 

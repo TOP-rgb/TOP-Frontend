@@ -44,7 +44,7 @@ export function Login() {
   // }
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-900/50">
       {/* ── Left hero panel ── */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative flex-col justify-between p-12 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950">
         {/* Decorative orbs */}
@@ -114,16 +114,16 @@ export function Login() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
             <div>
-              <p className="font-bold text-slate-900">TOP Internal</p>
-              <p className="text-xs text-slate-500">Job Management System</p>
+              <p className="font-bold text-slate-900 dark:text-slate-100">TOP Internal</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Job Management System</p>
             </div>
           </div>
 
           {/* Card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm p-8">
             <div className="mb-6">
-              <h1 className="text-xl font-bold text-slate-900">Welcome back</h1>
-              <p className="text-slate-500 text-sm mt-1">Sign in to your account to continue.</p>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Welcome back</h1>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Sign in to your account to continue.</p>
             </div>
 
             {/* Demo role buttons
@@ -149,9 +149,9 @@ export function Login() {
 
             {/* Divider */}
             <div className="flex items-center gap-3 mb-6">
-              <div className="flex-1 h-px bg-slate-100" />
-              <span className="text-xs text-slate-400 font-medium">or sign in manually</span>
-              <div className="flex-1 h-px bg-slate-100" />
+              <div className="flex-1 h-px bg-slate-100 dark:bg-slate-700/50" />
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">or sign in manually</span>
+              <div className="flex-1 h-px bg-slate-100 dark:bg-slate-700/50" />
             </div>
 
             {/* Form */}
@@ -198,7 +198,7 @@ export function Login() {
               <div className="flex items-center justify-between pt-0.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 accent-blue-600" />
-                  <span className="text-sm text-slate-600">Remember me</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-300">Remember me</span>
                 </label>
                 <Link to="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">
                   Forgot password?
@@ -210,7 +210,7 @@ export function Login() {
               </Button>
             </form>
 
-            <p className="text-center text-sm text-slate-500 mt-5">
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-5">
               Don't have an account?{' '}
               <a href="/signup" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors">
                 Sign up free

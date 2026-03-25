@@ -74,7 +74,7 @@ function FolderTreeItem({
     <div>
       <div
         className={`relative flex items-center gap-1 rounded-lg px-2 py-1.5 cursor-pointer group select-none ${
-          isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-700'
+          isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
         }`}
         style={{ paddingLeft: `${8 + depth * 16}px` }}
         onClick={() => { onSelect(folder.id); if (hasChildren) setOpen((p) => !p) }}
@@ -103,7 +103,7 @@ function FolderTreeItem({
         )}
 
         <button
-          className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-slate-200"
+          className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
           onClick={(e) => { e.stopPropagation(); setMenuOpen((p) => !p) }}
         >
           <MoreHorizontal className="w-3 h-3" />
@@ -111,17 +111,17 @@ function FolderTreeItem({
 
         {menuOpen && (
           <div
-            className="absolute right-0 top-full mt-0.5 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1"
+            className="absolute right-0 top-full mt-0.5 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50 py-1"
             onMouseLeave={() => setMenuOpen(false)}
           >
             <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 flex items-center gap-2"
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-300 flex items-center gap-2"
               onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onNewChild(folder.id) }}
             >
               <FolderPlus className="w-3.5 h-3.5" /> New Subfolder
             </button>
             <button
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 flex items-center gap-2"
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-300 flex items-center gap-2"
               onClick={(e) => { e.stopPropagation(); setMenuOpen(false); setRenaming(true) }}
             >
               <Edit2 className="w-3.5 h-3.5" /> Rename
@@ -231,18 +231,18 @@ function NewFolderModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-80">
-        <h3 className="font-semibold text-slate-900 mb-4">New Folder</h3>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-80">
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">New Folder</h3>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
           placeholder="Folder name"
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+          className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 mb-4 dark:bg-slate-700 dark:text-slate-100"
         />
         <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg">Cancel</button>
           <button
             onClick={handleCreate}
             disabled={!name.trim() || saving}
@@ -268,39 +268,39 @@ function PreviewPanel({ doc, onClose, onDownload, onDelete }: {
   const StorageIcon = storage.icon
 
   return (
-    <div className="hidden md:flex md:flex-col md:w-72 md:shrink-0 border-l border-slate-100">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <span className="text-sm font-medium text-slate-700">Details</span>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+    <div className="hidden md:flex md:flex-col md:w-72 md:shrink-0 border-l border-slate-100 dark:border-slate-700/50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700/50">
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Details</span>
+        <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
           <X className="w-4 h-4" />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="flex flex-col items-center gap-3 py-4 border-b border-slate-100">
+        <div className="flex flex-col items-center gap-3 py-4 border-b border-slate-100 dark:border-slate-700/50">
           <FileIcon doc={doc} size="lg" />
-          <p className="text-sm font-medium text-slate-900 text-center break-all">{doc.name}</p>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 text-center break-all">{doc.name}</p>
         </div>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-slate-500">Size</span>
-            <span className="text-slate-800">{formatBytes(doc.sizeBytes)}</span>
+            <span className="text-slate-500 dark:text-slate-400">Size</span>
+            <span className="text-slate-800 dark:text-slate-200">{formatBytes(doc.sizeBytes)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Type</span>
-            <span className="text-slate-800 truncate max-w-[140px]">{doc.mimeType}</span>
+            <span className="text-slate-500 dark:text-slate-400">Type</span>
+            <span className="text-slate-800 dark:text-slate-200 truncate max-w-[140px]">{doc.mimeType}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Uploaded</span>
-            <span className="text-slate-800">{formatDate(doc.createdAt)}</span>
+            <span className="text-slate-500 dark:text-slate-400">Uploaded</span>
+            <span className="text-slate-800 dark:text-slate-200">{formatDate(doc.createdAt)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">By</span>
-            <span className="text-slate-800">{doc.uploadedBy.firstName} {doc.uploadedBy.lastName}</span>
+            <span className="text-slate-500 dark:text-slate-400">By</span>
+            <span className="text-slate-800 dark:text-slate-200">{doc.uploadedBy.firstName} {doc.uploadedBy.lastName}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-slate-500">Storage</span>
+            <span className="text-slate-500 dark:text-slate-400">Storage</span>
             <span className={`flex items-center gap-1 ${storage.color}`}>
               <StorageIcon className="w-3.5 h-3.5" />
               {storage.label}
@@ -308,13 +308,13 @@ function PreviewPanel({ doc, onClose, onDownload, onDelete }: {
           </div>
           {doc.jobId && (
             <div className="flex justify-between">
-              <span className="text-slate-500">Job</span>
+              <span className="text-slate-500 dark:text-slate-400">Job</span>
               <a href={`/jobs`} className="text-blue-600 hover:underline text-xs">View Job</a>
             </div>
           )}
           {doc.taskId && (
             <div className="flex justify-between">
-              <span className="text-slate-500">Task</span>
+              <span className="text-slate-500 dark:text-slate-400">Task</span>
               <a href={`/tasks`} className="text-blue-600 hover:underline text-xs">View Task</a>
             </div>
           )}
@@ -332,7 +332,7 @@ function PreviewPanel({ doc, onClose, onDownload, onDelete }: {
         )}
       </div>
 
-      <div className="p-4 border-t border-slate-100 space-y-2">
+      <div className="p-4 border-t border-slate-100 dark:border-slate-700/50 space-y-2">
         <button
           onClick={() => onDownload(doc)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
@@ -357,9 +357,9 @@ function PreviewPanel({ doc, onClose, onDownload, onDelete }: {
 type StorageMeta = { backend: 'db' | 'google' | 'onedrive'; connected: boolean }
 
 const STORAGE_INFO = {
-  db:       { label: 'Database',        icon: '🗄️', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
-  google:   { label: 'Google Drive',    icon: '📁', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  onedrive: { label: 'Microsoft OneDrive', icon: '☁️', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+  db:       { label: 'Database',           icon: '🗄️', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb', darkBg: '#1e293b', darkBorder: '#475569' },
+  google:   { label: 'Google Drive',       icon: '📁', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', darkBg: '#1e3a5f', darkBorder: '#3b82f6' },
+  onedrive: { label: 'Microsoft OneDrive', icon: '☁️', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', darkBg: '#2e1065', darkBorder: '#7c3aed' },
 }
 
 export function Documents() {
@@ -571,7 +571,7 @@ export function Documents() {
   const breadcrumb = getBreadcrumb()
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-white overflow-hidden">
+    <div className="h-[calc(100vh-4rem)] flex bg-white dark:bg-slate-800 overflow-hidden">
       {/* Mobile Folders overlay backdrop */}
       {showMobileFolders && (
         <div
@@ -581,14 +581,14 @@ export function Documents() {
       )}
 
       {/* Left: Folder Tree */}
-      <div className={`${showMobileFolders ? 'flex' : 'hidden'} md:flex flex-col md:w-56 md:shrink-0 border-r border-slate-100 md:relative fixed left-0 top-0 h-full w-[260px] bg-white z-40 md:z-auto`}>
-        <div className="px-3 py-3 border-b border-slate-100">
+      <div className={`${showMobileFolders ? 'flex' : 'hidden'} md:flex flex-col md:w-56 md:shrink-0 border-r border-slate-100 dark:border-slate-700/50 md:relative fixed left-0 top-0 h-full w-[260px] bg-white dark:bg-slate-800 z-40 md:z-auto`}>
+        <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-700/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Folders</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Folders</span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => handleNewFolder(null)}
-                className="text-slate-400 hover:text-blue-600 transition-colors"
+                className="text-slate-400 dark:text-slate-500 hover:text-blue-600 transition-colors"
                 title="New Root Folder"
               >
                 <FolderPlus className="w-4 h-4" />
@@ -596,7 +596,7 @@ export function Documents() {
               {/* Close button — mobile only */}
               <button
                 onClick={() => setShowMobileFolders(false)}
-                className="md:hidden ml-1 text-slate-400 hover:text-slate-600"
+                className="md:hidden ml-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 title="Close"
               >
                 <X className="w-4 h-4" />
@@ -609,11 +609,11 @@ export function Documents() {
           {/* All Files */}
           <div
             className={`flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm ${
-              activeFolderId === null && activeTaskId === null ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-700'
+              activeFolderId === null && activeTaskId === null ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
             }`}
             onClick={() => { setActiveFolderId(null); setActiveTaskId(null); setShowMobileFolders(false) }}
           >
-            <Folder className="w-4 h-4 text-slate-400" />
+            <Folder className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             All Files
           </div>
 
@@ -635,27 +635,27 @@ export function Documents() {
           {/* ── Tasks virtual section ── */}
           {taskGroups.length > 0 && (
             <>
-              <div className="border-t border-slate-100 my-2" />
+              <div className="border-t border-slate-100 dark:border-slate-700/50 my-2" />
               <div
-                className="flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm text-slate-500 hover:bg-slate-50 select-none"
+                className="flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 select-none"
                 onClick={() => setTasksExpanded((p) => !p)}
               >
                 <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${tasksExpanded ? 'rotate-90' : ''}`} />
-                <ClipboardList className="w-4 h-4 text-slate-400" />
+                <ClipboardList className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                 <span className="font-medium text-xs uppercase tracking-wider">Tasks</span>
-                <span className="ml-auto text-xs text-slate-400">{taskGroups.length}</span>
+                <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{taskGroups.length}</span>
               </div>
               {tasksExpanded && taskGroups.map((tg) => (
                 <div
                   key={tg.id}
                   className={`flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer text-sm ml-4 ${
-                    activeTaskId === tg.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-slate-50 text-slate-600'
+                    activeTaskId === tg.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-400'
                   }`}
                   onClick={() => { setActiveTaskId(tg.id); setActiveFolderId(null); setShowMobileFolders(false) }}
                 >
                   <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                   <span className="flex-1 min-w-0 truncate">{tg.title}</span>
-                  <span className="text-xs text-slate-400 shrink-0">{tg.count}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{tg.count}</span>
                 </div>
               ))}
             </>
@@ -664,13 +664,13 @@ export function Documents() {
 
         {/* ── Your Storage section (shown when admin enabled at least one drive provider) ── */}
         {(userStorage?.allowUserGoogleDrive || userStorage?.allowUserMicrosoftDrive) && (
-          <div className="border-t border-slate-100 px-3 py-3 shrink-0">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Your Storage</p>
+          <div className="border-t border-slate-100 dark:border-slate-700/50 px-3 py-3 shrink-0">
+            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Your Storage</p>
             <div className="space-y-1.5">
               {/* Google Drive — only if admin enabled it */}
               {userStorage?.allowUserGoogleDrive && (
                 userStorage.source === 'user' && userStorage.storageBackend === 'google' && userStorage.connected ? (
-                  <div className="flex items-center gap-2 text-xs bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-2.5 py-1.5">
+                  <div className="flex items-center gap-2 text-xs bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/50 text-blue-700 dark:text-blue-400 rounded-lg px-2.5 py-1.5">
                     <span>📁</span>
                     <span className="flex-1 truncate font-medium">Google Drive</span>
                     <button
@@ -686,7 +686,7 @@ export function Documents() {
                   <button
                     onClick={connectUserGoogleDrive}
                     disabled={connectingStorage}
-                    className="w-full flex items-center gap-2 text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+                    className="w-full flex items-center gap-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
                   >
                     <span>📁</span> Connect Google Drive
                   </button>
@@ -711,7 +711,7 @@ export function Documents() {
                   <button
                     onClick={connectUserOneDrive}
                     disabled={connectingStorage}
-                    className="w-full flex items-center gap-2 text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
+                    className="w-full flex items-center gap-2 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg px-2.5 py-1.5 disabled:opacity-50"
                   >
                     <span>☁️</span> Connect OneDrive
                   </button>
@@ -728,47 +728,30 @@ export function Documents() {
         {/* ── Storage status banner ── */}
         {!storageMeta.connected ? (
           /* Not connected — amber warning */
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 12, padding: '10px 16px',
-            background: '#fffbeb', borderBottom: '1px solid #fde68a',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertTriangle className="w-4 h-4" style={{ color: '#d97706', flexShrink: 0 }} />
-              <span style={{ fontSize: 13, color: '#92400e' }}>
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700/50">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="text-xs text-amber-800 dark:text-amber-300">
                 <strong>{storageInfo.label}</strong> is selected but not connected — uploads are disabled until you connect.
               </span>
             </div>
             <button
               onClick={() => navigate('/settings')}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '5px 12px',
-                background: '#fff', color: '#d97706',
-                border: '1px solid #fcd34d', borderRadius: 7,
-                fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-600 rounded-lg text-xs font-semibold whitespace-nowrap hover:bg-amber-50 dark:hover:bg-slate-700"
             >
               <Settings className="w-3.5 h-3.5" /> Go to Settings →
             </button>
           </div>
         ) : storageMeta.backend !== 'db' ? (
           /* Connected — green status pill */
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 16px',
-            background: storageInfo.bg, borderBottom: `1px solid ${storageInfo.border}`,
-          }}>
-            <span style={{ fontSize: 15 }}>{storageInfo.icon}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: storageInfo.color }}>
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
+            <span className="text-sm">{storageInfo.icon}</span>
+            <span className="text-xs font-semibold" style={{ color: storageInfo.color }}>
               ● Connected — files stored in {storageInfo.label}
             </span>
             <button
               onClick={() => navigate('/settings')}
-              style={{
-                marginLeft: 'auto', fontSize: 11, color: '#9ca3af',
-                background: 'none', border: 'none', cursor: 'pointer',
-              }}
+              className="ml-auto text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 bg-transparent border-none cursor-pointer"
             >
               Change in Settings
             </button>
@@ -776,70 +759,86 @@ export function Documents() {
         ) : null}
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 border-b border-slate-100">
-          {/* Mobile Folders toggle — hidden on desktop */}
-          <button
-            onClick={() => setShowMobileFolders(true)}
-            className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 shrink-0"
-          >
-            <Folder className="w-4 h-4 text-amber-500" />
-            <span className="text-xs font-medium">Folders</span>
-          </button>
+        <div className="flex flex-col gap-2 px-3 py-3 sm:px-4 border-b border-slate-100 dark:border-slate-700/50">
 
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1 text-sm flex-1 min-w-0">
-            {breadcrumb.map((crumb, i) => (
-              <div key={i} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
-                <button
-                  onClick={() => {
-                    if (crumb.id === null) { setActiveFolderId(null); setActiveTaskId(null) }
-                    else if (typeof crumb.id === 'string' && crumb.id.startsWith('task:')) { /* already viewing task */ }
-                    else setActiveFolderId(crumb.id)
-                  }}
-                  className={`hover:text-blue-600 ${i === breadcrumb.length - 1 ? 'font-medium text-slate-900' : 'text-slate-500'}`}
-                >
-                  {crumb.name}
-                </button>
-              </div>
-            ))}
+          {/* Row 1 (mobile): Folders toggle + breadcrumb + view toggle */}
+          {/* Row 1 (desktop): everything in one row */}
+          <div className="flex items-center gap-2">
+            {/* Mobile Folders toggle */}
+            <button
+              onClick={() => setShowMobileFolders(true)}
+              className="md:hidden flex items-center gap-1.5 px-2.5 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-400 shrink-0"
+            >
+              <Folder className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-medium">Folders</span>
+            </button>
+
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1 text-sm flex-1 min-w-0 overflow-hidden">
+              {breadcrumb.map((crumb, i) => (
+                <div key={i} className="flex items-center gap-1 min-w-0">
+                  {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />}
+                  <button
+                    onClick={() => {
+                      if (crumb.id === null) { setActiveFolderId(null); setActiveTaskId(null) }
+                      else if (typeof crumb.id === 'string' && crumb.id.startsWith('task:')) { /* already viewing task */ }
+                      else setActiveFolderId(crumb.id)
+                    }}
+                    className={`truncate hover:text-blue-600 ${i === breadcrumb.length - 1 ? 'font-medium text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}
+                  >
+                    {crumb.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Search — desktop only inline, mobile gets its own row below */}
+            <div className="relative shrink-0 hidden sm:block">
+              <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search files…"
+                className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 w-48 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+
+            {/* View toggle */}
+            <div className="flex border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden shrink-0">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800/60' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                title="List view"
+              >
+                <List className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800/60' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                title="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              </button>
+            </div>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          {/* Row 2 (mobile only): full-width search */}
+          <div className="relative sm:hidden">
+            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search files…"
-              className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 w-32 sm:w-48"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-100"
             />
           </div>
 
-          {/* View toggle */}
-          <div className="flex border border-slate-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 ${viewMode === 'list' ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
-              title="List view"
-            >
-              <List className="w-4 h-4 text-slate-600" />
-            </button>
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 ${viewMode === 'grid' ? 'bg-slate-100' : 'hover:bg-slate-50'}`}
-              title="Grid view"
-            >
-              <LayoutGrid className="w-4 h-4 text-slate-600" />
-            </button>
-          </div>
-
-          {/* Actions — hidden when viewing task files */}
+          {/* Row 3: Action buttons — hidden when viewing task files */}
           {!activeTaskId && (
-            <>
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => handleNewFolder(activeFolderId)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 dark:text-slate-300"
               >
                 <FolderPlus className="w-4 h-4" /> New Folder
               </button>
@@ -849,14 +848,14 @@ export function Documents() {
                 title={uploadDisabled ? `Connect ${storageInfo.label} in Settings to enable uploads` : undefined}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg disabled:opacity-50 ${
                   uploadDisabled
-                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
                 <Upload className="w-4 h-4" />
                 {uploading ? 'Uploading…' : 'Upload'}
               </button>
-            </>
+            </div>
           )}
           <input
             ref={fileInputRef}
@@ -872,7 +871,7 @@ export function Documents() {
 
         {/* Drop zone + File list */}
         <div
-          className={`flex-1 overflow-y-auto relative ${dragging ? 'bg-blue-50 ring-2 ring-blue-400 ring-inset' : ''}`}
+          className={`flex-1 overflow-y-auto relative ${dragging ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-400 ring-inset' : ''}`}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
@@ -887,18 +886,18 @@ export function Documents() {
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center h-full text-slate-400">
+            <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
               <div className="flex flex-col items-center gap-2">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 <span className="text-sm">Loading…</span>
               </div>
             </div>
           ) : filteredDocs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
-              <Upload className="w-12 h-12 text-slate-200" />
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 gap-3">
+              <Upload className="w-12 h-12 text-slate-200 dark:text-slate-600" />
               <div className="text-center">
-                <p className="text-sm font-medium text-slate-500">No files here</p>
-                <p className="text-xs text-slate-400 mt-1">Drag & drop files or click Upload</p>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No files here</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Drag & drop files or click Upload</p>
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -911,7 +910,7 @@ export function Documents() {
             <div className="overflow-x-auto hide-scrollbar">
             <table className="w-full text-sm min-w-[520px]">
               <thead>
-                <tr className="border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-slate-100 dark:border-slate-700/50 text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   <th className="text-left px-4 py-2 font-medium">Name</th>
                   <th className="text-left px-4 py-2 font-medium">Type</th>
                   <th className="text-left px-4 py-2 font-medium">Size</th>
@@ -924,31 +923,31 @@ export function Documents() {
                 {filteredDocs.map((doc) => (
                   <tr
                     key={doc.id}
-                    className={`border-b border-slate-50 hover:bg-slate-50 cursor-pointer ${selectedDoc?.id === doc.id ? 'bg-blue-50' : ''}`}
+                    className={`border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer ${selectedDoc?.id === doc.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                     onClick={() => setSelectedDoc(doc)}
                   >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <FileIcon doc={doc} size="sm" />
-                        <span className="font-medium text-slate-800 truncate max-w-xs">{doc.name}</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-xs">{doc.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-500 text-xs">{doc.mimeType.split('/')[1] ?? doc.mimeType}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{formatBytes(doc.sizeBytes)}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{doc.uploadedBy.firstName} {doc.uploadedBy.lastName}</td>
-                    <td className="px-4 py-2.5 text-slate-500">{formatDate(doc.createdAt)}</td>
+                    <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 text-xs">{doc.mimeType.split('/')[1] ?? doc.mimeType}</td>
+                    <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">{formatBytes(doc.sizeBytes)}</td>
+                    <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">{doc.uploadedBy.firstName} {doc.uploadedBy.lastName}</td>
+                    <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400">{formatDate(doc.createdAt)}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1 opacity-0 hover:opacity-100 group-hover:opacity-100">
                         <button
                           onClick={(e) => { e.stopPropagation(); downloadDocument(doc) }}
-                          className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-blue-600 rounded"
                           title="Download"
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${doc.name}"?`)) handleDeleteDoc(doc.id) }}
-                          className="p-1 text-slate-400 hover:text-red-600 rounded"
+                          className="p-1 text-slate-400 dark:text-slate-500 hover:text-red-600 rounded"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -967,15 +966,15 @@ export function Documents() {
                 <div
                   key={doc.id}
                   onClick={() => setSelectedDoc(doc)}
-                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border cursor-pointer hover:bg-slate-50 transition-colors ${
-                    selectedDoc?.id === doc.id ? 'border-blue-300 bg-blue-50' : 'border-slate-100'
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
+                    selectedDoc?.id === doc.id ? 'border-blue-300 dark:border-blue-700/50 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-100 dark:border-slate-700/50'
                   }`}
                 >
                   <FileIcon doc={doc} size="md" />
-                  <span className="text-xs text-center text-slate-700 font-medium leading-tight line-clamp-2 break-all">
+                  <span className="text-xs text-center text-slate-700 dark:text-slate-300 font-medium leading-tight line-clamp-2 break-all">
                     {doc.name}
                   </span>
-                  <span className="text-xs text-slate-400">{formatBytes(doc.sizeBytes)}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{formatBytes(doc.sizeBytes)}</span>
                 </div>
               ))}
             </div>

@@ -1,4 +1,4 @@
-import { Bell, Search, LogOut, Building2, Briefcase, CheckSquare, FileText, Users2, UserCircle2, X, Menu } from 'lucide-react'
+import { Bell, Search, LogOut, Building2, Briefcase, CheckSquare, FileText, Users2, UserCircle2, X, Menu, Sun, Moon } from 'lucide-react'
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -62,7 +62,7 @@ function matchStr(haystack: string | undefined | null, needle: string): boolean 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Topbar({ pageTitle }: { pageTitle?: string }) {
   const { user, logout } = useAuthStore()
-  const { sidebarCollapsed, toggleSidebar, setNotificationCount } = useUIStore()
+  const { sidebarCollapsed, toggleSidebar, setNotificationCount, theme, toggleTheme } = useUIStore()
   const isMobile = useIsMobile()
   const {
     orgName, dateFormat,
@@ -360,7 +360,7 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
 
   return (
     <header
-      className="fixed top-0 right-0 z-30 h-[60px] bg-white border-b border-slate-200/80 flex items-center px-5 gap-4 shadow-sm"
+      className="fixed top-0 right-0 z-30 h-[60px] bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center px-5 gap-4 shadow-sm"
       style={{
         left: `${sidebarW}px`,
         right: 0,
@@ -370,7 +370,7 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
       {/* Hamburger — mobile only */}
       {isMobile && (
         <button
-          className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 flex-shrink-0"
+          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 flex-shrink-0"
           onClick={toggleSidebar}
           aria-label="Open menu"
         >
@@ -382,13 +382,13 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
       <div className="hidden sm:flex items-center gap-2 min-w-0">
         {orgName && (
           <>
-            <Building2 size={14} className="text-slate-400 flex-shrink-0" />
-            <span className="text-xs font-semibold text-slate-500 truncate max-w-[120px]">{orgName}</span>
-            {pageTitle && <span className="text-slate-300">/</span>}
+            <Building2 size={14} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{orgName}</span>
+            {pageTitle && <span className="text-slate-300 dark:text-slate-600">/</span>}
           </>
         )}
         {pageTitle && (
-          <h1 className="text-sm font-bold text-slate-800 leading-none truncate">{pageTitle}</h1>
+          <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-none truncate">{pageTitle}</h1>
         )}
       </div>
 
@@ -431,13 +431,13 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
         {/* Results dropdown */}
         {searchOpen && (
           <div
+            className="bg-white dark:bg-slate-800 dark:border-slate-700"
             style={{
               position: 'absolute',
               top: '100%',
               left: 0,
               right: 0,
               zIndex: 50,
-              background: '#fff',
               border: '1px solid #bfdbfe',
               borderTop: 'none',
               borderBottomLeftRadius: 8,
@@ -448,8 +448,8 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
             }}
           >
             {searchResults.length === 0 ? (
-              <div style={{ padding: '14px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                No results for <strong style={{ color: '#6b7280' }}>"{search}"</strong>
+              <div className="px-4 py-3.5 text-center text-slate-400 dark:text-slate-500 text-sm">
+                No results for <strong className="text-slate-500 dark:text-slate-400">"{search}"</strong>
               </div>
             ) : (
               Array.from(grouped.entries()).map(([category, items]) => {
@@ -457,16 +457,15 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
                 return (
                   <div key={category}>
                     {/* Category header */}
-                    <div style={{
-                      padding: '6px 12px 4px',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                      color: '#9ca3af',
-                      background: '#f9fafb',
-                      borderTop: '1px solid #f1f5f9',
-                    }}>
+                    <div
+                      className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700/50 text-slate-400 dark:text-slate-500"
+                      style={{
+                        padding: '6px 12px 4px',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: '0.07em',
+                        textTransform: 'uppercase',
+                      }}>
                       {category}s
                     </div>
 
@@ -481,6 +480,7 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
                           key={result.id}
                           onMouseEnter={() => setActiveIdx(currentIdx)}
                           onClick={() => handleResultClick(result)}
+                          className={isActive ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-white dark:bg-slate-800'}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -490,7 +490,6 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
                             textAlign: 'left',
                             border: 'none',
                             cursor: 'pointer',
-                            background: isActive ? '#eff6ff' : '#fff',
                             transition: 'background 0.1s',
                           }}
                         >
@@ -511,25 +510,17 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
 
                           {/* Text */}
                           <span style={{ minWidth: 0, flex: 1 }}>
-                            <span style={{
+                            <span className={isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'} style={{
                               display: 'block',
                               fontSize: 13,
                               fontWeight: 500,
-                              color: isActive ? '#1d4ed8' : '#1e293b',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}>
                               {result.title}
                             </span>
-                            <span style={{
-                              display: 'block',
-                              fontSize: 11,
-                              color: '#94a3b8',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}>
+                            <span className="text-slate-400 dark:text-slate-500 block text-[11px] truncate">
                               {result.subtitle}
                             </span>
                           </span>
@@ -543,28 +534,37 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
 
             {/* Footer hint */}
             {searchResults.length > 0 && (
-              <div style={{
-                padding: '6px 12px',
-                borderTop: '1px solid #f1f5f9',
-                display: 'flex',
-                gap: 12,
-                background: '#f9fafb',
-              }}>
-                <span style={{ fontSize: 10, color: '#cbd5e1' }}>↑↓ navigate</span>
-                <span style={{ fontSize: 10, color: '#cbd5e1' }}>↵ open</span>
-                <span style={{ fontSize: 10, color: '#cbd5e1' }}>Esc clear</span>
+              <div
+                className="bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700/50"
+                style={{
+                  padding: '6px 12px',
+                  display: 'flex',
+                  gap: 12,
+                }}>
+                <span className="text-[10px] text-slate-300 dark:text-slate-600">↑↓ navigate</span>
+                <span className="text-[10px] text-slate-300 dark:text-slate-600">↵ open</span>
+                <span className="text-[10px] text-slate-300 dark:text-slate-600">Esc clear</span>
               </div>
             )}
           </div>
         )}
       </div>
 
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        className="w-9 h-9 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+      >
+        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
+
       {/* Notifications bell — shown if any type is enabled */}
       <div className="relative">
         <button
           onClick={() => setNotifOpen(v => !v)}
           aria-label={`${unreadCount} unread notifications`}
-          className="relative w-9 h-9 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors"
+          className="relative w-9 h-9 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
         >
           <Bell size={18} />
           {unreadCount > 0 && (
@@ -577,9 +577,9 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
         {notifOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-            <div className="absolute right-0 top-[calc(100%+8px)] z-20 bg-white rounded-xl border border-slate-200 shadow-xl w-[min(320px,calc(100vw-1rem))] ring-1 ring-black/5 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-                <p className="font-semibold text-sm text-slate-800">Notifications</p>
+            <div className="absolute right-0 top-[calc(100%+8px)] z-20 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl w-[min(320px,calc(100vw-1rem))] ring-1 ring-black/5 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/60 dark:bg-slate-900/40">
+                <p className="font-semibold text-sm text-slate-800 dark:text-slate-100">Notifications</p>
                 {unreadCount > 0 && <Badge variant="danger" dot>{unreadCount} new</Badge>}
               </div>
 
@@ -589,16 +589,16 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
                   <span className="text-xs font-medium">No active notifications</span>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                <div className="divide-y divide-slate-50 dark:divide-slate-700/50 max-h-72 overflow-y-auto">
                   {allNotifications.map(n => (
                     <div key={n.id} className={cn(
-                      'flex gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors',
-                      n.unread && 'bg-blue-50/40'
+                      'flex gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors',
+                      n.unread && 'bg-blue-50/40 dark:bg-blue-900/20'
                     )}>
                       <span className="text-base flex-shrink-0">{notifIcons[n.type] ?? '🔔'}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-700 leading-snug">{n.text}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{n.time}</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-snug">{n.text}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{n.time}</p>
                       </div>
                       {n.unread && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />}
                     </div>
@@ -606,10 +606,10 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
                 </div>
               )}
 
-              <div className="px-4 py-2.5 border-t border-slate-100 text-center">
+              <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-700 text-center">
                 <button
                   onClick={() => { setNotifOpen(false); navigate('/notifications') }}
-                  className="text-xs text-blue-600 font-semibold hover:text-blue-700"
+                  className="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:text-blue-700 dark:hover:text-blue-300"
                 >
                   View all notifications →
                 </button>
@@ -621,10 +621,10 @@ export function Topbar({ pageTitle }: { pageTitle?: string }) {
 
       {/* User + Logout */}
       {user && (
-        <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
+        <div className="flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-700">
           <Avatar name={user.name} size="sm" />
           <div className="hidden sm:block">
-            <p className="text-xs font-semibold text-slate-800 leading-none">{user.name}</p>
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-none">{user.name}</p>
             <div className="mt-0.5">
               <Badge variant={roleBadgeVariants[user.role]}>{roleLabels[user.role]}</Badge>
             </div>

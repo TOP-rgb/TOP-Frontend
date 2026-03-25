@@ -104,10 +104,10 @@ function ApprovalPanel({
   const notifyFlagged = settings?.notifyFlaggedTimesheets
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 mb-6">
+    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-2xl p-4 space-y-3 mb-6">
       <div className="flex items-center gap-2">
         <AlertCircle size={16} className="text-amber-600" />
-        <p className="text-sm font-semibold text-amber-800">
+        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
           {entries.length} timesheet {entries.length === 1 ? 'entry needs' : 'entries need'} your approval
         </p>
         <div className="ml-auto flex items-center gap-2">
@@ -127,10 +127,10 @@ function ApprovalPanel({
         {entries.map(e => {
           const isFlagged = e.flagReason && notifyFlagged
           return (
-            <div key={e.id} className="flex items-center justify-between gap-3 bg-white rounded-xl border border-amber-200 px-4 py-3">
+            <div key={e.id} className="flex items-center justify-between gap-3 bg-white dark:bg-slate-800 rounded-xl border border-amber-200 dark:border-amber-700/50 px-4 py-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800">{e.userName}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{e.userName}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {e.date} &bull; {e.jobTitle}{e.taskName ? ` • ${e.taskName}` : ''} &bull; <strong>{e.hours}h</strong>
                 </p>
                 <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
@@ -187,7 +187,7 @@ function ApprovalPanel({
           onChange={e => setRejectNote(e.target.value)}
           rows={3}
           placeholder="e.g., Hours seem incorrect for this date. Please review and resubmit."
-          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:border-red-500 resize-none"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-100 dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:border-red-500 resize-none"
         />
       </Modal>
     </div>
@@ -197,15 +197,15 @@ function ApprovalPanel({
 // ---------- Status badge pill ----------
 function StatusPill({ status }: { status: string }) {
   const cfg = statusConfig[status] ?? statusConfig['pending_normal']
-  const colors: Record<string, { bg: string; color: string }> = {
-    secondary: { bg: '#f3f4f6', color: '#4b5563' },
-    warning:   { bg: '#fef3c7', color: '#92400e' },
-    success:   { bg: '#d1fae5', color: '#065f46' },
-    danger:    { bg: '#fee2e2', color: '#991b1b' },
+  const classMap: Record<string, string> = {
+    secondary: 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300',
+    warning:   'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300',
+    success:   'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300',
+    danger:    'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300',
   }
-  const c = colors[cfg.variant] ?? colors['secondary']
+  const cls = classMap[cfg.variant] ?? classMap['secondary']
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap' }}>
+    <span className={cls} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, whiteSpace: 'nowrap' }}>
       {cfg.label}
     </span>
   )
@@ -216,8 +216,15 @@ export function Timesheets() {
   // All hooks MUST be called unconditionally and in the same order on every render
   const { user } = useAuthStore()
   const { data: settings, loading: settingsLoading } = useSettings()
-  
+
   const isManager = user?.role !== 'employee'
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
 
   // Manager can filter by employee; '' = all users
   const [selectedUserId, setSelectedUserId] = useState<string>('')
@@ -597,14 +604,15 @@ export function Timesheets() {
     return Object.values(map)
   }, [rawEntries, anchorDate, tasks, jobs, monthWeeks])
 
-  const th: React.CSSProperties = { padding: '10px 12px', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }
-  const td: React.CSSProperties = { padding: '11px 12px', fontSize: 13, color: '#374151', borderBottom: '1px solid #f1f3f9', verticalAlign: 'middle' }
-  const tdNum: React.CSSProperties = { ...td, fontWeight: 600, color: '#1e293b', textAlign: 'center' }
+  // Note: background and color on th/td are controlled via className for dark mode support
+  const th: React.CSSProperties = { padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }
+  const td: React.CSSProperties = { padding: '11px 12px', fontSize: 13, borderBottom: '1px solid #f1f3f9', verticalAlign: 'middle' }
+  const tdNum: React.CSSProperties = { ...td, fontWeight: 600, textAlign: 'center' }
 
   if (settingsLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-        <div style={{ color: '#6b7280' }}>Loading settings...</div>
+      <div className="flex justify-center items-center" style={{ height: '400px' }}>
+        <div className="text-slate-500 dark:text-slate-400">Loading settings...</div>
       </div>
     )
   }
@@ -613,49 +621,40 @@ export function Timesheets() {
     <div style={{ fontFamily: 'inherit' }}>
 
       {/* ── Header with notification status ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: isMobile ? 12 : 0, marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Time Sheet</h1>
-          <p style={{ color: '#6b7280', fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Time Sheet</h1>
+          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, marginTop: 4, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
             {isManager ? 'Review and approve team daily timesheets' : 'Log and track your daily time entries'}
             {isManager && (
-              <span className="flex items-center gap-2 ml-2">
-                {notifyTimesheetApproval ? (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Bell size={12} /> Approval notifications
-                  </span>
-                ) : (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <BellOff size={12} /> Approval notifications off
-                  </span>
-                )}
-              </span>
+              notifyTimesheetApproval ? (
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Bell size={12} /> Approval notifications
+                </span>
+              ) : (
+                <span className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <BellOff size={12} /> Approval notifications off
+                </span>
+              )
             )}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isManager && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', fontSize: 13 }}>
-              <Users size={14} style={{ color: '#6b7280', flexShrink: 0 }} />
-              <select
-                value={selectedUserId}
-                onChange={e => setSelectedUserId(e.target.value)}
-                style={{ border: 'none', outline: 'none', fontSize: 13, color: '#374151', background: 'transparent', cursor: 'pointer', minWidth: 150 }}
-              >
-                <option value="">All Employees</option>
-                {employeeList.map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {/* <button
-            onClick={() => setLogDailyModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
-          >
-            <LogIn size={16} /> Log Daily Time
-          </button> */}
-        </div>
+        {isManager && (
+          <div className="bg-white dark:bg-slate-700 dark:border-slate-600" style={{ display: 'flex', alignItems: 'center', gap: 7, border: '1px solid #e5e7eb', borderRadius: 8, padding: '7px 12px', fontSize: 13, width: isMobile ? '100%' : 'auto' }}>
+            <Users size={14} className="text-slate-500 dark:text-slate-400" style={{ flexShrink: 0 }} />
+            <select
+              value={selectedUserId}
+              onChange={e => setSelectedUserId(e.target.value)}
+              className="text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+              style={{ border: 'none', outline: 'none', fontSize: 13, background: 'transparent', cursor: 'pointer', flex: 1, minWidth: 0 }}
+            >
+              <option value="">All Employees</option>
+              {employeeList.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* ── Approval panel with notifications ── */}
@@ -665,9 +664,9 @@ export function Timesheets() {
 
       {/* ── Flagged entries notification (if enabled) ── */}
       {isManager && flaggedEntries.length > 0 && notifyFlaggedTimesheets && (
-        <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <AlertCircle size={18} color="#d97706" />
-          <span style={{ fontSize: 13, color: '#92400e', fontWeight: 500 }}>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 flex items-center gap-3" style={{ borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+          <AlertCircle size={18} className="text-amber-600 dark:text-amber-400" />
+          <span className="text-amber-800 dark:text-amber-300" style={{ fontSize: 13, fontWeight: 500 }}>
             {flaggedEntries.length} flagged timesheet{flaggedEntries.length === 1 ? '' : 's'} require attention
           </span>
         </div>
@@ -690,13 +689,13 @@ export function Timesheets() {
             badge: notifyTimesheetApproval ? '🔔' : undefined
           },
         ].map(s => (
-          <div key={s.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden' }}>
+          <div key={s.label} className="bg-white dark:bg-slate-800 dark:border-slate-700" style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.bar }} />
             <div style={{ width: 34, height: 34, borderRadius: 8, background: s.bg, color: s.fg, display: 'grid', placeItems: 'center', marginBottom: 10 }}>
               {s.icon}
             </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1f36', lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
+            <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
               {s.label}
               {s.badge && <span style={{ fontSize: 10 }}>{s.badge}</span>}
             </div>
@@ -705,16 +704,17 @@ export function Timesheets() {
       </div>
 
       {/* ── Main card ── */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <div className="bg-white dark:bg-slate-800 dark:border-slate-700" style={{ borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
 
         {/* Toolbar: tabs + date navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 8 }}>
+        <div className="dark:border-slate-700/50" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex' }}>
             {(['daily', 'weekly', 'monthly'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                style={{ padding: '14px 18px', fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', borderBottom: `2px solid ${activeTab === tab ? '#2563eb' : 'transparent'}`, color: activeTab === tab ? '#2563eb' : '#6b7280', textTransform: 'capitalize', whiteSpace: 'nowrap' }}
+                className={activeTab === tab ? 'text-blue-600' : 'text-slate-500 dark:text-slate-100 hover:text-slate-700 dark:hover:text-white'}
+                style={{ padding: '14px 18px', fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', borderBottom: `2px solid ${activeTab === tab ? '#2563eb' : 'transparent'}`, textTransform: 'capitalize', whiteSpace: 'nowrap' }}
               >
                 {tab === 'daily' ? 'Daily View' : tab === 'weekly' ? 'Weekly View' : 'Monthly View'}
               </button>
@@ -722,11 +722,11 @@ export function Timesheets() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-            <button onClick={() => navigate(-1)} style={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#374151' }}>
+            <button onClick={() => navigate(-1)} className="bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-700 dark:text-slate-300" style={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
               <ChevronLeft size={14} />
             </button>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36', minWidth: 200, textAlign: 'center' }}>{navLabel}</span>
-            <button onClick={() => navigate(1)} style={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#374151' }}>
+            <span className="text-slate-900 dark:text-slate-100" style={{ fontSize: 13, fontWeight: 600, minWidth: 200, textAlign: 'center' }}>{navLabel}</span>
+            <button onClick={() => navigate(1)} className="bg-white dark:bg-slate-700 dark:border-slate-600 text-slate-700 dark:text-slate-300" style={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
               <ChevronRight size={14} />
             </button>
           </div>
@@ -744,13 +744,13 @@ export function Timesheets() {
                     'Client', 'Job', 'Task', 'Task Type', 'Hours', 'Billable', 'Notes',
                     // ...(isManager ? ['Action'] : []),
                   ].map(h => (
-                    <th key={h} style={th}>{h}</th>
+                    <th key={h} className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 dark:border-slate-700" style={th}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {dailyViewEntries.length === 0 ? (
-                  <tr><td colSpan={isManager ? 10 : 8} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <tr><td colSpan={isManager ? 10 : 8} className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '48px 18px', fontSize: 14 }}>
                     No entries for this day. Click "Log Daily Time" to add.
                   </td></tr>
                 ) : dailyViewEntries.map((e, i) => {
@@ -758,35 +758,35 @@ export function Timesheets() {
                   const isBillable = e.billable
                   const isFlagged = e.flagReason && notifyFlaggedTimesheets
                   return (
-                    <tr key={e.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                      <td style={td}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: 5 }}>
+                    <tr key={e.id} className={`text-slate-700 dark:text-slate-300 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
+                      <td className="dark:border-slate-700/50 dark:text-slate-300" style={td}>
+                        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 5 }}>
                           {getJobIdDisplay(e.jobId)}
                         </span>
                       </td>
                       {isManager && (
-                        <td style={td}>
+                        <td className="dark:border-slate-700/50" style={td}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <Avatar name={e.userName} size="xs" />
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{e.userName}</span>
+                            <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{e.userName}</span>
                           </div>
                         </td>
                       )}
-                      <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{e.clientName}</td>
-                      <td style={{ ...td, fontWeight: 600 }}>{e.jobTitle}</td>
-                      <td style={td}>
-                        {e.taskName ?? <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>{e.description || '—'}</span>}
+                      <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>{e.clientName}</td>
+                      <td className="dark:border-slate-700/50 dark:text-slate-200" style={{ ...td, fontWeight: 600 }}>{e.jobTitle}</td>
+                      <td className="dark:border-slate-700/50 dark:text-slate-300" style={td}>
+                        {e.taskName ?? <span className="text-slate-400 dark:text-slate-500" style={{ fontStyle: 'italic' }}>{e.description || '—'}</span>}
                         {isFlagged && <Bell size={10} className="inline ml-1 text-amber-500" />}
                       </td>
-                      <td style={{ ...td, color: '#6b7280' }}>{task?.type ?? '—'}</td>
-                      <td style={{ ...tdNum }}>{e.hours}h</td>
-                      <td style={td}>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: isBillable ? '#d1fae5' : '#f3f4f6', color: isBillable ? '#065f46' : '#4b5563' }}>
+                      <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={td}>{task?.type ?? '—'}</td>
+                      <td className="dark:border-slate-700/50 dark:text-slate-200" style={{ ...tdNum }}>{e.hours}h</td>
+                      <td className="dark:border-slate-700/50" style={td}>
+                        <span className={isBillable ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20 }}>
                           {isBillable ? 'Billable' : 'Non-Bill'}
                         </span>
                       </td>
-                      <td style={td} title={e.description || ''}>
-                        <span style={{ color: '#6b7280', fontSize: 12, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                      <td className="dark:border-slate-700/50" style={td} title={e.description || ''}>
+                        <span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
                           {e.description || '—'}
                         </span>
                       </td>
@@ -795,7 +795,8 @@ export function Timesheets() {
                           {e.status === 'pending_approval' ? (
                             <div style={{ display: 'flex', gap: 4 }}>
                               <button onClick={async () => { setBusy(true); await approveEntry(e.id); setBusy(false) }} disabled={busy}
-                                style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: '#d1fae5', color: '#065f46', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300"
+                                style={{ padding: '4px 10px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
                                 <Check size={11} /> Approve
                               </button>
                               <button onClick={() => setRejectModal({ id: e.id })} disabled={busy}
@@ -814,9 +815,9 @@ export function Timesheets() {
               </tbody>
               {dailyViewEntries.length > 0 && (
                 <tfoot>
-                  <tr style={{ background: '#f9fafb' }}>
-                    <td colSpan={isManager ? 6 : 5} style={{ ...td, fontWeight: 700, color: '#1e293b' }}>Total</td>
-                    <td style={{ ...tdNum, color: '#2563eb' }}>{dailyViewEntries.reduce((s,e) => s+e.hours,0).toFixed(1)}h</td>
+                  <tr className="bg-slate-50 dark:bg-slate-900/50">
+                    <td colSpan={isManager ? 6 : 5} className="dark:border-slate-700/50 text-slate-800 dark:text-slate-200" style={{ ...td, fontWeight: 700 }}>Total</td>
+                    <td className="dark:border-slate-700/50 text-blue-600" style={{ ...tdNum }}>{dailyViewEntries.reduce((s,e) => s+e.hours,0).toFixed(1)}h</td>
                     <td colSpan={isManager ? 4 : 3} />
                   </tr>
                 </tfoot>
@@ -839,47 +840,47 @@ export function Timesheets() {
                     'Total',
                     // ...(isManager ? ['Status'] : []),
                   ].map(h => (
-                    <th key={h} style={{ ...th, textAlign: h === 'Total' || h === 'Status' || DAY_NAMES.some(n => h.startsWith(n)) ? 'center' : 'left' }}>{h}</th>
+                    <th key={h} className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 dark:border-slate-700" style={{ ...th, textAlign: h === 'Total' || h === 'Status' || DAY_NAMES.some(n => h.startsWith(n)) ? 'center' : 'left' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {weeklyRows.length === 0 ? (
-                  <tr><td colSpan={isManager ? 14 : 12} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <tr><td colSpan={isManager ? 14 : 12} className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '48px 18px', fontSize: 14 }}>
                     No entries for this week. Click "Log Daily Time" to add.
                   </td></tr>
                 ) : weeklyRows.map((row, i) => (
-                  <tr key={`${row.jobDbId}-${row.taskName}-${i}`} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                    <td style={td}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: 5 }}>
+                  <tr key={`${row.jobDbId}-${row.taskName}-${i}`} className={`text-slate-700 dark:text-slate-300 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
+                    <td className="dark:border-slate-700/50" style={td}>
+                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 5 }}>
                         {row.jobIdDisplay}
                       </span>
                     </td>
                     {isManager && (
-                      <td style={td}>
+                      <td className="dark:border-slate-700/50" style={td}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Avatar name={row.userName} size="xs" />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{row.userName}</span>
+                          <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{row.userName}</span>
                         </div>
                       </td>
                     )}
-                    <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{row.clientName}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{row.jobTitle}</td>
-                    <td style={td}>
+                    <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>{row.clientName}</td>
+                    <td className="dark:border-slate-700/50 dark:text-slate-200" style={{ ...td, fontWeight: 600 }}>{row.jobTitle}</td>
+                    <td className="dark:border-slate-700/50 dark:text-slate-300" style={td}>
                       {row.taskName}
                       {row.hasFlag && notifyFlaggedTimesheets && <Bell size={10} className="inline ml-1 text-amber-500" />}
                     </td>
-                    <td style={{ ...td, color: '#6b7280' }}>{row.taskType}</td>
+                    <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={td}>{row.taskType}</td>
                     {weekDays.map(day => {
                       const ymd = toYMD(day)
                       const h = row.dayHours[ymd] ?? 0
                       return (
-                        <td key={ymd} style={{ ...tdNum, color: h > 0 ? '#1e293b' : '#d1d5db' }}>
+                        <td key={ymd} className={`dark:border-slate-700/50 ${h > 0 ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`} style={{ ...tdNum }}>
                           {h > 0 ? `${h}` : '—'}
                         </td>
                       )
                     })}
-                    <td style={{ ...tdNum, color: '#2563eb', fontWeight: 700 }}>{row.total.toFixed(1)}</td>
+                    <td className="dark:border-slate-700/50 text-blue-600" style={{ ...tdNum, fontWeight: 700 }}>{row.total.toFixed(1)}</td>
                     {/* {isManager && (
                       <td style={{ ...td, textAlign: 'center' }}>
                         {row.hasFlag ? (
@@ -893,7 +894,8 @@ export function Timesheets() {
                                 setBusy(false)
                               }}
                               disabled={busy}
-                              style={{ padding: '3px 8px', borderRadius: 5, border: 'none', background: '#d1fae5', color: '#065f46', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
+                              className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300"
+                              style={{ padding: '3px 8px', borderRadius: 5, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
                             >
                               <Check size={10} /> All
                             </button>
@@ -918,14 +920,14 @@ export function Timesheets() {
               </tbody>
               {weeklyRows.length > 0 && (
                 <tfoot>
-                  <tr style={{ background: '#f9fafb' }}>
-                    <td colSpan={isManager ? 6 : 5} style={{ ...td, fontWeight: 700, color: '#1e293b' }}>Total</td>
+                  <tr className="bg-slate-50 dark:bg-slate-900/50">
+                    <td colSpan={isManager ? 6 : 5} className="dark:border-slate-700/50 text-slate-800 dark:text-slate-200" style={{ ...td, fontWeight: 700 }}>Total</td>
                     {weekDays.map(day => {
                       const ymd = toYMD(day)
                       const dayTotal = weeklyRows.reduce((s, r) => s + (r.dayHours[ymd] ?? 0), 0)
-                      return <td key={ymd} style={{ ...tdNum, color: dayTotal > 0 ? '#2563eb' : '#d1d5db' }}>{dayTotal > 0 ? dayTotal.toFixed(1) : '—'}</td>
+                      return <td key={ymd} className={`dark:border-slate-700/50 ${dayTotal > 0 ? 'text-blue-600' : 'text-slate-300 dark:text-slate-600'}`} style={{ ...tdNum }}>{dayTotal > 0 ? dayTotal.toFixed(1) : '—'}</td>
                     })}
-                    <td style={{ ...tdNum, color: '#2563eb', fontWeight: 800 }}>
+                    <td className="dark:border-slate-700/50 text-blue-600" style={{ ...tdNum, fontWeight: 800 }}>
                       {weeklyRows.reduce((s, r) => s + r.total, 0).toFixed(1)}
                     </td>
                     {isManager && <td />}
@@ -949,52 +951,52 @@ export function Timesheets() {
                     ...monthWeeks.map(w => w.label),
                     'Total',
                   ].map(h => (
-                    <th key={h} style={{ ...th, textAlign: h === 'Total' || h.startsWith('Week') ? 'center' : 'left' }}>{h}</th>
+                    <th key={h} className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 dark:border-slate-700" style={{ ...th, textAlign: h === 'Total' || h.startsWith('Week') ? 'center' : 'left' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {monthlyRows.length === 0 ? (
-                  <tr><td colSpan={(isManager ? 7 : 6) + monthWeeks.length} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <tr><td colSpan={(isManager ? 7 : 6) + monthWeeks.length} className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '48px 18px', fontSize: 14 }}>
                     No entries for this month. Click "Log Daily Time" to add.
                   </td></tr>
                 ) : monthlyRows.map((row, i) => (
-                  <tr key={`${row.jobDbId}-${row.taskName}-${i}`} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                    <td style={td}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: 5 }}>
+                  <tr key={`${row.jobDbId}-${row.taskName}-${i}`} className={`text-slate-700 dark:text-slate-300 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900/50'}`}>
+                    <td className="dark:border-slate-700/50" style={td}>
+                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 5 }}>
                         {row.jobIdDisplay}
                       </span>
                     </td>
                     {isManager && (
-                      <td style={td}>
+                      <td className="dark:border-slate-700/50" style={td}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Avatar name={row.userName} size="xs" />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{row.userName}</span>
+                          <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{row.userName}</span>
                         </div>
                       </td>
                     )}
-                    <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{row.clientName}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{row.jobTitle}</td>
-                    <td style={td}>{row.taskName}</td>
-                    <td style={{ ...td, color: '#6b7280' }}>{row.taskType}</td>
+                    <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>{row.clientName}</td>
+                    <td className="dark:border-slate-700/50 dark:text-slate-200" style={{ ...td, fontWeight: 600 }}>{row.jobTitle}</td>
+                    <td className="dark:border-slate-700/50 dark:text-slate-300" style={td}>{row.taskName}</td>
+                    <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={td}>{row.taskType}</td>
                     {row.weekHours.map((h, wi) => (
-                      <td key={wi} style={{ ...tdNum, color: h > 0 ? '#1e293b' : '#d1d5db' }}>
+                      <td key={wi} className={`dark:border-slate-700/50 ${h > 0 ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`} style={{ ...tdNum }}>
                         {h > 0 ? h.toFixed(1) : '—'}
                       </td>
                     ))}
-                    <td style={{ ...tdNum, color: '#2563eb', fontWeight: 700 }}>{row.total.toFixed(1)}</td>
+                    <td className="dark:border-slate-700/50 text-blue-600" style={{ ...tdNum, fontWeight: 700 }}>{row.total.toFixed(1)}</td>
                   </tr>
                 ))}
               </tbody>
               {monthlyRows.length > 0 && (
                 <tfoot>
-                  <tr style={{ background: '#f9fafb' }}>
-                    <td colSpan={isManager ? 6 : 5} style={{ ...td, fontWeight: 700, color: '#1e293b' }}>Total</td>
+                  <tr className="bg-slate-50 dark:bg-slate-900/50">
+                    <td colSpan={isManager ? 6 : 5} className="dark:border-slate-700/50 text-slate-800 dark:text-slate-200" style={{ ...td, fontWeight: 700 }}>Total</td>
                     {monthWeeks.map((_, wi) => {
                       const wTotal = monthlyRows.reduce((s, r) => s + (r.weekHours[wi] ?? 0), 0)
-                      return <td key={wi} style={{ ...tdNum, color: wTotal > 0 ? '#2563eb' : '#d1d5db' }}>{wTotal > 0 ? wTotal.toFixed(1) : '—'}</td>
+                      return <td key={wi} className={`dark:border-slate-700/50 ${wTotal > 0 ? 'text-blue-600' : 'text-slate-300 dark:text-slate-600'}`} style={{ ...tdNum }}>{wTotal > 0 ? wTotal.toFixed(1) : '—'}</td>
                     })}
-                    <td style={{ ...tdNum, color: '#2563eb', fontWeight: 800 }}>
+                    <td className="dark:border-slate-700/50 text-blue-600" style={{ ...tdNum, fontWeight: 800 }}>
                       {monthlyRows.reduce((s, r) => s + r.total, 0).toFixed(1)}
                     </td>
                   </tr>
@@ -1006,41 +1008,41 @@ export function Timesheets() {
 
         {/* ── Draft rows + Inline form ── */}
         {(periodDraftEntries.length > 0 || showInlineForm) && (
-          <div style={{ borderTop: '2px dashed #e5e7eb', overflowX: 'auto' }}>
+          <div className="dark:border-slate-700" style={{ borderTop: '2px dashed #e5e7eb', overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               {periodDraftEntries.length > 0 && (
                 <tbody>
                   {periodDraftEntries.map((d) => (
-                    <tr key={d.id} style={{ background: '#fffbeb', borderBottom: '1px dashed #fcd34d' }}>
+                    <tr key={d.id} className="dark:bg-amber-900/20 dark:border-amber-700/50" style={{ background: '#fffbeb', borderBottom: '1px dashed #fcd34d' }}>
                       <td style={{ ...td, fontSize: 11 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e', background: '#fef3c7', padding: '2px 8px', borderRadius: 5 }}>
                           {jobs.find(j => j.id === d.jobId)?.jobId ?? '—'}
                         </span>
                       </td>
-                      {isManager && <td style={td}><span style={{ fontSize: 12, color: '#6b7280' }}>You</span></td>}
-                      <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{d.client || '—'}</td>
-                      <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>{d.job}</td>
-                      <td style={{ ...td, fontSize: 12 }}>{d.task || '—'}</td>
-                      <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>—</td>
-                      <td style={{ ...tdNum, color: '#92400e' }}>{d.hours}h</td>
+                      {isManager && <td style={td}><span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12 }}>You</span></td>}
+                      <td className="text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>{d.client || '—'}</td>
+                      <td className="text-slate-800 dark:text-slate-200" style={{ ...td, fontWeight: 600, fontSize: 12 }}>{d.job}</td>
+                      <td className="text-slate-700 dark:text-slate-300" style={{ ...td, fontSize: 12 }}>{d.task || '—'}</td>
+                      <td className="text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>—</td>
+                      <td className="text-amber-800 dark:text-amber-300" style={{ ...tdNum }}>{d.hours}h</td>
                       <td style={td}>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: d.billable ? '#d1fae5' : '#f3f4f6', color: d.billable ? '#065f46' : '#4b5563' }}>
+                        <span className={d.billable ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'} style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20 }}>
                           {d.billable ? 'Billable' : 'Non-Bill'}
                         </span>
                       </td>
-                      <td style={{ ...td, fontSize: 12, color: '#6b7280' }}>{d.notes || '—'}</td>
+                      <td className="text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>{d.notes || '—'}</td>
                       <td style={td}>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: '#fef3c7', color: '#92400e' }}>Draft</span>
+                        <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300" style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20 }}>Draft</span>
                         {activeTab !== 'daily' && (
-                          <div style={{ fontSize: 10, color: '#92400e', marginTop: 2 }}>
+                          <div className="text-amber-700 dark:text-amber-400" style={{ fontSize: 10, marginTop: 2 }}>
                             {new Date(d.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </div>
                         )}
                       </td>
                       <td style={td}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => editDraft(d)} style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #d97706', background: '#fff', color: '#d97706', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
-                          <button onClick={() => deleteDraft(d.id)} style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #ef4444', background: '#fff', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+                          <button onClick={() => editDraft(d)} className="bg-white dark:bg-slate-700 dark:border-amber-600 text-amber-600 dark:text-amber-400" style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #d97706', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
+                          <button onClick={() => deleteDraft(d.id)} className="bg-white dark:bg-slate-700 dark:border-red-600 text-red-500 dark:text-red-400" style={{ padding: '3px 9px', borderRadius: 6, border: '1px solid #ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -1049,14 +1051,15 @@ export function Timesheets() {
               )}
               {showInlineForm && activeTab !== 'monthly' && (
                 <tbody>
-                  <tr style={{ background: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
-                    <td style={td}>
+                  <tr className="dark:bg-emerald-900/20 dark:border-emerald-700/50" style={{ background: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
+                    <td className="dark:border-slate-700/50" style={td}>
                       <select
                         value={inlineForm.jobId}
                         onChange={e => {
                           const job = jobs.find(j => j.id === e.target.value)
                           setInlineForm(prev => ({ ...prev, jobId: e.target.value, job: job?.title ?? '', client: job?.clientName ?? '', taskId: '', task: '' }))
                         }}
+                        className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                         style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 140 }}
                       >
                         <option value="">Select Job</option>
@@ -1065,10 +1068,10 @@ export function Timesheets() {
                         ))}
                       </select>
                     </td>
-                    {isManager && <td style={td}><span style={{ fontSize: 12, color: '#6b7280' }}>You</span></td>}
-                    <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>{inlineForm.client || '—'}</td>
-                    <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>{inlineForm.job || '—'}</td>
-                    <td style={td}>
+                    {isManager && <td className="dark:border-slate-700/50" style={td}><span className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12 }}>You</span></td>}
+                    <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>{inlineForm.client || '—'}</td>
+                    <td className="dark:border-slate-700/50 dark:text-slate-200" style={{ ...td, fontWeight: 600, fontSize: 12 }}>{inlineForm.job || '—'}</td>
+                    <td className="dark:border-slate-700/50" style={td}>
                       <select
                         value={inlineForm.taskId}
                         onChange={e => {
@@ -1076,6 +1079,7 @@ export function Timesheets() {
                           setInlineForm(prev => ({ ...prev, taskId: e.target.value, task: task?.name ?? '' }))
                         }}
                         disabled={!inlineForm.jobId}
+                        className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                         style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 130, opacity: inlineForm.jobId ? 1 : 0.5 }}
                       >
                         <option value="">No task</option>
@@ -1084,42 +1088,46 @@ export function Timesheets() {
                         ))}
                       </select>
                     </td>
-                    <td style={{ ...td, color: '#6b7280', fontSize: 12 }}>—</td>
-                    <td style={tdNum}>
+                    <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 12 }}>—</td>
+                    <td className="dark:border-slate-700/50" style={tdNum}>
                       <input
                         type="number" min={0.5} max={24} step={0.5}
                         value={inlineForm.hours}
                         onChange={e => setInlineForm(prev => ({ ...prev, hours: parseFloat(e.target.value) || 0 }))}
+                        className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                         style={{ width: 56, fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', textAlign: 'center' }}
                       />
                     </td>
-                    <td style={td}>
+                    <td className="dark:border-slate-700/50" style={td}>
                       <select
                         value={inlineForm.billable ? 'true' : 'false'}
                         onChange={e => setInlineForm(prev => ({ ...prev, billable: e.target.value === 'true' }))}
+                        className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                         style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px' }}
                       >
                         <option value="true">Billable</option>
                         <option value="false">Non-Bill</option>
                       </select>
                     </td>
-                    <td style={td}>
+                    <td className="dark:border-slate-700/50" style={td}>
                       <input
                         type="text" placeholder="Notes"
                         value={inlineForm.notes}
                         onChange={e => setInlineForm(prev => ({ ...prev, notes: e.target.value }))}
+                        className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                         style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px', width: '100%', maxWidth: 160 }}
                       />
                     </td>
                     {activeTab === 'daily' ? (
-                      <td style={{ ...td, fontSize: 11, color: '#6b7280' }}>
+                      <td className="dark:border-slate-700/50 text-slate-500 dark:text-slate-400" style={{ ...td, fontSize: 11 }}>
                         {anchorDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
                       </td>
                     ) : activeTab === 'weekly' ? (
-                      <td style={td}>
+                      <td className="dark:border-slate-700/50" style={td}>
                         <select
                           value={inlineForm.date}
                           onChange={e => setInlineForm(prev => ({ ...prev, date: e.target.value }))}
+                          className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                           style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px' }}
                         >
                           {weekDays.map((d, i) => (
@@ -1130,13 +1138,14 @@ export function Timesheets() {
                         </select>
                       </td>
                     ) : (
-                      <td style={td}>
+                      <td className="dark:border-slate-700/50" style={td}>
                         <input
                           type="date"
                           value={inlineForm.date}
                           min={`${anchorDate.getFullYear()}-${String(anchorDate.getMonth() + 1).padStart(2, '0')}-01`}
                           max={`${anchorDate.getFullYear()}-${String(anchorDate.getMonth() + 1).padStart(2, '0')}-${new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0).getDate()}`}
                           onChange={e => setInlineForm(prev => ({ ...prev, date: e.target.value }))}
+                          className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                           style={{ fontSize: 12, border: '1px solid #d1d5db', borderRadius: 6, padding: '4px 6px' }}
                         />
                       </td>
@@ -1157,7 +1166,8 @@ export function Timesheets() {
                         </button>
                         <button
                           onClick={() => { setShowInlineForm(false); setEditDraftId(null); setInlineForm({ date: toYMD(new Date()), hours: 8, billable: true, jobId: '', job: '', taskId: '', task: '', client: '', notes: '' }) }}
-                          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', fontSize: 12, cursor: 'pointer' }}
+                          className="bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-slate-400"
+                          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12, cursor: 'pointer' }}
                         >✕</button>
                       </div>
                     </td>
@@ -1169,7 +1179,7 @@ export function Timesheets() {
         )}
 
         {/* ── Add Entry + Threshold bar + Submit ── */}
-        <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div className="dark:border-slate-700/50" style={{ padding: '14px 20px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           {showEmployeeControls && activeTab !== 'monthly' && (
             <button
               onClick={() => {
@@ -1184,7 +1194,8 @@ export function Timesheets() {
                 setEditDraftId(null)
                 setInlineForm({ date: defaultDate, hours: 8, billable: true, jobId: '', job: '', taskId: '', task: '', client: '', notes: '' })
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: '1px dashed #6b7280', borderRadius: 8, background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              className="bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: '1px dashed #6b7280', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
               <Plus size={14} /> Add Entry
             </button>
@@ -1193,10 +1204,10 @@ export function Timesheets() {
           {showEmployeeControls && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'flex-end' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 120, height: 6, borderRadius: 99, background: '#e5e7eb', overflow: 'hidden' }}>
+                <div className="bg-slate-200 dark:bg-slate-700" style={{ width: 120, height: 6, borderRadius: 99, overflow: 'hidden' }}>
                   <div style={{ height: '100%', borderRadius: 99, background: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#2563eb', width: `${Math.min((totalHoursInPeriod / threshold) * 100, 100)}%`, transition: 'width 0.3s' }} />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: thresholdExceeded ? '#dc2626' : thresholdMet ? '#059669' : '#374151', whiteSpace: 'nowrap' }}>
+                <span className={thresholdExceeded ? 'text-red-600' : thresholdMet ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-300'} style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
                   {totalHoursInPeriod.toFixed(1)}h / {threshold}h
                 </span>
               </div>
@@ -1267,7 +1278,7 @@ export function Timesheets() {
           onChange={e => setRejectReason(e.target.value)}
           rows={3}
           placeholder="e.g., Hours seem incorrect. Please review and resubmit."
-          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:border-red-500 resize-none"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-100 dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 focus:border-red-500 resize-none"
         />
       </Modal>
 
@@ -1316,7 +1327,7 @@ export function Timesheets() {
             </div>
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {dailyEntries.length === 0 ? (
-                <p style={{ color: '#334155', fontSize: 12, fontStyle: 'italic' }}>No entries yet</p>
+                <p style={{ color: '#64748b', fontSize: 12, fontStyle: 'italic' }}>No entries yet</p>
               ) : dailyEntries.map(entry => (
                 <div key={entry.id} style={{ background: '#152035', border: '1px solid #2d4068', borderRadius: 8, padding: '10px 10px 10px 12px', position: 'relative' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>

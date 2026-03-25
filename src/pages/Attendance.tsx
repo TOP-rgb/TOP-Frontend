@@ -614,10 +614,10 @@ export function Attendance() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Attendance</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{new Date().toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           {todayData?.shift && (
-            <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
-              <span className="font-medium text-slate-500">{todayData.shift.name}</span>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
+              <span className="font-medium text-slate-500 dark:text-slate-400">{todayData.shift.name}</span>
               <span>·</span>
               <span>{todayData.shift.startTime} – {todayData.shift.endTime}</span>
               {todayData.shift.gracePeriodMinutes > 0 && (
@@ -728,7 +728,7 @@ export function Attendance() {
       )}
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         <StatCard label="Today's Status" value={STATUS_LABELS[todayStatus] ?? todayStatus.replace(/_/g, ' ')} sub={todayRecord ? fmtDate(todayRecord.date) : 'No record yet'} />
         <StatCard
           label="Check-In Time"
@@ -761,15 +761,15 @@ export function Attendance() {
 
       {/* ── Tabs ── */}
       <div className="overflow-x-auto hide-scrollbar border-b border-slate-200 dark:border-slate-700">
-        <div className="flex gap-1 min-w-max">
+        <div className="flex gap-0.5 min-w-max">
         {TABS.filter(t => !t.managerOnly || isManager).map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-2 text-xs sm:text-sm sm:px-3 sm:py-2.5 font-medium whitespace-nowrap border-b-2 transition-colors ${
               activeTab === t.id
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-100 dark:hover:text-white'
             }`}
           >
             {t.icon}{t.label}
@@ -796,7 +796,7 @@ export function Attendance() {
                   }}
                   className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="text-slate-400">to</span>
+                <span className="text-slate-400 dark:text-slate-500">to</span>
                 <input
                   type="date"
                   value={historyTo}
@@ -818,7 +818,7 @@ export function Attendance() {
                       const t = `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`
                       setHistoryFrom(f); setHistoryTo(t); refetchHistory({ startDate: f, endDate: t })
                     }}
-                    className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 px-1.5"
+                    className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-200 px-1.5"
                     title="Reset to current week"
                   >&times;</button>
                 )}
@@ -854,7 +854,7 @@ export function Attendance() {
             </div>
           </div>
           {attendanceLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400 dark:text-slate-500" /></div>
           ) : history.length === 0 ? (
             <EmptyState icon={<Clock size={32} />} text="No attendance records yet." />
           ) : (
@@ -863,7 +863,7 @@ export function Attendance() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     {['Date','Check In','Check Out','Hours','Overtime','Status','Flags','Regularize'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -891,7 +891,7 @@ export function Attendance() {
                         <td className="px-4 py-3">
                           {r.overtimeMinutes && r.overtimeMinutes > 0
                             ? <span className="text-emerald-600 font-medium text-xs">+{fmtMinutes(r.overtimeMinutes)}</span>
-                            : <span className="text-slate-400">—</span>}
+                            : <span className="text-slate-400 dark:text-slate-500">—</span>}
                         </td>
                         <td className="px-4 py-3">
                           {regPending
@@ -1048,7 +1048,7 @@ export function Attendance() {
             </div>
 
             {/* Day grid */}
-            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500 mb-1">
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
               {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => <div key={d}>{d}</div>)}
             </div>
             <div className="grid grid-cols-7 gap-1">
@@ -1084,32 +1084,32 @@ export function Attendance() {
                   <h3 className="font-semibold text-slate-800 dark:text-slate-200">
                     {calendarDetail.date.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
                   </h3>
-                  <button onClick={() => setCalendarDetail(null)} className="text-slate-400 hover:text-slate-600 text-xs">✕ Close</button>
+                  <button onClick={() => setCalendarDetail(null)} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-xs">✕ Close</button>
                 </div>
                 {calendarDetail.record ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div><div className="text-xs text-slate-500">Status</div><div>{getStatusBadge(calendarDetail.record.status)}</div></div>
-                    <div><div className="text-xs text-slate-500">Check In</div><div className="font-medium">{calendarDetail.record.isOnLeave || calendarDetail.record.isHoliday ? '—' : fmtTime(calendarDetail.record.firstCheckInAt ?? calendarDetail.record.checkInAt)}</div></div>
-                    <div><div className="text-xs text-slate-500">Check Out</div><div className="font-medium">{calendarDetail.record.isOnLeave || calendarDetail.record.isHoliday ? '—' : fmtTime(calendarDetail.record.checkOutAt)}</div></div>
-                    <div><div className="text-xs text-slate-500">Hours</div><div className="font-medium">{fmtMinutes(calendarDetail.record.workMinutes)}</div></div>
+                    <div><div className="text-xs text-slate-500 dark:text-slate-400">Status</div><div>{getStatusBadge(calendarDetail.record.status)}</div></div>
+                    <div><div className="text-xs text-slate-500 dark:text-slate-400">Check In</div><div className="font-medium">{calendarDetail.record.isOnLeave || calendarDetail.record.isHoliday ? '—' : fmtTime(calendarDetail.record.firstCheckInAt ?? calendarDetail.record.checkInAt)}</div></div>
+                    <div><div className="text-xs text-slate-500 dark:text-slate-400">Check Out</div><div className="font-medium">{calendarDetail.record.isOnLeave || calendarDetail.record.isHoliday ? '—' : fmtTime(calendarDetail.record.checkOutAt)}</div></div>
+                    <div><div className="text-xs text-slate-500 dark:text-slate-400">Hours</div><div className="font-medium">{fmtMinutes(calendarDetail.record.workMinutes)}</div></div>
                     {calendarDetail.record.overtimeMinutes && calendarDetail.record.overtimeMinutes > 0 && (
-                      <div><div className="text-xs text-slate-500">Overtime</div><div className="font-medium text-emerald-600">+{fmtMinutes(calendarDetail.record.overtimeMinutes)}</div></div>
+                      <div><div className="text-xs text-slate-500 dark:text-slate-400">Overtime</div><div className="font-medium text-emerald-600">+{fmtMinutes(calendarDetail.record.overtimeMinutes)}</div></div>
                     )}
                     {(calendarDetail.record.workMode === 'WFH' || (!calendarDetail.record.workMode && calendarDetail.record.isRemote)) && (
-                      <div><div className="text-xs text-slate-500">Mode</div><div className="text-purple-600 flex items-center gap-1"><Home size={12} /> WFH</div></div>
+                      <div><div className="text-xs text-slate-500 dark:text-slate-400">Mode</div><div className="text-purple-600 flex items-center gap-1"><Home size={12} /> WFH</div></div>
                     )}
                     {calendarDetail.record.workMode === 'TRAVELLING' && (
-                      <div><div className="text-xs text-slate-500">Mode</div><div className="text-amber-500 flex items-center gap-1"><Plane size={12} /> Travelling</div></div>
+                      <div><div className="text-xs text-slate-500 dark:text-slate-400">Mode</div><div className="text-amber-500 flex items-center gap-1"><Plane size={12} /> Travelling</div></div>
                     )}
                     {(calendarDetail.record.exceptions?.length ?? 0) > 0 && (
                       <div className="col-span-2 sm:col-span-4">
-                        <div className="text-xs text-slate-500 mb-1">Exceptions</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Exceptions</div>
                         <div className="flex flex-wrap gap-1">{Array.from(new Map(calendarDetail.record.exceptions?.map(e => [e.type, e]) ?? []).values()).map(e => <span key={e.type}>{getExceptionBadge(e.type)}</span>)}</div>
                       </div>
                     )}
                     {(calendarDetail.record.checkInLat != null && calendarDetail.record.checkInLng != null) && (
                       <div className="col-span-2 sm:col-span-4">
-                        <div className="text-xs text-slate-500 mb-1">Check-in Location</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Check-in Location</div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <a
                             href={`https://maps.google.com/?q=${calendarDetail.record.checkInLat},${calendarDetail.record.checkInLng}`}
@@ -1139,7 +1139,7 @@ export function Attendance() {
                     ? calendarHolidays.find(h => h.date.slice(0, 10) === detailKey)
                     : null
                   return (
-                    <p className="text-sm text-slate-500 italic">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">
                       {isOffDay(jsDay)
                         ? 'Day Off'
                         : isHolidayDay
@@ -1173,7 +1173,7 @@ export function Attendance() {
               </button>
             </div>
             {leaves.myBalance.length === 0 ? (
-              <p className="text-sm text-slate-500">No leave types configured.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">No leave types configured.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {leaves.myBalance.map(b => {
@@ -1188,7 +1188,7 @@ export function Attendance() {
                         {[['Allocated', b.allocated], ['Used', b.used], ['Pending', b.pending], ['Remaining', remaining]].map(([l, v]) => (
                           <div key={l as string}>
                             <div className="font-semibold text-slate-900 dark:text-slate-100">{(v as number).toFixed(1)}</div>
-                            <div className="text-slate-500">{l}</div>
+                            <div className="text-slate-500 dark:text-slate-400">{l}</div>
                           </div>
                         ))}
                       </div>
@@ -1210,7 +1210,7 @@ export function Attendance() {
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                       {['Leave Type','From','To','Days','Status','Action'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1274,7 +1274,7 @@ export function Attendance() {
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                         {['Date Worked', 'Type', 'Earned On', 'Expires', 'Status'].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1327,7 +1327,7 @@ export function Attendance() {
             </button>
           </div>
           {wfhRequests.loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400 dark:text-slate-500" /></div>
           ) : wfhRequests.myRequests.length === 0 ? (
             <EmptyState icon={<Home size={32} />} text="No WFH requests yet." />
           ) : (
@@ -1336,7 +1336,7 @@ export function Attendance() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     {['Mode','From','To','Status','Reason','Action'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1354,7 +1354,7 @@ export function Attendance() {
                       <td className="px-4 py-3">
                         <Badge variant={r.status === 'APPROVED' ? 'success' : r.status === 'REJECTED' ? 'danger' : 'warning'}>{r.status}</Badge>
                       </td>
-                      <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{r.reason ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{r.reason ?? '—'}</td>
                       <td className="px-4 py-3">
                         {r.status === 'PENDING' && (
                           <button
@@ -1394,7 +1394,7 @@ export function Attendance() {
             <button onClick={wfhRequests.fetchPending} className="text-sm text-blue-600 hover:text-blue-800">Refresh</button>
           </div>
           {wfhRequests.loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400 dark:text-slate-500" /></div>
           ) : wfhRequests.pendingRequests.length === 0 ? (
             <EmptyState icon={<CheckSquare size={32} />} text="No pending WFH requests." />
           ) : (
@@ -1403,7 +1403,7 @@ export function Attendance() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     {['Employee','Mode','From','To','Reason','Action'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1419,7 +1419,7 @@ export function Attendance() {
                       </td>
                       <td className="px-4 py-3">{fmtDate(r.startDate)}</td>
                       <td className="px-4 py-3">{fmtDate(r.endDate)}</td>
-                      <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{r.reason ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{r.reason ?? '—'}</td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => { setReviewWFHModal({ request: r }); setWfhReviewNote('') }}
@@ -1450,7 +1450,7 @@ export function Attendance() {
           {/* Date range filter */}
           <div className="flex flex-wrap items-end gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">From</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">From</label>
               <input
                 type="date"
                 value={statsFrom}
@@ -1459,7 +1459,7 @@ export function Attendance() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">To</label>
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">To</label>
               <input
                 type="date"
                 value={statsTo}
@@ -1478,7 +1478,7 @@ export function Attendance() {
           </div>
 
           {mgr.statsLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400 dark:text-slate-500" /></div>
           ) : mgr.stats ? (
             <div className="space-y-6">
               {/* Summary stat cards */}
@@ -1491,7 +1491,7 @@ export function Attendance() {
                 ].map(({ label, value, color }) => (
                   <div key={label} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center bg-white dark:bg-slate-800">
                     <div className={`text-2xl font-bold ${color}`}>{value}</div>
-                    <div className="text-xs text-slate-500 mt-1">{label}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{label}</div>
                   </div>
                 ))}
               </div>
@@ -1504,7 +1504,7 @@ export function Attendance() {
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                         {['Exception Type', 'Count'].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1528,7 +1528,7 @@ export function Attendance() {
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                         {['Employee', 'Present', 'Late', 'Absent', 'Leave Days', 'Overtime'].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1566,7 +1566,7 @@ export function Attendance() {
             <button onClick={mgr.fetchTeamStatus} className="text-sm text-blue-600 hover:text-blue-800">Refresh</button>
           </div>
           {mgr.loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400 dark:text-slate-500" /></div>
           ) : mgr.teamStatus ? (
             <div className="space-y-6">
               {/* Summary cards */}
@@ -1574,13 +1574,13 @@ export function Attendance() {
                 {[
                   { label: 'Present',     count: mgr.teamStatus.present.length,    color: 'text-emerald-600' },
                   { label: 'Late',        count: mgr.teamStatus.late.length,        color: 'text-amber-600' },
-                  { label: 'Checked Out', count: mgr.teamStatus.checkedOut.length,  color: 'text-slate-600' },
+                  { label: 'Checked Out', count: mgr.teamStatus.checkedOut.length,  color: 'text-slate-600 dark:text-slate-400' },
                   { label: 'On Leave',    count: mgr.teamStatus.onLeave.length,     color: 'text-sky-600' },
                   { label: 'Absent',      count: mgr.teamStatus.absent.length,      color: 'text-red-600' },
                 ].map(({ label, count, color }) => (
                   <div key={label} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
                     <div className={`text-2xl font-bold ${color}`}>{count}</div>
-                    <div className="text-xs text-slate-500 mt-1">{label}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{label}</div>
                   </div>
                 ))}
               </div>
@@ -1605,7 +1605,7 @@ export function Attendance() {
                           <div className="font-medium text-sm text-slate-800 dark:text-slate-200">{u ? `${u.firstName} ${u.lastName}` : 'Unknown'}</div>
                           <Badge variant={group.variant} dot className="w-fit text-xs">{group.title}</Badge>
                           {item.checkInAt && (
-                            <div className="text-xs text-slate-500">{fmtTime(item.checkInAt)}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{fmtTime(item.checkInAt)}</div>
                           )}
                         </div>
                       )
@@ -1657,7 +1657,7 @@ export function Attendance() {
             {/* Filter bar */}
             <div className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
               <div className="flex flex-col gap-1 min-w-[180px]">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Employee</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Employee</label>
                 <select
                   value={staffHistoryUserId}
                   onChange={e => { setStaffHistoryUserId(e.target.value) }}
@@ -1670,7 +1670,7 @@ export function Attendance() {
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">From</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">From</label>
                 <input
                   type="date"
                   value={staffHistoryStart}
@@ -1679,7 +1679,7 @@ export function Attendance() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">To</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">To</label>
                 <input
                   type="date"
                   value={staffHistoryEnd}
@@ -1699,7 +1699,7 @@ export function Attendance() {
 
             {/* Results */}
             {mgr.loading ? (
-              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div>
+              <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400 dark:text-slate-500" /></div>
             ) : !staffHistoryUserId ? (
               <EmptyState icon={<Users size={32} />} text="Select an employee above to view their attendance history." />
             ) : mgr.historyRecords.length === 0 ? (
@@ -1710,7 +1710,7 @@ export function Attendance() {
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                       {['Date', 'Check In', 'Check Out', 'Hours', 'Overtime', 'Status', 'Flags'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1738,7 +1738,7 @@ export function Attendance() {
                           <td className="px-4 py-3">
                             {r.overtimeMinutes && r.overtimeMinutes > 0
                               ? <span className="text-emerald-600 font-medium text-xs">+{fmtMinutes(r.overtimeMinutes)}</span>
-                              : <span className="text-slate-400">—</span>}
+                              : <span className="text-slate-400 dark:text-slate-500">—</span>}
                           </td>
                           <td className="px-4 py-3">
                             {rowIsOffDay
@@ -1762,7 +1762,7 @@ export function Attendance() {
                   </tbody>
                 </table>
                 {mgr.historyTotal > mgr.historyRecords.length && (
-                  <div className="px-4 py-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800">
+                  <div className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
                     Showing {mgr.historyRecords.length} of {mgr.historyTotal} records
                   </div>
                 )}
@@ -1792,7 +1792,7 @@ export function Attendance() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     {['Employee','Date','Type','Details','Status','Action'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1812,7 +1812,7 @@ export function Attendance() {
                       <td className="px-4 py-3 font-medium">{e.user ? `${e.user.firstName} ${e.user.lastName}` : '—'}</td>
                       <td className="px-4 py-3">{fmtDate(e.record?.date)}</td>
                       <td className="px-4 py-3">{getExceptionBadge(e.type)}</td>
-                      <td className="px-4 py-3 text-slate-500">{e.details ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{e.details ?? '—'}</td>
                       <td className="px-4 py-3">
                         {e.isReviewed ? <Badge variant="success">Reviewed</Badge> : <Badge variant="warning">Pending</Badge>}
                       </td>
@@ -1863,7 +1863,7 @@ export function Attendance() {
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                       {['Date','Requested Check In','Requested Check Out','Reason','Status'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1873,7 +1873,7 @@ export function Attendance() {
                         <td className="px-4 py-3">{fmtDate(r.record?.date)}</td>
                         <td className="px-4 py-3">{fmtTime(r.requestedCheckIn)}</td>
                         <td className="px-4 py-3">{fmtTime(r.requestedCheckOut)}</td>
-                        <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{r.reason}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{r.reason}</td>
                         <td className="px-4 py-3">
                           <Badge variant={r.status === 'APPROVED' ? 'success' : r.status === 'REJECTED' ? 'danger' : 'warning'}>{r.status}</Badge>
                         </td>
@@ -1907,7 +1907,7 @@ export function Attendance() {
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                         {['Employee','Date','Current In/Out','Requested In/Out','Reason','Action'].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1916,9 +1916,9 @@ export function Attendance() {
                         <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                           <td className="px-4 py-3 font-medium">{r.user ? `${r.user.firstName} ${r.user.lastName}` : '—'}</td>
                           <td className="px-4 py-3">{fmtDate(r.record?.date)}</td>
-                          <td className="px-4 py-3 text-slate-500">{fmtTime(r.record?.firstCheckInAt ?? r.record?.checkInAt)} / {fmtTime(r.record?.checkOutAt)}</td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{fmtTime(r.record?.firstCheckInAt ?? r.record?.checkInAt)} / {fmtTime(r.record?.checkOutAt)}</td>
                           <td className="px-4 py-3">{fmtTime(r.requestedCheckIn)} / {fmtTime(r.requestedCheckOut)}</td>
-                          <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{r.reason}</td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{r.reason}</td>
                           <td className="px-4 py-3">
                             <button onClick={() => { setReviewRegModal({ request: r }); setReviewNote('') }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Review</button>
                           </td>
@@ -1957,7 +1957,7 @@ export function Attendance() {
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     {['Employee','Leave Type','From','To','Days','Reason','Action'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1974,7 +1974,7 @@ export function Attendance() {
                       <td className="px-4 py-3">{fmtDate(l.startDate)}</td>
                       <td className="px-4 py-3">{fmtDate(l.endDate)}</td>
                       <td className="px-4 py-3">{l.days}</td>
-                      <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{l.reason ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">{l.reason ?? '—'}</td>
                       <td className="px-4 py-3">
                         <button onClick={() => { setReviewLeaveModal({ request: l }); setReviewNote('') }} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Review</button>
                       </td>
@@ -2218,17 +2218,17 @@ export function Attendance() {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</div>
-      <div className="text-xl font-bold text-slate-900 dark:text-slate-100">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
+      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1 truncate">{label}</div>
+      <div className="text-sm sm:text-xl font-bold text-slate-900 dark:text-slate-100 leading-snug">{value}</div>
+      {sub && <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">{sub}</div>}
     </div>
   )
 }
 
 function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+    <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
       {icon}
       <p className="mt-3 text-sm">{text}</p>
     </div>

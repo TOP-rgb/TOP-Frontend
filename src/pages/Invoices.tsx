@@ -54,23 +54,19 @@ function isOverdue(inv: Invoice, overdueAfterDays = 0) {
   return cutoff < new Date()
 }
 
-const statusConfig: Record<InvoiceStatus, { label: string; color: string; bg: string; dot: string }> = {
-  draft:     { label: 'Draft',     color: '#6b7280', bg: '#f3f4f6', dot: '#9ca3af' },
-  sent:      { label: 'Sent',      color: '#2563eb', bg: '#eff6ff', dot: '#3b82f6' },
-  paid:      { label: 'Paid',      color: '#16a34a', bg: '#f0fdf4', dot: '#22c55e' },
-  overdue:   { label: 'Overdue',   color: '#dc2626', bg: '#fef2f2', dot: '#ef4444' },
-  cancelled: { label: 'Cancelled', color: '#64748b', bg: '#f8fafc', dot: '#94a3b8' },
+const statusConfig: Record<InvoiceStatus, { label: string; cls: string; dot: string }> = {
+  draft:     { label: 'Draft',     cls: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',      dot: '#9ca3af' },
+  sent:      { label: 'Sent',      cls: 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400',        dot: '#3b82f6' },
+  paid:      { label: 'Paid',      cls: 'bg-green-50 dark:bg-green-900/40 text-green-700 dark:text-green-400',    dot: '#22c55e' },
+  overdue:   { label: 'Overdue',   cls: 'bg-red-50 dark:bg-red-900/40 text-red-700 dark:text-red-400',            dot: '#ef4444' },
+  cancelled: { label: 'Cancelled', cls: 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400',       dot: '#94a3b8' },
 }
 
 function StatusPill({ status }: { status: InvoiceStatus }) {
   const cfg = statusConfig[status] ?? statusConfig.draft
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: 11, fontWeight: 700, color: cfg.color, background: cfg.bg,
-      padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '0.04em',
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, display: 'inline-block' }} />
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${cfg.cls}`}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, display: 'inline-block', flexShrink: 0 }} />
       {cfg.label}
     </span>
   )
@@ -80,14 +76,14 @@ function StatusPill({ status }: { status: InvoiceStatus }) {
 
 function StatCard({ label, value, sub, icon, color }: { label: string; value: string; sub: string; icon: React.ReactNode; color: string }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ width: 44, height: 44, borderRadius: 10, background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', lineHeight: 1.2 }}>{value}</div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{label}</div>
-        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{sub}</div>
+        <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>{value}</div>
+        <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, marginTop: 2 }}>{label}</div>
+        <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11, marginTop: 1 }}>{sub}</div>
       </div>
     </div>
   )
@@ -191,7 +187,7 @@ export function Invoices() {
   const statusFilters = ['all', 'draft', 'sent', 'paid', 'overdue', 'cancelled']
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10, color: '#6b7280' }}>
+    <div className="text-slate-500 dark:text-slate-400" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10 }}>
       <div style={{ width: 20, height: 20, border: '2px solid #e5e7eb', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       Loading invoices…
     </div>
@@ -202,8 +198,8 @@ export function Invoices() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Invoices</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}{filtered.length !== enriched.length ? ` (${enriched.length} total)` : ' total'}</p>
+          <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Invoices</h1>
+          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, margin: '3px 0 0' }}>{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}{filtered.length !== enriched.length ? ` (${enriched.length} total)` : ' total'}</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
@@ -223,16 +219,16 @@ export function Invoices() {
 
       {/* ── Overdue notification banner ───────────────────────────────── */}
       {notifyInvoiceOverdue && countOverdue > 0 && (
-        <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 34, height: 34, background: '#fee2e2', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50" style={{ borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="bg-red-100 dark:bg-red-900/40" style={{ width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Bell size={17} color="#dc2626" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c' }}>
+            <div className="text-red-700 dark:text-red-400" style={{ fontSize: 13, fontWeight: 700 }}>
               {countOverdue} invoice{countOverdue > 1 ? 's' : ''} overdue
               {overdueInvoiceDays > 0 && ` by more than ${overdueInvoiceDays} day${overdueInvoiceDays > 1 ? 's' : ''}`}
             </div>
-            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 3 }}>
+            <div className="text-red-500 dark:text-red-400" style={{ fontSize: 12, marginTop: 3 }}>
               {fmt(totalOverdue)} outstanding — filter by &ldquo;Overdue&rdquo; to review
             </div>
           </div>
@@ -246,19 +242,19 @@ export function Invoices() {
       )}
 
       {/* Table card */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 }}>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12 }}>
         {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 10 }}>
+        <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', flexWrap: 'wrap', gap: 10 }}>
           {/* Status filters */}
-          <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 8, padding: 3, overflowX: 'auto', maxWidth: '100%', flexShrink: 0 }} className="hide-scrollbar">
+          <div className="hide-scrollbar bg-slate-100 dark:bg-slate-800/60" style={{ display: 'flex', gap: 4, borderRadius: 8, padding: 3, overflowX: 'auto', maxWidth: '100%', flexShrink: 0 }}>
             {statusFilters.map(s => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
+                className={statusFilter === s ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}
                 style={{
                   padding: '5px 13px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                  background: statusFilter === s ? '#fff' : 'transparent',
-                  color: statusFilter === s ? '#1a1f36' : '#6b7280',
+                  background: statusFilter === s ? undefined : 'transparent',
                   boxShadow: statusFilter === s ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
                   textTransform: 'capitalize',
                 }}
@@ -267,13 +263,13 @@ export function Invoices() {
           </div>
           {/* Search */}
           <div style={{ position: 'relative', flex: 1, minWidth: 140 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+            <Search size={14} className="text-slate-400 dark:text-slate-500" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
             <input
               placeholder="Search invoices…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full sm:w-[220px]"
-              style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%' }}
+              className="w-full sm:w-[220px] bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-600"
+              style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, borderRadius: 7, fontSize: 13, outline: 'none', width: '100%' }}
             />
           </div>
         </div>
@@ -282,68 +278,68 @@ export function Invoices() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
+              <tr className="bg-slate-50 dark:bg-slate-800/60">
                 {['Invoice #', 'Client', 'Job', 'Issue Date', 'Due Date', `Amount (${currency})`, 'Status', 'Actions'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '56px 18px', color: '#9ca3af', fontSize: 14 }}>
+                  <td colSpan={8} className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '56px 18px', fontSize: 14 }}>
                     <FileText size={32} style={{ marginBottom: 10, opacity: 0.3, display: 'block', margin: '0 auto 10px' }} />
                     {search || statusFilter !== 'all' ? 'No invoices match your filters' : 'No invoices yet. Create your first invoice!'}
                   </td>
                 </tr>
               ) : paginatedInvoices.map((inv, i) => (
-                <tr key={inv.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <tr key={inv.id} className={`border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-800/80'}`}>
                   <td style={{ padding: '13px 18px', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1f36', fontFamily: 'monospace' }}>{inv.invoiceNumber}</span>
+                    <span className="text-slate-900 dark:text-slate-100" style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace' }}>{inv.invoiceNumber}</span>
                   </td>
                   <td style={{ padding: '13px 18px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36' }}>{inv.clientCompany}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{inv.clientEmail}</div>
+                    <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 13, fontWeight: 600 }}>{inv.clientCompany}</div>
+                    <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11 }}>{inv.clientEmail}</div>
                   </td>
                   <td style={{ padding: '13px 18px' }}>
-                    <div style={{ fontSize: 13, color: '#374151' }}>{inv.jobTitle}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{inv.jobRef}</div>
+                    <div className="text-slate-700 dark:text-slate-300" style={{ fontSize: 13 }}>{inv.jobTitle}</div>
+                    <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11, fontFamily: 'monospace' }}>{inv.jobRef}</div>
                   </td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(inv.issueDate, dateFormat)}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '13px 18px', fontSize: 13, whiteSpace: 'nowrap' }}>{fmtDate(inv.issueDate, dateFormat)}</td>
                   <td style={{ padding: '13px 18px', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontSize: 13, color: inv.status === 'overdue' ? '#dc2626' : '#6b7280', fontWeight: inv.status === 'overdue' ? 600 : 400 }}>{fmtDate(inv.dueDate, dateFormat)}</span>
+                    <span className={inv.status === 'overdue' ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'} style={{ fontSize: 13, fontWeight: inv.status === 'overdue' ? 600 : 400 }}>{fmtDate(inv.dueDate, dateFormat)}</span>
                   </td>
                   <td style={{ padding: '13px 18px', whiteSpace: 'nowrap' }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1f36' }}>{fmt(inv.total)}</div>
-                    {inv.taxRate > 0 && <div style={{ fontSize: 11, color: '#9ca3af' }}>incl. GST {fmt(inv.taxAmount)}</div>}
+                    <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 14, fontWeight: 700 }}>{fmt(inv.total)}</div>
+                    {inv.taxRate > 0 && <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11 }}>incl. GST {fmt(inv.taxAmount)}</div>}
                   </td>
                   <td style={{ padding: '13px 18px' }}><StatusPill status={inv.status} /></td>
                   <td style={{ padding: '13px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {/* View */}
-                      <button onClick={() => setViewInvoice(inv)} title="View Invoice" style={actionBtn}>
+                      <button onClick={() => setViewInvoice(inv)} title="View Invoice" className={actionBtnClass} style={actionBtn}>
                         <Eye size={14} />
                       </button>
                       {/* Edit (draft only) */}
                       {inv.status === 'draft' && (
-                        <button onClick={() => setEditInvoice(inv)} title="Edit Invoice" style={actionBtn}>
+                        <button onClick={() => setEditInvoice(inv)} title="Edit Invoice" className={actionBtnClass} style={actionBtn}>
                           <FileText size={14} />
                         </button>
                       )}
                       {/* Quick status */}
                       {inv.status === 'draft' && (
-                        <button onClick={() => handleStatusChange(inv, 'sent')} title="Mark Sent" style={{ ...actionBtn, color: '#2563eb', borderColor: '#bfdbfe' }}>
+                        <button onClick={() => handleStatusChange(inv, 'sent')} title="Mark Sent" className="text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-700 dark:border-blue-700" style={{ ...actionBtn, borderColor: '#bfdbfe' }}>
                           <Send size={14} />
                         </button>
                       )}
                       {(inv.status === 'sent' || inv.status === 'overdue') && (
-                        <button onClick={() => handleStatusChange(inv, 'paid')} title="Mark Paid" style={{ ...actionBtn, color: '#16a34a', borderColor: '#bbf7d0' }}>
+                        <button onClick={() => handleStatusChange(inv, 'paid')} title="Mark Paid" className="text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-700 dark:border-emerald-700" style={{ ...actionBtn, borderColor: '#bbf7d0' }}>
                           <DollarSign size={14} />
                         </button>
                       )}
                       {/* Delete (draft only, admin) */}
                       {inv.status === 'draft' && user?.role === 'admin' && (
-                        <button onClick={() => handleDelete(inv)} title="Delete" style={{ ...actionBtn, color: '#dc2626', borderColor: '#fecaca' }}>
+                        <button onClick={() => handleDelete(inv)} title="Delete" className="text-red-600 dark:text-red-400 bg-white dark:bg-slate-700 dark:border-red-700" style={{ ...actionBtn, borderColor: '#fecaca' }}>
                           <Trash2 size={14} />
                         </button>
                       )}
@@ -355,7 +351,7 @@ export function Invoices() {
           </table>
         </div>
         {/* Pagination */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9' }}>
+        <div className="border-t border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 20px' }}>
           <Pagination
             total={filtered.length}
             page={invPage}
@@ -426,9 +422,10 @@ export function Invoices() {
 }
 
 const actionBtn: React.CSSProperties = {
-  padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff',
-  color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center',
+  padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6,
+  cursor: 'pointer', display: 'flex', alignItems: 'center',
 }
+const actionBtnClass = 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 dark:border-slate-600'
 
 // ── Create Invoice Modal ──────────────────────────────────────────────────────
 
@@ -771,7 +768,7 @@ function InvoicePreviewModal({ open, invoice, currency, currencySymbol, dateForm
 
   return (
     <Modal open={open} onClose={onClose} title="" size="full">
-      <div style={{ margin: -24, background: '#f1f5f9' }}>
+      <div className="bg-slate-100 dark:bg-slate-900" style={{ margin: -24 }}>
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: '#1a1f36', borderBottom: '1px solid #2d3748' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

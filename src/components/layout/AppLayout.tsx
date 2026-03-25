@@ -31,7 +31,7 @@ export function AppLayout() {
   }, [location.pathname, isMobile, setSidebarOpen])
 
   return (
-    <div className="min-h-screen bg-slate-100 relative">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 relative">
       <Sidebar />
       <Topbar pageTitle={title} />
 
@@ -48,7 +48,6 @@ export function AppLayout() {
         style={{
           marginLeft: isMobile ? 0 : `${sidebarWidth}px`,
           marginTop: '60px',
-          overflowX: 'hidden',
         }}
       >
         <div className="p-4 sm:p-6 lg:p-8 xl:p-10">

@@ -2,12 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>top-internal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- PWA -->
+    <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <meta name="theme-color" content="#1a1f36" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TOP" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- App meta -->
+    <meta name="description" content="TOP Jobs internal management platform" />
+    <title>TOP Internal</title>
   </head>
   <body>
     <div id="root"></div>
+    <!-- Apply saved theme before React mounts to prevent flash -->
+    <script>
+      try {
+        const t = localStorage.getItem('top-theme')
+        if (t === 'dark') document.documentElement.classList.add('dark')
+      } catch(e) {}
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

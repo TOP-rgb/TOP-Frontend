@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useUIStore } from '@/store/uiStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import {
@@ -45,6 +46,7 @@ const ICON_BG_ACTIVE = '#3b82f6'   // blue-500
 export function Sidebar() {
   const { user, logout } = useAuthStore()
   const { sidebarCollapsed, toggleCollapsed, sidebarOpen, setSidebarOpen, notificationCount } = useUIStore()
+  const { orgLogoUrl, orgName } = useSettingsStore()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
 
@@ -77,17 +79,23 @@ export function Sidebar() {
         }}
       >
         {sidebarCollapsed ? (
-          <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center font-black text-lg text-[#0f172a] mx-auto">
-            {user?.organizationName?.[0]?.toUpperCase() ?? 'T'}
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-lg mx-auto overflow-hidden ${orgLogoUrl ? 'bg-white p-1' : 'bg-white text-[#0f172a]'}`}>
+            {orgLogoUrl
+              ? <img src={orgLogoUrl} alt="logo" className="w-full h-full object-contain" />
+              : (orgName || user?.organizationName || 'T')[0]?.toUpperCase()
+            }
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center font-black text-lg text-[#0f172a]">
-              {user?.organizationName?.[0]?.toUpperCase() ?? 'T'}
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-lg overflow-hidden shrink-0 ${orgLogoUrl ? 'bg-white p-1' : 'bg-white text-[#0f172a]'}`}>
+              {orgLogoUrl
+                ? <img src={orgLogoUrl} alt="logo" className="w-full h-full object-contain" />
+                : (orgName || user?.organizationName || 'T')[0]?.toUpperCase()
+              }
             </div>
-            <div className="leading-tight">
+            <div className="leading-tight min-w-0">
               <div className="text-white font-black text-xl tracking-tight truncate max-w-[130px]">
-                {user?.organizationName || 'TOP'}
+                {orgName || user?.organizationName || 'TOP'}
               </div>
               <div className="text-slate-400 text-[10px] mt-0.5 font-medium">Job Management</div>
             </div>

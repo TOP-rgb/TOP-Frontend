@@ -124,10 +124,10 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
   ].filter(e => e.value > 0)
 
   const KPI = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: '16px 20px' }}>
-      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1f36', margin: '6px 0 2px' }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: '#9ca3af' }}>{sub}</div>}
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: '16px 20px' }}>
+      <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+      <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 26, fontWeight: 700, margin: '6px 0 2px' }}>{value}</div>
+      {sub && <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>{sub}</div>}
     </div>
   )
 
@@ -144,8 +144,8 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
 
       {/* Daily trend */}
       {d.dailyTrend.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1f36', marginBottom: 14 }}>Daily Attendance Trend</div>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: 20 }}>
+          <div className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Daily Attendance Trend</div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={d.dailyTrend} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -164,8 +164,8 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 20 }}>
         {/* Exception breakdown */}
         {excData.length > 0 && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1f36', marginBottom: 14 }}>Exception Breakdown</div>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: 20 }}>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Exception Breakdown</div>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie data={excData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
@@ -179,8 +179,8 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
 
         {/* Leave by type */}
         {d.leaveByType.length > 0 && (
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1f36', marginBottom: 14 }}>Leave Days by Type</div>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: 20 }}>
+            <div className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Leave Days by Type</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={d.leaveByType} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -198,21 +198,21 @@ function AttendanceTab({ d }: { d: AttendanceStats }) {
 
       {/* By employee table */}
       {d.byEmployee.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 20px', fontWeight: 700, fontSize: 14, color: '#1a1f36', borderBottom: '1px solid #e5e7eb' }}>By Employee</div>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, overflow: 'hidden' }}>
+          <div className="text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700" style={{ padding: '14px 20px', fontWeight: 700, fontSize: 14 }}>By Employee</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr className="bg-slate-50 dark:bg-slate-800/60">
                   {['Employee', 'Present', 'Late', 'Absent', 'OT Hours', 'Leave Days'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+                    <th key={h} className="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700" style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {d.byEmployee.map(e => (
-                  <tr key={e.userId} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '10px 16px', fontWeight: 600, color: '#1a1f36' }}>{e.name}</td>
+                  <tr key={e.userId} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td className="text-slate-900 dark:text-slate-100" style={{ padding: '10px 16px', fontWeight: 600 }}>{e.name}</td>
                     <td style={{ padding: '10px 16px', color: '#10b981', fontWeight: 600 }}>{e.present}</td>
                     <td style={{ padding: '10px 16px', color: '#f59e0b' }}>{e.late}</td>
                     <td style={{ padding: '10px 16px', color: '#ef4444' }}>{e.absent}</td>
@@ -338,8 +338,8 @@ function KpiCard({
   label: string; value: string; sub?: string; icon: React.ReactNode; color: string
 }) {
   return (
-    <div style={{
-      background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px',
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{
+      borderRadius: 12, padding: '18px 20px',
       display: 'flex', alignItems: 'center', gap: 14,
     }}>
       <div style={{
@@ -349,9 +349,9 @@ function KpiCard({
         {icon}
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1f36', lineHeight: 1.2 }}>{value}</div>
-        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{label}</div>
-        {sub && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{sub}</div>}
+        <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>{value}</div>
+        <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, marginTop: 2 }}>{label}</div>
+        {sub && <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11, marginTop: 1 }}>{sub}</div>}
       </div>
     </div>
   )
@@ -359,9 +359,9 @@ function KpiCard({
 
 function Card({ title, children, badge }: { title: string; children: React.ReactNode; badge?: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 22px', minWidth: 0 }}>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: '20px 22px', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1f36', margin: 0 }}>{title}</h3>
+        <h3 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>{title}</h3>
         {badge}
       </div>
       {children}
@@ -386,7 +386,7 @@ function StatusPill({ status, colors }: { status: string; colors: Record<string,
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div style={{ textAlign: 'center', padding: '40px 16px', color: '#9ca3af' }}>
+    <div className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '40px 16px' }}>
       <BarChart2 size={28} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
       <div style={{ fontSize: 13 }}>{text}</div>
     </div>
@@ -445,9 +445,9 @@ function OverviewTab({ d }: { d: ReportsData['overview'] }) {
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[e.status] ?? '#94a3b8', flexShrink: 0 }} />
-                      <span style={{ color: '#6b7280', textTransform: 'capitalize' }}>{e.status.replace(/_/g, ' ')}</span>
+                      <span className="text-slate-500 dark:text-slate-400" style={{ textTransform: 'capitalize' }}>{e.status.replace(/_/g, ' ')}</span>
                     </div>
-                    <span style={{ fontWeight: 600, color: '#1a1f36' }}>{e.count}</span>
+                    <span className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 600 }}>{e.count}</span>
                   </div>
                 ))}
               </div>
@@ -496,21 +496,21 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: '#f9fafb' }}>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60">
                     {['Job', 'Client', `Revenue (${currency})`, 'Margin', 'Status'].map(h => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th key={h} className="text-slate-500 dark:text-slate-400" style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {d.topJobsByRevenue.map((j, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <tr key={i} className="border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                       <td style={{ padding: '9px 10px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 600, color: '#1a1f36', fontFamily: 'monospace', fontSize: 11 }}>{j.jobId}</div>
-                        <div style={{ color: '#6b7280', fontSize: 11, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.title}</div>
+                        <div className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 11 }}>{j.jobId}</div>
+                        <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{j.title}</div>
                       </td>
-                      <td style={{ padding: '9px 10px', color: '#6b7280', whiteSpace: 'nowrap', fontSize: 11 }}>{j.client}</td>
-                      <td style={{ padding: '9px 10px', fontWeight: 600, color: '#1a1f36', whiteSpace: 'nowrap' }}>{fmt(j.revenue)}</td>
+                      <td className="text-slate-500 dark:text-slate-400" style={{ padding: '9px 10px', whiteSpace: 'nowrap', fontSize: 11 }}>{j.client}</td>
+                      <td className="text-slate-900 dark:text-slate-100" style={{ padding: '9px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(j.revenue)}</td>
                       <td style={{ padding: '9px 10px', whiteSpace: 'nowrap' }}>
                         <span style={{ color: j.margin >= 30 ? '#16a34a' : j.margin >= 10 ? '#d97706' : '#dc2626', fontWeight: 600 }}>
                           {j.margin.toFixed(1)}%
@@ -547,9 +547,9 @@ function JobsTab({ d, overview }: { d: ReportsData['jobs']; overview: ReportsDat
             <tbody>
               {d.overdueJobs.map((j, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #fee2e2' }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 600, color: '#1a1f36', fontFamily: 'monospace', fontSize: 11 }}>{j.jobId}</td>
-                  <td style={{ padding: '10px 12px', color: '#6b7280', fontSize: 12 }}>{j.client}</td>
-                  <td style={{ padding: '10px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDate(j.deadline, dateFormat)}</td>
+                  <td className="text-slate-900 dark:text-slate-100" style={{ padding: '10px 12px', fontWeight: 600, fontFamily: 'monospace', fontSize: 11 }}>{j.jobId}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '10px 12px', fontSize: 12 }}>{j.client}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>{fmtDate(j.deadline, dateFormat)}</td>
                   <td style={{ padding: '10px 12px' }}>
                     <span style={{ fontWeight: 700, color: '#dc2626' }}>{j.daysOverdue}d</span>
                   </td>
@@ -626,9 +626,9 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
                     <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 8, height: 8, borderRadius: '50%', background: e.color, flexShrink: 0 }} />
-                        <span style={{ color: '#6b7280' }}>{e.label}</span>
+                        <span className="text-slate-500 dark:text-slate-400">{e.label}</span>
                       </div>
-                      <span style={{ fontWeight: 600, color: '#1a1f36' }}>{e.value.toFixed(1)}h</span>
+                      <span className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 600 }}>{e.value.toFixed(1)}h</span>
                     </div>
                   ))}
                 </div>
@@ -643,21 +643,21 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
           <div className="overflow-x-auto">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
+              <tr className="bg-slate-50 dark:bg-slate-800/60">
                 {['Employee', 'Total Hours', 'Billable Hours', 'Billable %', 'Entries'].map(h => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} className="text-slate-500 dark:text-slate-400" style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {d.byEmployee.map((e, i) => (
-                <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1a1f36' }}>{e.name}</td>
-                  <td style={{ padding: '10px 14px', color: '#374151' }}>{e.totalHours.toFixed(1)}h</td>
-                  <td style={{ padding: '10px 14px', color: '#374151' }}>{e.billableHours.toFixed(1)}h</td>
+                <tr key={i} className="border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="text-slate-900 dark:text-slate-100" style={{ padding: '10px 14px', fontWeight: 600 }}>{e.name}</td>
+                  <td className="text-slate-700 dark:text-slate-300" style={{ padding: '10px 14px' }}>{e.totalHours.toFixed(1)}h</td>
+                  <td className="text-slate-700 dark:text-slate-300" style={{ padding: '10px 14px' }}>{e.billableHours.toFixed(1)}h</td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ flex: 1, height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden', maxWidth: 80 }}>
+                      <div className="bg-slate-100 dark:bg-slate-700" style={{ flex: 1, height: 6, borderRadius: 3, overflow: 'hidden', maxWidth: 80 }}>
                         <div style={{ width: `${e.billablePct}%`, height: '100%', background: '#3b82f6', borderRadius: 3 }} />
                       </div>
                       <span style={{ fontWeight: 600, color: e.billablePct >= 70 ? '#16a34a' : e.billablePct >= 40 ? '#d97706' : '#dc2626', minWidth: 32 }}>
@@ -665,7 +665,7 @@ function TimeTab({ d }: { d: ReportsData['time'] }) {
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: '10px 14px', color: '#6b7280' }}>{e.entryCount}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '10px 14px' }}>{e.entryCount}</td>
                 </tr>
               ))}
             </tbody>
@@ -728,9 +728,9 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: INVOICE_COLORS[e.status] ?? '#94a3b8', flexShrink: 0 }} />
-                      <span style={{ color: '#6b7280', textTransform: 'capitalize' }}>{e.status}</span>
+                      <span className="text-slate-500 dark:text-slate-400" style={{ textTransform: 'capitalize' }}>{e.status}</span>
                     </div>
-                    <span style={{ fontWeight: 600, color: '#1a1f36' }}>{e.count}</span>
+                    <span className="text-slate-900 dark:text-slate-100" style={{ fontWeight: 600 }}>{e.count}</span>
                   </div>
                 ))}
               </div>
@@ -744,30 +744,30 @@ function FinanceTab({ d }: { d: ReportsData['finance'] }) {
           <div className="overflow-x-auto">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
+              <tr className="bg-slate-50 dark:bg-slate-800/60">
                 {['Client', `Invoiced (${currency})`, `Collected (${currency})`, `Outstanding (${currency})`, 'Paid %'].map(h => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} className="text-slate-500 dark:text-slate-400" style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {d.topClientsByRevenue.map((c, i) => (
-                <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1a1f36' }}>{c.company}</td>
-                  <td style={{ padding: '10px 14px', fontWeight: 600, color: '#1a1f36' }}>{fmt(c.invoiced)}</td>
+                <tr key={i} className="border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="text-slate-900 dark:text-slate-100" style={{ padding: '10px 14px', fontWeight: 600 }}>{c.company}</td>
+                  <td className="text-slate-900 dark:text-slate-100" style={{ padding: '10px 14px', fontWeight: 600 }}>{fmt(c.invoiced)}</td>
                   <td style={{ padding: '10px 14px', color: '#16a34a', fontWeight: 600 }}>{fmt(c.collected)}</td>
-                  <td style={{ padding: '10px 14px', color: c.outstanding > 0 ? '#d97706' : '#6b7280', fontWeight: c.outstanding > 0 ? 600 : 400 }}>
+                  <td className={c.outstanding > 0 ? '' : 'text-slate-400 dark:text-slate-500'} style={{ padding: '10px 14px', color: c.outstanding > 0 ? '#d97706' : undefined, fontWeight: c.outstanding > 0 ? 600 : 400 }}>
                     {fmt(c.outstanding)}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 60, height: 5, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                      <div className="bg-slate-100 dark:bg-slate-700" style={{ width: 60, height: 5, borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{
                           width: `${c.invoiced > 0 ? Math.round((c.collected / c.invoiced) * 100) : 0}%`,
                           height: '100%', background: '#22c55e', borderRadius: 3,
                         }} />
                       </div>
-                      <span style={{ fontSize: 10, color: '#9ca3af' }}>
+                      <span className="text-slate-400 dark:text-slate-500" style={{ fontSize: 10 }}>
                         {c.invoiced > 0 ? Math.round((c.collected / c.invoiced) * 100) : 0}%
                       </span>
                     </div>
@@ -820,8 +820,8 @@ export function Reports() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Reports & Analytics</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', margin: '3px 0 0' }}>Insights across jobs, time, and finances</p>
+          <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Reports & Analytics</h1>
+          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, margin: '3px 0 0' }}>Insights across jobs, time, and finances</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Download CSV */}
@@ -829,10 +829,11 @@ export function Reports() {
             onClick={handleDownload}
             disabled={activeTab === 'attendance' ? (!attendanceStats || attendanceLoading) : (!data || loading)}
             title={`Download ${activeTab} report as CSV`}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
-              padding: '9px 16px', borderRadius: 8, border: '1px solid #e5e7eb',
-              background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13,
+              padding: '9px 16px', borderRadius: 8,
+              fontWeight: 600, fontSize: 13,
               cursor: (activeTab === 'attendance' ? (attendanceStats && !attendanceLoading) : (data && !loading)) ? 'pointer' : 'not-allowed',
               opacity: (activeTab === 'attendance' ? (attendanceStats && !attendanceLoading) : (data && !loading)) ? 1 : 0.5,
             }}
@@ -844,9 +845,10 @@ export function Reports() {
           <select
             value={range}
             onChange={e => setRange(e.target.value as DateRange)}
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
             style={{
-              background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
-              padding: '9px 14px', fontSize: 13, fontWeight: 500, color: '#374151',
+              borderRadius: 8,
+              padding: '9px 14px', fontSize: 13, fontWeight: 500,
               cursor: 'pointer', outline: 'none',
             }}
           >
@@ -858,17 +860,19 @@ export function Reports() {
       </div>
 
       {/* Tab bar */}
-      <div className="hide-scrollbar" style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 10, padding: 4, marginBottom: 20, overflowX: 'auto', maxWidth: '100%' }}>
+      <div className="hide-scrollbar bg-slate-100 dark:bg-slate-800/60" style={{ display: 'flex', gap: 4, borderRadius: 10, padding: 4, marginBottom: 20, overflowX: 'auto', maxWidth: '100%' }}>
         {TABS.filter(t => !t.managerOnly || isManager).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            className={activeTab === tab.id
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100'
+              : 'text-slate-500 dark:text-slate-100 hover:text-slate-700 dark:hover:text-white'}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '7px 18px', borderRadius: 7, border: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
-              background: activeTab === tab.id ? '#fff' : 'transparent',
-              color: activeTab === tab.id ? '#1a1f36' : '#6b7280',
+              background: activeTab === tab.id ? undefined : 'transparent',
               boxShadow: activeTab === tab.id ? '0 1px 4px rgba(0,0,0,.08)' : 'none',
               transition: 'all 0.15s',
             }}
@@ -881,18 +885,18 @@ export function Reports() {
 
       {/* Loading */}
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10, color: '#6b7280' }}>
-          <div style={{ width: 20, height: 20, border: '2px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <div className="text-slate-500 dark:text-slate-400" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10 }}>
+          <div className="border-2 border-slate-200 dark:border-slate-700 border-t-blue-600" style={{ width: 20, height: 20, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           Loading reports…
         </div>
       )}
 
       {/* Error */}
       {!loading && error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '16px 20px', color: '#dc2626', fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '16px 20px', color: '#dc2626', fontSize: 13 }} className="dark:bg-red-950/30 dark:border-red-900/50 dark:text-red-400">
           <AlertCircle size={16} />
           <span>{error}</span>
-          <button onClick={() => setRange(r => r)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+          <button onClick={() => setRange(r => r)} className="text-red-600 dark:text-red-400" style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
             <RefreshCw size={12} /> Retry
           </button>
         </div>
@@ -909,16 +913,16 @@ export function Reports() {
       )}
       {activeTab === 'attendance' && isManager && (
         attendanceLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10, color: '#6b7280' }}>
-            <div style={{ width: 20, height: 20, border: '2px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <div className="text-slate-500 dark:text-slate-400" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, gap: 10 }}>
+            <div className="border-2 border-slate-200 dark:border-slate-700 border-t-blue-600" style={{ width: 20, height: 20, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             Loading attendance data…
           </div>
         ) : attendanceStats ? (
           <AttendanceTab d={attendanceStats} />
         ) : (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+          <div className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '60px 20px' }}>
             <ScanLine size={40} style={{ margin: '0 auto 12px', opacity: 0.25 }} />
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>No attendance data</div>
+            <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 15, fontWeight: 600 }}>No attendance data</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>Attendance data will appear after employees start checking in</div>
           </div>
         )
@@ -926,9 +930,9 @@ export function Reports() {
 
       {/* No data yet */}
       {!loading && !error && !data && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+        <div className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <BarChart2 size={40} style={{ margin: '0 auto 12px', opacity: 0.25 }} />
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>No data available</div>
+          <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 15, fontWeight: 600 }}>No data available</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>Reports will appear once you have jobs, time entries, or invoices</div>
         </div>
       )}

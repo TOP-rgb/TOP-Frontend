@@ -4,6 +4,8 @@ import { Toaster } from 'sonner'
 import { useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useUIStore } from '@/store/uiStore'
+import { useDynamicFavicon } from '@/hooks/useDynamicFavicon'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
@@ -30,11 +32,21 @@ import type { UserRole } from '@/types'
 function LoadSettings() {
   const { isAuthenticated } = useAuthStore()
   const { loadSettings, loaded } = useSettingsStore()
+  const { theme } = useUIStore()
   useEffect(() => {
     if (isAuthenticated && !loaded) {
       loadSettings()
     }
   }, [isAuthenticated, loaded, loadSettings])
+  useEffect(() => {
+    const html = document.documentElement
+    if (theme === 'dark') {
+      html.classList.add('dark')
+    } else {
+      html.classList.remove('dark')
+    }
+  }, [theme])
+  useDynamicFavicon()
   return null
 }
 

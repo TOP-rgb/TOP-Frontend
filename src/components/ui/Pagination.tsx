@@ -40,11 +40,10 @@ export function Pagination({
     return pages
   }
 
-  const btnBase: React.CSSProperties = {
+  const btnLayout: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 32, height: 32, padding: '0 8px',
-    borderRadius: 6, border: '1px solid #e5e7eb',
-    fontSize: 13, fontWeight: 500, cursor: 'pointer',
+    borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer',
     lineHeight: 1,
   }
 
@@ -52,24 +51,21 @@ export function Pagination({
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
 
       {/* Left: showing X–Y of Z */}
-      <span style={{ fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>
+      <span className="text-slate-500 dark:text-slate-300" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
         Showing {from}–{to} of {total} result{total !== 1 ? 's' : ''}
       </span>
 
       {/* Centre: page size selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontSize: 12, color: '#9ca3af', marginRight: 4 }}>Rows:</span>
+        <span className="text-slate-400 dark:text-slate-400" style={{ fontSize: 12, marginRight: 4 }}>Rows:</span>
         {pageSizeOptions.map(n => (
           <button
             key={n}
             onClick={() => onPageSizeChange(n)}
-            style={{
-              ...btnBase,
-              background: pageSize === n ? '#2563eb' : '#f3f4f6',
-              color: pageSize === n ? '#fff' : '#6b7280',
-              border: pageSize === n ? '1px solid #2563eb' : '1px solid #e5e7eb',
-              fontWeight: pageSize === n ? 700 : 500,
-            }}
+            className={pageSize === n
+              ? 'bg-blue-600 text-white border border-blue-600'
+              : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600'}
+            style={{ ...btnLayout, fontWeight: pageSize === n ? 700 : 500 }}
           >{n}</button>
         ))}
       </div>
@@ -81,12 +77,8 @@ export function Pagination({
           <button
             onClick={() => !isFirst && onPageChange(page - 1)}
             disabled={isFirst}
-            style={{
-              ...btnBase,
-              background: '#f3f4f6', color: '#6b7280',
-              opacity: isFirst ? 0.4 : 1,
-              cursor: isFirst ? 'not-allowed' : 'pointer',
-            }}
+            className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600"
+            style={{ ...btnLayout, opacity: isFirst ? 0.4 : 1, cursor: isFirst ? 'not-allowed' : 'pointer' }}
             aria-label="Previous page"
           >
             <ChevronLeft size={14} />
@@ -95,18 +87,15 @@ export function Pagination({
           {/* Page numbers */}
           {getPageNums().map((n, i) =>
             n === '...'
-              ? <span key={`ellipsis-${i}`} style={{ fontSize: 13, color: '#9ca3af', padding: '0 4px' }}>…</span>
+              ? <span key={`ellipsis-${i}`} className="text-slate-400 dark:text-slate-500" style={{ fontSize: 13, padding: '0 4px' }}>…</span>
               : (
                 <button
                   key={n}
                   onClick={() => onPageChange(n as number)}
-                  style={{
-                    ...btnBase,
-                    background: page === n ? '#2563eb' : '#f3f4f6',
-                    color: page === n ? '#fff' : '#6b7280',
-                    border: page === n ? '1px solid #2563eb' : '1px solid #e5e7eb',
-                    fontWeight: page === n ? 700 : 500,
-                  }}
+                  className={page === n
+                    ? 'bg-blue-600 text-white border border-blue-600'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600'}
+                  style={{ ...btnLayout, fontWeight: page === n ? 700 : 500 }}
                 >{n}</button>
               )
           )}
@@ -115,12 +104,8 @@ export function Pagination({
           <button
             onClick={() => !isLast && onPageChange(page + 1)}
             disabled={isLast}
-            style={{
-              ...btnBase,
-              background: '#f3f4f6', color: '#6b7280',
-              opacity: isLast ? 0.4 : 1,
-              cursor: isLast ? 'not-allowed' : 'pointer',
-            }}
+            className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600"
+            style={{ ...btnLayout, opacity: isLast ? 0.4 : 1, cursor: isLast ? 'not-allowed' : 'pointer' }}
             aria-label="Next page"
           >
             <ChevronRight size={14} />

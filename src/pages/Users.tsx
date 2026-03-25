@@ -18,6 +18,12 @@ const roleTabs: { key: 'all' | UserRole; label: string }[] = [
 export function Users() {
   const { user: currentUser } = useAuthStore()
   const { notifyNewUser } = useSettingsStore()
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | UserRole>('all')
   const [showModal, setShowModal] = useState(false)
@@ -27,7 +33,7 @@ export function Users() {
   const { users, loading, error, deactivateUser, updateUser, createUser, deleteUser } = useUsers()
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
+    <div className="flex items-center justify-center h-64 gap-3 text-slate-500 dark:text-slate-400">
       <Loader2 className="animate-spin" size={20} />
       <span className="text-sm">Loading users...</span>
     </div>
@@ -86,7 +92,7 @@ export function Users() {
     <div style={{ fontFamily: 'inherit' }}>
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>User Management</h1>
+        <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>User Management</h1>
         {currentUser?.role === 'admin' && (
           <button
             onClick={() => { setSelectedUser(null); setShowModal(true) }}
@@ -99,20 +105,20 @@ export function Users() {
 
       {/* ── New user notification banner ──────────────────────────────── */}
       {recentUsers.length > 0 && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 34, height: 34, background: '#dcfce7', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div className="dark:bg-green-900/20 dark:border-green-700/50" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="bg-green-100 dark:bg-green-900/40" style={{ width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <UserPlus size={17} color="#16a34a" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d' }}>
+            <div className="text-green-700 dark:text-green-400" style={{ fontSize: 13, fontWeight: 700 }}>
               {recentUsers.length} new team member{recentUsers.length > 1 ? 's' : ''} joined in the last 7 days
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
               {recentUsers.map(u => (
-                <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, background: '#fff', border: '1px solid #86efac', fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+                <span key={u.id} className="bg-white dark:bg-slate-700 dark:border-green-700/50 text-green-700 dark:text-green-400" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 20, border: '1px solid #86efac', fontSize: 12, fontWeight: 600 }}>
                   <Bell size={9} />
                   {u.name}
-                  <span style={{ fontWeight: 400, color: '#4ade80', fontSize: 11 }}>{u.joinedDate}</span>
+                  <span className="text-green-400 dark:text-green-500" style={{ fontWeight: 400, fontSize: 11 }}>{u.joinedDate}</span>
                 </span>
               ))}
             </div>
@@ -121,37 +127,47 @@ export function Users() {
       )}
 
       {/* Table Card */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <div className="bg-white dark:bg-slate-800 dark:border-slate-700" style={{ borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
         {/* Tabs + Search toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9' }}>
+        <div className="dark:border-slate-700/50" style={{
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          padding: isMobile ? '0 12px' : '0 20px',
+          borderBottom: '1px solid #f1f3f9',
+          gap: isMobile ? 0 : 0,
+        }}>
           {/* Role tabs */}
           <div className="hide-scrollbar" style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
             {roleTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
+                className={activeTab === tab.key ? 'text-blue-600' : 'text-slate-500 dark:text-slate-100 hover:text-slate-700 dark:hover:text-white'}
                 style={{
-                  padding: '14px 16px', border: 'none', borderBottom: activeTab === tab.key ? '2px solid #2563eb' : '2px solid transparent',
+                  padding: isMobile ? '10px 12px' : '14px 16px',
+                  border: 'none', borderBottom: activeTab === tab.key ? '2px solid #2563eb' : '2px solid transparent',
                   background: 'transparent', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                  color: activeTab === tab.key ? '#2563eb' : '#6b7280', whiteSpace: 'nowrap',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {tab.label}
-                <span style={{ marginLeft: 6, padding: '2px 7px', borderRadius: 20, background: '#f3f4f6', fontSize: 11, color: '#6b7280' }}>
+                <span className="bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400" style={{ marginLeft: 6, padding: '2px 7px', borderRadius: 20, fontSize: 11 }}>
                   {counts[tab.key]}
                 </span>
               </button>
             ))}
           </div>
           {/* Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+          <div className="dark:border-slate-700/50" style={{ padding: isMobile ? '8px 0' : '10px 0', borderTop: isMobile ? '1px solid #f1f3f9' : 'none' }}>
             <div style={{ position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
               <input
                 placeholder="Search users..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', maxWidth: 200 }}
+                className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', maxWidth: isMobile ? '100%' : 200 }}
               />
             </div>
           </div>
@@ -161,30 +177,30 @@ export function Users() {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
+              <tr className="bg-slate-50 dark:bg-slate-900/50">
                 {['Name', 'Role', 'Department', 'Email', 'Phone', 'Status', 'Actions'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No users found</td></tr>
+                <tr><td colSpan={7} className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '48px 18px', fontSize: 14 }}>No users found</td></tr>
               ) : filtered.map((user, i) => (
-                <tr key={user.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <tr key={user.id} className={`dark:border-slate-700/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900/50'}`} style={{ borderTop: '1px solid #f1f3f9' }}>
                   <td style={{ padding: '13px 18px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Avatar name={user.name} size="sm" />
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1f36' }}>{user.name}</div>
-                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>Joined {user.joinedDate}</div>
+                        <div className="text-slate-900 dark:text-slate-100" style={{ fontSize: 14, fontWeight: 600 }}>{user.name}</div>
+                        <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12, marginTop: 2 }}>Joined {user.joinedDate}</div>
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#374151', textTransform: 'capitalize' }}>{user.role}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280' }}>{user.department || '—'}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{user.email}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280' }}>{user.phone || '—'}</td>
+                  <td className="text-slate-700 dark:text-slate-300" style={{ padding: '13px 18px', fontSize: 13, textTransform: 'capitalize' }}>{user.role}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '13px 18px', fontSize: 13 }}>{user.department || '—'}</td>
+                  <td className="text-slate-700 dark:text-slate-300" style={{ padding: '13px 18px', fontSize: 13 }}>{user.email}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '13px 18px', fontSize: 13 }}>{user.phone || '—'}</td>
                   <td style={{ padding: '13px 18px' }}>
                     <span style={{ color: user.status === 'active' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 13 }}>
                       {user.status.toUpperCase()}
@@ -194,24 +210,27 @@ export function Users() {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
                         onClick={() => { setSelectedUser(user); setShowModal(true) }}
-                        style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#6b7280' }}
+                        className="bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                        style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', color: '#6b7280' }}
                         title="Edit"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => toggleStatus(user.id)}
-                        style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: user.status === 'active' ? '#dc2626' : '#16a34a' }}
+                        className="bg-white dark:bg-slate-700 dark:border-slate-600"
+                        style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', color: user.status === 'active' ? '#dc2626' : '#16a34a' }}
                         title={user.status === 'active' ? 'Deactivate' : 'Activate'}
                       >
                         {user.status === 'active' ? <UserX size={14} /> : <UserCheck size={14} />}
                       </button>
-                      
+
                       {/* Delete button - only for admins and not current user */}
                       {currentUser?.role === 'admin' && currentUser.id !== user.id && (
                         <button
                           onClick={() => handleDelete(user.id)}
-                          style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#dc2626' }}
+                          className="bg-white dark:bg-slate-700 dark:border-slate-600"
+                          style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', color: '#dc2626' }}
                           title="Delete Permanently"
                         >
                           <Trash2 size={14} />

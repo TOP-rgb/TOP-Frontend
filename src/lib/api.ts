@@ -72,6 +72,16 @@ export const api = {
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  /** Multipart file upload — do NOT set Content-Type, browser sets it with boundary */
+  upload: async <T>(path: string, formData: FormData): Promise<T> => {
+    const token = getToken()
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', headers, body: formData })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data?.error || `Upload failed with status ${res.status}`)
+    return data as T
+  },
 }
 
 // ── Typed response wrappers ───────────────────────────────────────────────────

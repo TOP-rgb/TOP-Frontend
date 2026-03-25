@@ -55,40 +55,21 @@ function getTaskTypeColor(taskTypeName: string | null | undefined, taskTypes: Ar
 
 // Priority Badge Component - now expects priority from job
 function PriorityBadge({ priority }: { priority: string | null | undefined }) {
-  if (!priority) return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
-  
-  const colors: Record<string, { bg: string; color: string; dot: string }> = {
-    urgent: { bg: '#fee2e2', color: '#b91c1c', dot: '#dc2626' },
-    high: { bg: '#ffedd5', color: '#9a3412', dot: '#ea580c' },
-    medium: { bg: '#fef9c3', color: '#854d0e', dot: '#ca8a04' },
-    low: { bg: '#dcfce7', color: '#166534', dot: '#16a34a' }
+  if (!priority) return <span className="text-slate-400 dark:text-slate-500 text-xs">—</span>
+
+  const colors: Record<string, { cls: string; dot: string }> = {
+    urgent: { cls: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',       dot: '#dc2626' },
+    high:   { cls: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400', dot: '#ea580c' },
+    medium: { cls: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400', dot: '#ca8a04' },
+    low:    { cls: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400', dot: '#16a34a' },
   }
-  
+
   const normalizedPriority = priority.toLowerCase()
-  const style = colors[normalizedPriority] || { bg: '#f3f4f6', color: '#4b5563', dot: '#6b7280' }
-  
+  const cfg = colors[normalizedPriority] || { cls: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300', dot: '#6b7280' }
+
   return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      padding: '4px 10px',
-      borderRadius: 20,
-      background: style.bg,
-      color: style.color,
-      border: 'none',
-      fontSize: 12,
-      fontWeight: 600,
-      textTransform: 'capitalize',
-      whiteSpace: 'nowrap'
-    }}>
-      <span style={{
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        background: style.dot,
-        display: 'inline-block'
-      }} />
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold capitalize whitespace-nowrap ${cfg.cls}`}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.dot, display: 'inline-block', flexShrink: 0 }} />
       {priority}
     </span>
   )
@@ -147,14 +128,14 @@ function StatCard({ icon, label, value, color }: {
   }
   const p = palettes[color]
   return (
-    <div style={{ background: '#fffffe', border: '1px solid #e4e2da', borderRadius: 12, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,.07)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 14 }}>
+    <div className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700" style={{ border: '1px solid #e4e2da', borderRadius: 12, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,.07)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: p.bar }} />
       <div style={{ width: 40, height: 40, borderRadius: 10, background: p.bg, color: p.fg, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
         {icon}
       </div>
       <div>
-        <div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: '#7c7970', fontWeight: 500, marginTop: 4 }}>{label}</div>
+        <div className="text-slate-900 dark:text-slate-100" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+        <div className="text-stone-500 dark:text-slate-400" style={{ fontSize: 12, fontWeight: 500, marginTop: 4 }}>{label}</div>
       </div>
     </div>
   )
@@ -178,7 +159,7 @@ function StatusDot({ status }: { status: string }) {
 
 function BillablePill({ billable }: { billable: boolean }) {
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, background: billable ? '#d1fae5' : '#f1f5f9', color: billable ? '#065f46' : '#64748b', border: `1px solid ${billable ? '#a7f3d0' : '#e2e8f0'}`, whiteSpace: 'nowrap' }}>
+    <span className={billable ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600'} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
       {billable ? 'Billable' : 'Non-billable'}
     </span>
   )
@@ -186,7 +167,7 @@ function BillablePill({ billable }: { billable: boolean }) {
 
 function LivePill() {
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, background: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50" style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#2563eb', animation: 'pulse 1.5s infinite' }} />
       Live
     </span>
@@ -224,7 +205,7 @@ function AssignedUsers({ userIds, users }: { userIds: string[]; users: Array<{ i
   const assignedUsers = users.filter(u => userIds.includes(u.id))
   if (assignedUsers.length === 0) {
     return (
-      <div style={{ width: 24, height: 24, borderRadius: 12, background: '#f1f0ec', display: 'grid', placeItems: 'center' }}>
+      <div className="bg-slate-200 dark:bg-slate-600" style={{ width: 24, height: 24, borderRadius: 12, display: 'grid', placeItems: 'center' }}>
         <User size={12} color="#7c7970" />
       </div>
     )
@@ -235,7 +216,7 @@ function AssignedUsers({ userIds, users }: { userIds: string[]; users: Array<{ i
         <Avatar key={user.id} name={user.name} size="xs" />
       ))}
       {assignedUsers.length > 3 && (
-        <span style={{ fontSize: 11, color: '#7c7970', marginLeft: 2 }}>+{assignedUsers.length - 3}</span>
+        <span className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11, marginLeft: 2 }}>+{assignedUsers.length - 3}</span>
       )}
     </div>
   )
@@ -901,7 +882,7 @@ export function Tasks() {
   ]
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, gap: 10, color: '#7c7970' }}>
+    <div className="text-slate-400 dark:text-slate-500" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, gap: 10 }}>
       <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
       <span style={{ fontSize: 14 }}>Loading tasks...</span>
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -909,7 +890,7 @@ export function Tasks() {
   )
 
   if (error) return (
-    <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 10, padding: '12px 18px', color: '#be123c', fontSize: 13.5, margin: '24px 32px' }}>
+    <div className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/50" style={{ borderRadius: 10, padding: '12px 18px', fontSize: 13.5, margin: '24px 32px' }}>
       Failed to load tasks: {error}
     </div>
   )
@@ -926,7 +907,7 @@ export function Tasks() {
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>My Job & Tasks</h1>
+          <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>My Job & Tasks</h1>
           {canEdit && (
             <button onClick={() => { setSelected(null); setShowModal(true) }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 8, background: '#2563eb', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
@@ -950,10 +931,10 @@ export function Tasks() {
     })),
     { label: 'Billable', value: userTasks.filter(t => t.billable).length, bar: '#f59e0b', bg: '#fef3c7', fg: '#92400e' },
   ].map(s => (
-    <div key={s.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div key={s.label} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, padding: '18px 16px', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 12 }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.bar }} />
       <div style={{ width: 38, height: 38, borderRadius: 9, background: s.bg, color: s.fg, display: 'grid', placeItems: 'center', flexShrink: 0, fontSize: 17, fontWeight: 700 }}>{s.value}</div>
-      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 500 }}>{s.label}</div>
+      <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, fontWeight: 500 }}>{s.label}</div>
     </div>
   ))}
 </div>
@@ -988,18 +969,19 @@ export function Tasks() {
         )}
 
         {/* Table card */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12 }}>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12 }}>
 
           {/* Tabs + search toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid #f1f3f9', overflowX: 'auto' }} className="hide-scrollbar">
+          <div className="hide-scrollbar border-b border-slate-100 dark:border-slate-700/50" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', overflowX: 'visible', position: 'relative', zIndex: 10 }}>
             <div style={{ display: 'flex', flexShrink: 0 }}>
               {statusTabs.map(tab => {
                 const active = statusFilter === tab.key
                 return (
                   <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
-                    style={{ padding: '14px 16px', fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', borderBottom: `2px solid ${active ? '#2563eb' : 'transparent'}`, color: active ? '#2563eb' : '#6b7280', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    className={active ? '' : 'text-slate-500 dark:text-slate-400'}
+                    style={{ padding: '14px 16px', fontSize: 13, fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', borderBottom: `2px solid ${active ? '#2563eb' : 'transparent'}`, color: active ? '#2563eb' : undefined, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                     {tab.label}
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: '#f3f4f6', color: '#6b7280' }}>
+                    <span className="text-slate-500 dark:bg-slate-700 dark:text-slate-400" style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: '#f3f4f6' }}>
                       {tab.count}
                     </span>
                   </button>
@@ -1010,6 +992,7 @@ export function Tasks() {
               <div style={{ position: 'relative' }}>
                 <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
                 <input placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)}
+                  className="text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                   style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: 180 }} />
               </div>
 
@@ -1017,11 +1000,11 @@ export function Tasks() {
               <div style={{ position: 'relative' }} ref={columnPickerRef}>
                 <button
                   onClick={() => setShowColumnPicker(p => !p)}
+                  className={`text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 ${showColumnPicker ? 'bg-slate-100 dark:bg-slate-600' : 'bg-white dark:bg-slate-700'}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
-                    padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7,
-                    background: showColumnPicker ? '#f3f4f6' : '#fff',
-                    fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500,
+                    padding: '7px 13px', borderRadius: 7,
+                    fontSize: 13, cursor: 'pointer', fontWeight: 500,
                   }}
                   title="Choose columns"
                 >
@@ -1029,27 +1012,25 @@ export function Tasks() {
                 </button>
 
                 {showColumnPicker && (
-                  <div style={{
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hide-scrollbar" style={{
                     position: 'absolute', right: 0, top: '100%', marginTop: 6,
-                    background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
-                    boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 240, zIndex: 50,
+                    borderRadius: 10,
+                    boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 240, zIndex: 200,
                     maxHeight: 400, overflowY: 'auto',
                   }}>
-                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '10px 14px' }}>
+                      <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         System Columns
                       </span>
                     </div>
                     {allTaskColumns.filter(c => !c.isCustom).map(col => (
                       <label
                         key={col.key}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
-                          background: visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent',
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
-                        onMouseLeave={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                        className={`flex items-center gap-2.5 px-3.5 py-2 cursor-pointer text-[13px] text-slate-700 dark:text-slate-300 transition-colors ${
+                          visibleTaskColumns.has(col.key)
+                            ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                            : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                        }`}
                       >
                         <input
                           type="checkbox"
@@ -1063,21 +1044,19 @@ export function Tasks() {
 
                     {taskCustomFields.length > 0 && (
                       <>
-                        <div style={{ padding: '10px 14px', borderTop: '1px solid #f1f3f9', borderBottom: '1px solid #f1f3f9' }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <div className="border-t border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '10px 14px' }}>
+                          <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Custom Fields
                           </span>
                         </div>
                         {allTaskColumns.filter(c => c.isCustom).map(col => (
                           <label
                             key={col.key}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 10,
-                              padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
-                              background: visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent',
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
-                            onMouseLeave={e => (e.currentTarget.style.background = visibleTaskColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                            className={`flex items-center gap-2.5 px-3.5 py-2 cursor-pointer text-[13px] text-slate-700 dark:text-slate-300 transition-colors ${
+                              visibleTaskColumns.has(col.key)
+                                ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                                : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                            }`}
                           >
                             <input
                               type="checkbox"
@@ -1097,14 +1076,14 @@ export function Tasks() {
           </div>
 
           {/* Table with horizontal scroll */}
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
+          <div className="hide-scrollbar" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${Math.max(1000, activeTaskCols.length * 140)}px` }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr className="bg-slate-50 dark:bg-slate-800/60">
                   {activeTaskCols.map(col => (
-                    <th key={col.key} style={{
+                    <th key={col.key} className="text-slate-600 dark:text-slate-400" style={{
                       textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600,
-                      color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
+                      textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
                     }}>
                       {col.label}
                     </th>
@@ -1131,7 +1110,7 @@ export function Tasks() {
                   }
 
                   return (
-                    <tr key={task.id} style={{ borderTop: '1px solid #f1f3f9', background: task.timerRunning ? '#eff6ff' : i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <tr key={task.id} className={`border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 ${task.timerRunning ? 'bg-blue-50 dark:bg-blue-900/20' : i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-800/60'}`}>
                       {activeTaskCols.map(col => {
                         const tdStyle: React.CSSProperties = { padding: '13px 16px', fontSize: 13 }
 
@@ -1140,7 +1119,7 @@ export function Tasks() {
                             return (
                               <td key={col.key} style={tdStyle}>
                                 {(() => { const j = jobs.find(j => j.id === task.jobId); return (
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#dbeafe', padding: '2px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>
+                                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>
                                     {j?.jobId || '—'}
                                   </span>
                                 )})()}
@@ -1154,12 +1133,13 @@ export function Tasks() {
                                   <div style={{ minWidth: 0 }}>
                                     <span
                                       onClick={() => setDetailTask(task)}
-                                      style={{ fontWeight: 600, fontSize: 13, color: '#1a1f36', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#d1d5db', textUnderlineOffset: 2, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
+                                      className="text-slate-900 dark:text-slate-200"
+                                      style={{ fontWeight: 600, fontSize: 13, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#d1d5db', textUnderlineOffset: 2, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
                                       title={task.name}
                                     >
                                       {task.name}
                                     </span>
-                                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={`${task.clientName} · ${task.jobTitle}`}>
+                                    <div className="dark:text-slate-500" style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }} title={`${task.clientName} · ${task.jobTitle}`}>
                                       {task.clientName} · {task.jobTitle}
                                     </div>
                                   </div>
@@ -1178,15 +1158,15 @@ export function Tasks() {
                                 ) : (
                                   task.createdByName ? (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                                      <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300" style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                                         {task.createdByName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
                                       </div>
                                       <div style={{ minWidth: 0 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1f36', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByName}>
+                                        <div className="text-slate-900 dark:text-slate-200" style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByName}>
                                           {task.createdByName}
                                         </div>
                                         {task.createdByEmail && (
-                                          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByEmail}>
+                                          <div className="text-slate-500 dark:text-slate-500" style={{ fontSize: 11, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={task.createdByEmail}>
                                             {task.createdByEmail}
                                           </div>
                                         )}
@@ -1199,7 +1179,7 @@ export function Tasks() {
                               </td>
                             )
                           case 'estHours':
-                            return <td key={col.key} style={{ ...tdStyle, color: '#374151', whiteSpace: 'nowrap' }}>{task.estimatedHours}h</td>
+                            return <td key={col.key} className="text-slate-700 dark:text-slate-300" style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{task.estimatedHours}h</td>
                           case 'billingType':
                             return <td key={col.key} style={tdStyle}><BillablePill billable={task.billable} /></td>
                             case 'taskStatus': {
@@ -1226,7 +1206,8 @@ export function Tasks() {
                                     <select
                                       value={task.status}
                                       onChange={e => updateStatus(task.id, e.target.value as TaskStatus)}
-                                      style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                      className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600"
+                                      style={{ fontSize: 12, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', outline: 'none' }}
                                     >
                                       {statusOpts.map(s => (
                                         <option key={s} value={s}>
@@ -1253,10 +1234,10 @@ export function Tasks() {
                                 ) : task.timerSeconds > 0 ? (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <Pause size={11} color="#94a3b8" style={{ flexShrink: 0 }} />
-                                    <span style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
+                                    <span className="text-slate-700 dark:text-slate-300" style={{ fontFamily: 'DM Mono, monospace', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{formatTime(task.timerSeconds)}</span>
                                   </div>
                                 ) : (
-                                  <span style={{ fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
+                                  <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
                                     <strong>{task.actualHours}h</strong><span style={{ color: '#9ca3af' }}> / {task.estimatedHours}h</span>
                                   </span>
                                 )}
@@ -1264,7 +1245,7 @@ export function Tasks() {
                             )
                           default:
                             if (col.isCustom && col.customField) {
-                              return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{renderTaskCFValue(col.customField)}</td>
+                              return <td key={col.key} className="text-slate-700 dark:text-slate-300" style={tdStyle}>{renderTaskCFValue(col.customField)}</td>
                             }
                             return <td key={col.key} style={tdStyle}>—</td>
                         }
@@ -1298,7 +1279,7 @@ export function Tasks() {
             </table>
           </div>
           {/* Pagination */}
-          <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9' }}>
+          <div className="border-t border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 20px' }}>
             <Pagination
               total={filtered.length}
               page={tasksPage}
@@ -1395,16 +1376,16 @@ export function Tasks() {
         {/* Delete Task confirmation */}
         {confirmDeleteTask && (
           <Modal open onClose={() => setConfirmDeleteTask(null)}>
-            <div style={{ padding: '28px 32px', maxWidth: 420, textAlign: 'center' }}>
+            <div className="bg-white dark:bg-slate-800" style={{ padding: '28px 32px', maxWidth: 420, textAlign: 'center', borderRadius: 12 }}>
               <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <Trash2 size={24} color="#ef4444" />
               </div>
-              <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#111827' }}>Delete Task?</h3>
-              <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
+              <h3 className="text-slate-900 dark:text-slate-100" style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>Delete Task?</h3>
+              <p className="text-slate-500 dark:text-slate-400" style={{ margin: '0 0 24px', fontSize: 14, lineHeight: 1.5 }}>
                 This will permanently delete the task and all its time entries. This action cannot be undone.
               </p>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <button onClick={() => setConfirmDeleteTask(null)} style={{ padding: '9px 24px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' }}>
+                <button onClick={() => setConfirmDeleteTask(null)} className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600" style={{ padding: '9px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
                   Cancel
                 </button>
                 <button

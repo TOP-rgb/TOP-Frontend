@@ -90,7 +90,7 @@ export function AttendanceConfig() {
     <div className="flex flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Attendance Configuration</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Configure shifts, geofences, holidays, and leave policies</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Configure shifts, geofences, holidays, and leave policies</p>
       </div>
 
       {/* Tabs */}
@@ -113,7 +113,7 @@ export function AttendanceConfig() {
             className={`px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
               activeTab === t.id
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-100 dark:hover:text-white'
             }`}
           >
             {t.label}
@@ -176,29 +176,29 @@ function ShiftsTab({ shifts }: { shifts: ReturnType<typeof useShifts> }) {
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
               {['Name','Start','End','Grace (min)','Working Days','Status','Actions'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {shifts.shifts.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">No shifts yet</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No shifts yet</td></tr>
             )}
             {shifts.shifts.map(s => (
               <tr key={s.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <td className="px-4 py-3 font-medium">{s.name}</td>
-                <td className="px-4 py-3">{s.startTime}</td>
-                <td className="px-4 py-3">{s.endTime}</td>
-                <td className="px-4 py-3">{s.gracePeriodMinutes}</td>
-                <td className="px-4 py-3 text-slate-500">{fmtDays(s.workingDays)}</td>
+                <td className="px-4 py-3 font-medium dark:text-slate-200">{s.name}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{s.startTime}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{s.endTime}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{s.gracePeriodMinutes}</td>
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{fmtDays(s.workingDays)}</td>
                 <td className="px-4 py-3">
                   <Badge variant={s.isActive ? 'success' : 'secondary'}>{s.isActive ? 'Active' : 'Inactive'}</Badge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(s)} className="text-slate-400 hover:text-blue-600"><Edit2 size={14} /></button>
+                    <button onClick={() => openEdit(s)} className="text-slate-400 dark:text-slate-500 hover:text-blue-600"><Edit2 size={14} /></button>
                     <button onClick={async () => { if (confirm('Deactivate this shift?')) { await shifts.deleteShift(s.id); toast.success('Deactivated') } }}
-                      className="text-slate-400 hover:text-red-600"><Trash2 size={14} /></button>
+                      className="text-slate-400 dark:text-slate-500 hover:text-red-600"><Trash2 size={14} /></button>
                   </div>
                 </td>
               </tr>
@@ -325,23 +325,23 @@ function AssignmentsTab({ shifts, users }: { shifts: ReturnType<typeof useShifts
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
               {['Employee','Shift','Effective From','Effective To','Action'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {shifts.assignments.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No assignments yet</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No assignments yet</td></tr>
             )}
             {shifts.assignments.map((a: ShiftAssignment) => (
               <tr key={a.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <td className="px-4 py-3 font-medium">{a.user ? `${a.user.firstName} ${a.user.lastName}` : a.userId}</td>
-                <td className="px-4 py-3">{a.shift?.name ?? a.shiftId}</td>
-                <td className="px-4 py-3">{fmtDate(a.effectiveFrom)}</td>
-                <td className="px-4 py-3">{a.effectiveTo ? fmtDate(a.effectiveTo) : <span className="text-slate-400">Ongoing</span>}</td>
+                <td className="px-4 py-3 font-medium dark:text-slate-200">{a.user ? `${a.user.firstName} ${a.user.lastName}` : a.userId}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{a.shift?.name ?? a.shiftId}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{fmtDate(a.effectiveFrom)}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{a.effectiveTo ? fmtDate(a.effectiveTo) : <span className="text-slate-400 dark:text-slate-500">Ongoing</span>}</td>
                 <td className="px-4 py-3">
                   <button onClick={async () => { if (confirm('Remove this assignment?')) { await shifts.removeAssignment(a.id); toast.success('Removed') } }}
-                    className="text-slate-400 hover:text-red-500 transition-colors"><X size={14} /></button>
+                    className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"><X size={14} /></button>
                 </td>
               </tr>
             ))}
@@ -547,7 +547,7 @@ function GeofencesTab({ geofences }: { geofences: ReturnType<typeof useGeofences
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {geofences.geofences.length === 0 && (
-          <p className="text-sm text-slate-400 col-span-3 py-8 text-center">No geofences configured</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 col-span-3 py-8 text-center">No geofences configured</p>
         )}
         {geofences.geofences.map((g: GeofenceLocation) => (
           <div key={g.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
@@ -558,21 +558,21 @@ function GeofencesTab({ geofences }: { geofences: ReturnType<typeof useGeofences
               </div>
               <Badge variant={g.isActive ? 'success' : 'secondary'} className="text-xs">{g.isActive ? 'Active' : 'Inactive'}</Badge>
             </div>
-            <div className="text-xs text-slate-500 space-y-1 mb-3">
+            <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1 mb-3">
               <div>{g.latitude.toFixed(6)}, {g.longitude.toFixed(6)}</div>
               <div>Radius: <span className="font-medium text-slate-700 dark:text-slate-300">{g.radiusMeters}m</span></div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => openEdit(g)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600"><Edit2 size={11} /> Edit</button>
+              <button onClick={() => openEdit(g)} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600"><Edit2 size={11} /> Edit</button>
               {g.isActive && (
                 <button
                   onClick={async () => { if (confirm('Deactivate this geofence? It will remain in the list but will no longer enforce check-in boundaries.')) { await geofences.deactivateGeofence(g.id); toast.success('Deactivated') } }}
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-amber-600"
+                  className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-amber-600"
                 ><PowerOff size={11} /> Deactivate</button>
               )}
               <button
                 onClick={async () => { if (confirm(`Permanently delete "${g.name}"? This cannot be undone.`)) { try { await geofences.deleteGeofence(g.id); toast.success('Deleted') } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed to delete') } } }}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600"
+                className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-red-600"
               ><Trash2 size={11} /> Delete</button>
             </div>
           </div>
@@ -604,13 +604,13 @@ function GeofencesTab({ geofences }: { geofences: ReturnType<typeof useGeofences
               {locating ? <Loader2 size={12} className="animate-spin" /> : <MapPin size={12} />}
               Use My Location
             </button>
-            <span className="text-xs text-slate-400">Captures your current GPS coordinates</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Captures your current GPS coordinates</span>
           </div>
           <div>
             <label className={DK_LABEL}>Radius (metres)</label>
             <input type="number" min={50} max={5000} value={form.radiusMeters} onChange={e => setForm(f => ({ ...f, radiusMeters: parseInt(e.target.value) || 200 }))}
               className={DK_INPUT} />
-            <p className="text-xs text-slate-400 mt-1">Must be between 50 and 5000 metres</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Must be between 50 and 5000 metres</p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setModal(null)} className={DK_CANCEL}>Cancel</button>
@@ -682,25 +682,25 @@ function HolidaysTab({ holidays }: { holidays: ReturnType<typeof useHolidays> })
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
               {['Name','Date','Type','Source','Action'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No holidays found</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No holidays found</td></tr>
             )}
             {filtered.map((h: PublicHoliday) => (
               <tr key={h.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                <td className="px-4 py-3 font-medium">{h.name}</td>
-                <td className="px-4 py-3">{fmtDate(h.date)}</td>
+                <td className="px-4 py-3 font-medium dark:text-slate-200">{h.name}</td>
+                <td className="px-4 py-3 dark:text-slate-300">{fmtDate(h.date)}</td>
                 <td className="px-4 py-3"><Badge variant={h.type === 'public' ? 'info' : 'secondary'}>{h.type}</Badge></td>
-                <td className="px-4 py-3 text-slate-500">
+                <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
                   {h.countryCode ? (COUNTRY_LABEL[h.countryCode] ?? h.countryCode) : 'All employees'}
                 </td>
                 <td className="px-4 py-3">
                   <button onClick={async () => { if (confirm('Delete this holiday?')) { await holidays.deleteHoliday(h.id); toast.success('Deleted') } }}
-                    className="text-slate-400 hover:text-red-600"><Trash2 size={14} /></button>
+                    className="text-slate-400 dark:text-slate-500 hover:text-red-600"><Trash2 size={14} /></button>
                 </td>
               </tr>
             ))}
@@ -888,27 +888,27 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
             </button>
           </div>
         </div>
-        <p className="text-xs text-slate-500 mb-3">Employees inherit these allocations. Override per-employee in the Team Balances section below.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Employees inherit these allocations. Override per-employee in the Team Balances section below.</p>
 
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 {['Name','Max Days/Year','Eligible For','Paid','Status','Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {leaves.leaveTypes.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No leave types configured</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">No leave types configured</td></tr>
               )}
               {leaves.leaveTypes.map((t: LeaveType) => (
                 <tr key={t.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-                      <span className="font-medium">{t.name}</span>
+                      <span className="font-medium dark:text-slate-200">{t.name}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -932,7 +932,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
                   <td className="px-4 py-3"><Badge variant={t.isActive ? 'success' : 'secondary'}>{t.isActive ? 'Active' : 'Inactive'}</Badge></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(t)} className="text-slate-400 hover:text-blue-600 transition-colors"><Edit2 size={14} /></button>
+                      <button onClick={() => openEdit(t)} className="text-slate-400 dark:text-slate-500 hover:text-blue-600 transition-colors"><Edit2 size={14} /></button>
                       <button
                         onClick={async () => {
                           const msg = t.isCompOff
@@ -944,7 +944,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
                             toast.success(result.message)
                           } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Failed to delete') }
                         }}
-                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        className="text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors"
                         title="Delete leave type"
                       >
                         <Trash2 size={14} />
@@ -963,23 +963,23 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
         <h2 className="font-medium text-slate-800 dark:text-slate-200 mb-3">Team Balances</h2>
         <div className="flex items-center gap-3 mb-4">
           <select value={balanceUserId} onChange={e => loadBalances(e.target.value)}
-            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
+            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-100">
             <option value="">Select employee…</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
-          <span className="text-sm text-slate-500">({new Date().getFullYear()})</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">({new Date().getFullYear()})</span>
 
           {/* Employee type inline editor — shown when a user is selected */}
           {balanceUserId && (() => {
             const selectedUser = users.find(u => u.id === balanceUserId)
             return selectedUser ? (
               <div className="flex items-center gap-2 ml-2 pl-3 border-l border-slate-200 dark:border-slate-700">
-                <span className="text-sm text-slate-500 whitespace-nowrap">Employee Type:</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">Employee Type:</span>
                 <select
                   value={selectedUser.employeeType ?? 'PERMANENT'}
                   onChange={e => handleEmpTypeChange(e.target.value as EmployeeType)}
                   disabled={savingEmpType}
-                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm disabled:opacity-60"
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100 disabled:opacity-60"
                 >
                   {EMPLOYEE_TYPE_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -997,7 +997,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                   {['Leave Type','Allocated','Used','Pending','Remaining','Save'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1013,7 +1013,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
                     <td className="px-4 py-3">
                       <input type="number" step="0.5" min={0} value={balanceEdits[b.id] ?? b.allocated}
                         onChange={e => setBalanceEdits(prev => ({ ...prev, [b.id]: e.target.value }))}
-                        className="w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm" />
+                        className="w-20 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-sm text-slate-800 dark:text-slate-100" />
                     </td>
                     <td className="px-4 py-3">{b.used}</td>
                     <td className="px-4 py-3">{b.pending}</td>
@@ -1036,7 +1036,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
       {/* Carry-Forward confirmation modal */}
       <Modal open={cfConfirm} onClose={() => setCfConfirm(false)} title="Process Year-End Carry-Forward">
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-400 dark:text-slate-500">
             This will add unused leave days (up to each type's carry-forward limit) from the selected year to employees' balances for the following year.
           </p>
           <div>
@@ -1044,7 +1044,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
             <input type="number" min={2020} max={new Date().getFullYear()} value={cfYear}
               onChange={e => setCfYear(parseInt(e.target.value) || cfYear)}
               className={DK_INPUT} />
-            <p className="text-xs text-slate-400 mt-1">Unused days from {cfYear} will be added to {cfYear + 1} balances.</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Unused days from {cfYear} will be added to {cfYear + 1} balances.</p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setCfConfirm(false)} className={DK_CANCEL}>Cancel</button>
@@ -1087,7 +1087,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
             <input type="number" min={0} max={30} step={0.5} value={form.carryForwardDays}
               onChange={e => setForm(f => ({ ...f, carryForwardDays: parseFloat(e.target.value) || 0 }))}
               className={DK_INPUT} />
-            <p className="text-xs text-slate-400 mt-1">Max unused days carried to next year. 0 = no carry-forward.</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Max unused days carried to next year. 0 = no carry-forward.</p>
           </div>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -1128,7 +1128,7 @@ function LeaveTypesTab({ leaves, users, usersHook }: { leaves: ReturnType<typeof
                 )
               })}
             </div>
-            <p className="text-xs text-slate-500 mt-1">Leave all unselected to allow every employee type.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Leave all unselected to allow every employee type.</p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -1227,7 +1227,7 @@ function WorkModesTab({
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Work Mode Policies</h2>
-        <p className="text-sm text-slate-500 mt-0.5">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
           Control which check-in modes each employee can use. No restriction means all modes are allowed.
         </p>
       </div>
@@ -1318,7 +1318,7 @@ function WorkModesTab({
         </table>
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-400 dark:text-slate-500">
         Tip: Click a mode icon to toggle it for an employee. Faded icons indicate the mode is available by default (no restriction set).
       </p>
     </div>
@@ -1448,7 +1448,7 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
     <div className="space-y-8 max-w-lg">
       <div>
         <h2 className="font-medium text-slate-800 dark:text-slate-200 mb-1">Compensatory Off</h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           When enabled, employees who work ≥ 75% of their shift on a public holiday or their scheduled day off automatically earn one comp-off credit.
         </p>
       </div>
@@ -1457,7 +1457,7 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
       <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
         <div>
           <div className="font-medium text-sm text-slate-800 dark:text-slate-200">Enable Comp Off</div>
-          <div className="text-xs text-slate-500 mt-0.5">Auto-award credits at checkout on holidays / off-days</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Auto-award credits at checkout on holidays / off-days</div>
         </div>
         <button
           disabled={saving}
@@ -1474,7 +1474,7 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 space-y-3">
         <div>
           <div className="font-medium text-sm text-slate-800 dark:text-slate-200">Credit Expiry</div>
-          <div className="text-xs text-slate-500 mt-0.5">Credits expire this many days after being earned. Industry standard: 90 days.</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Credits expire this many days after being earned. Industry standard: 90 days.</div>
         </div>
         <div className="flex items-center gap-3">
           <input
@@ -1482,9 +1482,9 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
             min={1}
             value={expiryInput}
             onChange={e => setExpiryInput(e.target.value)}
-            className="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <span className="text-sm text-slate-500">days</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400">days</span>
           <button
             disabled={saving || expiryInput === String(compOffExpiryDays)}
             onClick={handleSaveExpiry}
@@ -1499,7 +1499,7 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 space-y-3">
         <div>
           <div className="font-medium text-sm text-slate-800 dark:text-slate-200">Comp Off Leave Type</div>
-          <div className="text-xs text-slate-500 mt-0.5">A dedicated leave type is required for employees to apply their comp-off credits.</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">A dedicated leave type is required for employees to apply their comp-off credits.</div>
         </div>
         {compOffLeaveType ? (
           <>
@@ -1516,7 +1516,7 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
                 type="text"
                 value={ltNameEdit}
                 onChange={e => setLtNameEdit(e.target.value)}
-                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 disabled={savingLt || (ltNameEdit === compOffLeaveType.name && ltColorEdit === compOffLeaveType.color)}
@@ -1536,7 +1536,7 @@ function CompOffTab({ leaves }: { leaves: ReturnType<typeof useLeaves> }) {
                 {deactivating ? <Loader2 size={11} className="animate-spin" /> : <PowerOff size={11} />}
                 Deactivate & reconfigure
               </button>
-              <span className="text-xs text-slate-400">— deactivating lets you create a replacement</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">— deactivating lets you create a replacement</span>
             </div>
           </>
         ) : (
@@ -1638,11 +1638,11 @@ function AttendanceRulesTab() {
                 type="number" min={1} max={49}
                 value={absentInput}
                 onChange={e => setAbsentInput(e.target.value)}
-                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span className="text-sm text-slate-500">%</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">%</span>
             </div>
-            <span className="text-xs text-slate-400">below this % of shift → Absent</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">below this % of shift → Absent</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -1654,11 +1654,11 @@ function AttendanceRulesTab() {
                 type="number" min={2} max={99}
                 value={halfDayInput}
                 onChange={e => setHalfDayInput(e.target.value)}
-                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span className="text-sm text-slate-500">%</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">%</span>
             </div>
-            <span className="text-xs text-slate-400">below this % of shift → Half Day</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">below this % of shift → Half Day</span>
           </div>
         </div>
       </div>
@@ -1681,11 +1681,11 @@ function AttendanceRulesTab() {
               type="number" min={0}
               value={otInput}
               onChange={e => setOtInput(e.target.value)}
-              className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <span className="text-sm text-slate-500">min</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">min</span>
           </div>
-          <span className="text-xs text-slate-400">0 = any extra minute counts</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">0 = any extra minute counts</span>
         </div>
       </div>
 
@@ -1707,10 +1707,10 @@ function AttendanceRulesTab() {
               type="number" min={0} max={23}
               value={closeInput}
               onChange={e => setCloseInput(e.target.value)}
-              className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-20 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm text-slate-800 dark:text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <span className="text-xs text-slate-400">hour 0–23 in org timezone</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">hour 0–23 in org timezone</span>
         </div>
       </div>
 

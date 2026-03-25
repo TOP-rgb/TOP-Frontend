@@ -10,19 +10,30 @@ export function Clients() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [showModal, setShowModal] = useState(false)
   const [selected, setSelected] = useState<Client | null>(null)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640)
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
 
   const { clients, loading, error, createClient, updateClient } = useClients()
 
   const filtered = clients.filter(c => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.company.toLowerCase().includes(search.toLowerCase()) ||
-      c.industry.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase()
+    const matchSearch = !q ||
+      (c.name     ?? '').toLowerCase().includes(q) ||
+      (c.company  ?? '').toLowerCase().includes(q) ||
+      (c.email    ?? '').toLowerCase().includes(q) ||
+      (c.phone    ?? '').toLowerCase().includes(q) ||
+      (c.industry ?? '').toLowerCase().includes(q)
     const matchStatus = statusFilter === 'all' || c.status === statusFilter
     return matchSearch && matchStatus
   })
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
+    <div className="flex items-center justify-center h-64 gap-3 text-slate-500 dark:text-slate-400">
       <Loader2 className="animate-spin" size={20} />
       <span className="text-sm">Loading clients...</span>
     </div>
@@ -38,7 +49,7 @@ export function Clients() {
     <div style={{ fontFamily: 'inherit' }}>
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Client Management</h1>
+        <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Client Management</h1>
         <button
           onClick={() => { setSelected(null); setShowModal(true) }}
           style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
@@ -48,64 +59,74 @@ export function Clients() {
       </div>
 
       {/* Table Card */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+      <div className="bg-white dark:bg-slate-800 dark:border-slate-700" style={{ borderRadius: 12, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
         {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, padding: '14px 20px', borderBottom: '1px solid #f1f3f9' }}>
-          <span style={{ fontWeight: 700, fontSize: 13, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>All Clients</span>
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, flex: 1, justifyContent: 'flex-end' }}>
+        <div className="dark:border-slate-700/50" style={{ padding: isMobile ? '12px 14px' : '14px 20px', borderBottom: '1px solid #f1f3f9', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Row 1: title + filter pills */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span className="text-slate-700 dark:text-slate-300" style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>All Clients</span>
             {/* Status filter */}
-            <div style={{ display: 'flex', gap: 4, background: '#f3f4f6', borderRadius: 7, padding: '3px', overflowX: 'auto', flexShrink: 0 }} className="hide-scrollbar">
+            <div className="bg-slate-100 dark:bg-slate-700 hide-scrollbar" style={{ display: 'flex', gap: 4, borderRadius: 7, padding: '3px', overflowX: 'auto', flexShrink: 0 }}>
               {(['all', 'active', 'inactive'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
+                  className={statusFilter === s ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-slate-100' : 'bg-transparent text-slate-500 dark:text-slate-400'}
                   style={{
                     padding: '5px 14px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-                    background: statusFilter === s ? '#fff' : 'transparent',
-                    color: statusFilter === s ? '#1a1f36' : '#6b7280',
                     boxShadow: statusFilter === s ? '0 1px 3px rgba(0,0,0,.1)' : 'none',
                     textTransform: 'capitalize', whiteSpace: 'nowrap',
                   }}
                 >{s}</button>
               ))}
             </div>
-            {/* Search */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 120, maxWidth: 220 }}>
-              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-              <input
-                placeholder="Search..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%' }}
-              />
-            </div>
+          </div>
+          {/* Row 2: Search (constrained width) */}
+          <div style={{ position: 'relative', maxWidth: 320 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+            <input
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+              style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%' }}
+            />
           </div>
         </div>
 
         {/* Table */}
         <div style={{ overflowX: 'auto' }} className="hide-scrollbar">
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480, tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '13%' }} />
+              <col className="hidden sm:table-column" style={{ width: '20%' }} />
+              <col className="hidden md:table-column" style={{ width: '14%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '8%' }} />
+            </colgroup>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Contact Name</th>
-                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Company</th>
-                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Onboarding Date</th>
-                <th className="hidden sm:table-cell" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Email</th>
-                <th className="hidden md:table-cell" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Phone No.</th>
-                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Status</th>
-                <th style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Action</th>
+              <tr className="bg-slate-50 dark:bg-slate-900/50">
+                <th className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Contact Name</th>
+                <th className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Company</th>
+                <th className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Onboarding Date</th>
+                <th className="hidden sm:table-cell text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Email</th>
+                <th className="hidden md:table-cell text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Phone No.</th>
+                <th className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Status</th>
+                <th className="text-slate-500 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 18px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '48px 18px', color: '#9ca3af', fontSize: 14 }}>No clients found</td></tr>
+                <tr><td colSpan={7} className="text-slate-400 dark:text-slate-500" style={{ textAlign: 'center', padding: '48px 18px', fontSize: 14 }}>No clients found</td></tr>
               ) : filtered.map((client, i) => (
-                <tr key={client.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                  <td style={{ padding: '13px 18px', fontSize: 14, fontWeight: 500, color: '#1a1f36' }}>{client.name}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 14, color: '#374151' }}>{client.company}</td>
-                  <td style={{ padding: '13px 18px', fontSize: 13, color: '#6b7280' }}>{client.createdAt?.slice(0, 10) ?? '—'}</td>
-                  <td className="hidden sm:table-cell" style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{client.email}</td>
-                  <td className="hidden md:table-cell" style={{ padding: '13px 18px', fontSize: 13, color: '#374151' }}>{client.phone || '—'}</td>
+                <tr key={client.id} className={`dark:border-slate-700/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-900/50'}`} style={{ borderTop: '1px solid #f1f3f9' }}>
+                  <td className="text-slate-900 dark:text-slate-100" style={{ padding: '13px 18px', fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.name}</td>
+                  <td className="text-slate-700 dark:text-slate-300" style={{ padding: '13px 18px', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.company}</td>
+                  <td className="text-slate-500 dark:text-slate-400" style={{ padding: '13px 18px', fontSize: 13 }}>{client.createdAt?.slice(0, 10) ?? '—'}</td>
+                  <td className="hidden sm:table-cell text-slate-700 dark:text-slate-300" style={{ padding: '13px 18px', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{client.email}</td>
+                  <td className="hidden md:table-cell text-slate-700 dark:text-slate-300" style={{ padding: '13px 18px', fontSize: 13 }}>{client.phone || '—'}</td>
                   <td style={{ padding: '13px 18px' }}>
                     <span style={{ color: client.status === 'active' ? '#16a34a' : '#dc2626', fontWeight: 600, fontSize: 13 }}>
                       {client.status.toUpperCase()}
@@ -114,7 +135,8 @@ export function Clients() {
                   <td style={{ padding: '13px 18px' }}>
                     <button
                       onClick={() => { setSelected(client); setShowModal(true) }}
-                      style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#6b7280' }}
+                      className="bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300"
+                      style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', color: '#6b7280' }}
                       title="Edit"
                     >
                       <Edit2 size={14} />

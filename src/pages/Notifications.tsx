@@ -356,18 +356,18 @@ export function Notifications() {
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Bell size={20} color="#2563eb" />
             Notifications
           </h1>
-          <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>
+          <p className="text-slate-500 dark:text-slate-400" style={{ fontSize: 13, margin: '4px 0 0' }}>
             {enabledItems.length > 0
               ? `${enabledItems.length} active notification${enabledItems.length !== 1 ? 's' : ''} across all modules`
               : 'No active notifications'}
           </p>
         </div>
         {enabledItems.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#1d4ed8' }}>
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/50 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-400">
             <Bell size={13} />
             {counts.all} unread
           </div>
@@ -376,12 +376,12 @@ export function Notifications() {
 
       {/* ── Disabled flags notice ── */}
       {disabledFlags.length > 0 && (
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300" style={{ borderRadius: 10, padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
           <BellOff size={15} color="#94a3b8" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: '#64748b' }}>
+          <span style={{ fontSize: 12 }}>
             <strong>{disabledFlags.length}</strong> notification type{disabledFlags.length > 1 ? 's' : ''} disabled in Settings:{' '}
             {disabledFlags.join(', ')}.{' '}
-            <a href="/settings" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+            <a href="/settings" className="text-blue-600 dark:text-blue-400 underline">
               Manage in Settings → Notifications
             </a>
           </span>
@@ -389,8 +389,8 @@ export function Notifications() {
       )}
 
       {/* ── Tabs ── */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-        <div className="hide-scrollbar" style={{ display: 'flex', borderBottom: '1px solid #f1f3f9', padding: '0 4px', overflowX: 'auto' }}>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12, overflow: 'hidden' }}>
+        <div className="hide-scrollbar border-b border-slate-100 dark:border-slate-700" style={{ display: 'flex', padding: '0 4px', overflowX: 'auto' }}>
           {tabs.map(tab => {
             const isActive = activeCategory === tab.key
             const count = counts[tab.key]
@@ -398,22 +398,21 @@ export function Notifications() {
               <button
                 key={tab.key}
                 onClick={() => setActiveCategory(tab.key)}
+                className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}
                 style={{
                   padding: '14px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
                   fontSize: 13, fontWeight: 600,
                   borderBottom: `2px solid ${isActive ? '#2563eb' : 'transparent'}`,
-                  color: isActive ? '#2563eb' : '#6b7280',
                   display: 'flex', alignItems: 'center', gap: 6,
                   transition: 'color .15s',
                 }}
               >
                 {tab.label}
                 {count > 0 && (
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 20,
-                    background: isActive ? '#dbeafe' : '#f3f4f6',
-                    color: isActive ? '#1d4ed8' : '#6b7280',
-                  }}>
+                  <span
+                    className={isActive ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}
+                    style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 20 }}
+                  >
                     {count}
                   </span>
                 )}
@@ -424,12 +423,12 @@ export function Notifications() {
 
         {/* ── Notification list ── */}
         {filtered.length === 0 ? (
-          <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, color: '#9ca3af' }}>
-            <div style={{ width: 52, height: 52, background: '#f8fafc', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="text-slate-400 dark:text-slate-500" style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div className="bg-slate-50 dark:bg-slate-700/50" style={{ width: 52, height: 52, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Inbox size={24} color="#d1d5db" />
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 600, color: '#6b7280', fontSize: 14, marginBottom: 4 }}>All clear!</div>
+              <div className="text-slate-500 dark:text-slate-400" style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>All clear!</div>
               <div style={{ fontSize: 13 }}>
                 {activeCategory === 'all'
                   ? 'No active notifications right now.'
@@ -442,12 +441,11 @@ export function Notifications() {
             {filtered.map((item, i) => (
               <div
                 key={item.id}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 16px',
-                  borderTop: i > 0 ? '1px solid #f1f3f9' : 'none',
-                  background: item.severity === 'error' ? '#fff9f9' : '#fff',
-                  transition: 'background .15s',
-                }}
+                className={[
+                  item.severity === 'error' ? 'bg-red-50/60 dark:bg-red-900/10' : 'bg-white dark:bg-slate-800',
+                  i > 0 ? 'border-t border-slate-100 dark:border-slate-700/50' : '',
+                ].join(' ')}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '12px 16px', transition: 'background .15s' }}
               >
                 {/* Icon */}
                 <div style={{
@@ -466,11 +464,11 @@ export function Notifications() {
                       background: SEVERITY_DOT[item.severity],
                       display: 'inline-block', flexShrink: 0,
                     }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1f36' }}>{item.title}</span>
+                    <span className="text-slate-900 dark:text-slate-100" style={{ fontSize: 13, fontWeight: 600 }}>{item.title}</span>
                     <CategoryPill category={item.category} />
                   </div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>{item.description}</div>
-                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{item.meta}</div>
+                  <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 12, marginBottom: 2 }}>{item.description}</div>
+                  <div className="text-slate-400 dark:text-slate-500" style={{ fontSize: 11 }}>{item.meta}</div>
                 </div>
 
                 {/* Chevron */}
@@ -482,8 +480,8 @@ export function Notifications() {
 
         {/* ── Footer ── */}
         {filtered.length > 0 && (
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f3f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>
+          <div className="border-t border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <span className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12 }}>
               Showing {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -507,11 +505,11 @@ export function Notifications() {
       </div>
 
       {/* ── Settings shortcut ── */}
-      <div style={{ marginTop: 20, padding: '14px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+      <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300" style={{ marginTop: 20, padding: '14px 18px', borderRadius: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
         <Filter size={15} color="#64748b" style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: '#64748b', flex: 1 }}>
+        <span style={{ fontSize: 12, flex: 1 }}>
           Manage which notifications are active in{' '}
-          <a href="/settings" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+          <a href="/settings" className="font-semibold text-blue-600 dark:text-blue-400 no-underline">
             Settings → Notifications
           </a>
         </span>
@@ -523,10 +521,8 @@ export function Notifications() {
             isManager ? { label: 'Team',       active: notifyNewUser }        : null,
                         { label: 'Attendance', active: true },
           ].filter(Boolean) as { label: string; active: boolean }[]).map(f => (
-            <span key={f.label} style={{
+            <span key={f.label} className={f.active ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'} style={{
               fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 600,
-              background: f.active ? '#d1fae5' : '#f1f5f9',
-              color: f.active ? '#065f46' : '#94a3b8',
             }}>
               {f.active ? <CheckCircle size={9} style={{ display: 'inline', marginRight: 3 }} /> : null}
               {f.label}

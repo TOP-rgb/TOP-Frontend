@@ -127,10 +127,10 @@ function EmployeeDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
           Good {getGreeting()}, {data?.user.firstName ?? user?.name?.split(' ')[0] ?? 'there'} 👋
         </h2>
-        <p className="text-slate-500 text-sm mt-1">Here's your productivity overview for this week</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Here's your productivity overview for this week</p>
       </div>
 
       {/* Stats Grid */}
@@ -167,7 +167,7 @@ function EmployeeDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Weekly hours chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Weekly Hours Breakdown</h3>
             <Badge variant="secondary">This week</Badge>
@@ -186,10 +186,10 @@ function EmployeeDashboard() {
         </div>
 
         {/* My tasks */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">My Tasks</h3>
           {myTasks.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No tasks assigned yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No tasks assigned yet.</p>
           ) : (
             <div className="space-y-3">
               {myTasks.slice(0, 5).map(task => (
@@ -197,7 +197,7 @@ function EmployeeDashboard() {
                   <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${task.status === 'completed' ? 'bg-emerald-500' : task.status === 'in_progress' ? 'bg-blue-500' : 'bg-slate-300'}`} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{task.name}</p>
-                    <p className="text-xs text-slate-400 truncate mt-1">{task.clientName}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-1">{task.clientName}</p>
                   </div>
                   <Badge variant={task.status === 'completed' ? 'success' : task.status === 'in_progress' ? 'default' : 'secondary'} className="flex-shrink-0">
                     {task.status === 'completed' ? '✓' : task.status === 'in_progress' ? '→' : '○'} {task.status.replace('_', ' ')}
@@ -210,10 +210,10 @@ function EmployeeDashboard() {
       </div>
 
       {/* Recent time entries */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Recent Time Entries</h3>
         {recentTimesheets.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8">No time entries yet. Log time from the Timesheets page.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No time entries yet. Log time from the Timesheets page.</p>
         ) : (
           <div className="space-y-2">
             {recentTimesheets.slice(0, 8).map(entry => (
@@ -228,7 +228,7 @@ function EmployeeDashboard() {
                 <div className="text-right flex-shrink-0">
                   <span className="text-sm font-bold text-slate-900 dark:text-white">{entry.hours}h</span>
                   {entry.description && (
-                    <p className="text-xs text-slate-400 mt-0.5 max-w-xs truncate">{entry.description}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 max-w-xs truncate">{entry.description}</p>
                   )}
                 </div>
               </div>
@@ -256,8 +256,8 @@ function ManagerDashboard() {
       <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-3">
         <AlertCircle size={24} className="text-red-500" />
       </div>
-      <h3 className="text-base font-semibold text-slate-700 mb-1">Failed to load dashboard</h3>
-      <p className="text-slate-400 text-sm max-w-sm">{error}</p>
+      <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">Failed to load dashboard</h3>
+      <p className="text-slate-400 dark:text-slate-500 text-sm max-w-sm">{error}</p>
     </div>
   )
 
@@ -279,11 +279,11 @@ function ManagerDashboard() {
 
   const activeJobCount = (jobStats?.byStatus.OPEN ?? 0) + (jobStats?.byStatus.IN_PROGRESS ?? 0)
 
-  const tsStatusConfig: Record<string, { bg: string; color: string; label: string }> = {
-    pending_normal:   { bg: '#f1f5f9', color: '#64748b', label: 'Normal' },
-    pending_approval: { bg: '#fef3c7', color: '#d97706', label: 'Needs Approval' },
-    approved:         { bg: '#dcfce7', color: '#16a34a', label: 'Approved' },
-    rejected:         { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
+  const tsStatusConfig: Record<string, { cls: string; label: string }> = {
+    pending_normal:   { cls: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',        label: 'Normal' },
+    pending_approval: { cls: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',     label: 'Needs Approval' },
+    approved:         { cls: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',     label: 'Approved' },
+    rejected:         { cls: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',             label: 'Rejected' },
   }
 
   return (
@@ -291,13 +291,13 @@ function ManagerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Manager Overview 📊</h2>
-          <p className="text-slate-500 text-sm mt-1">Team performance and job profitability at a glance</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Manager Overview 📊</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Team performance and job profitability at a glance</p>
         </div>
         <button
           onClick={refetch}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Refresh
@@ -337,15 +337,15 @@ function ManagerDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Recent Time Entries */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Time Entries</h3>
           {recentTimesheets.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-12">No time entries yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-12">No time entries yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <tr className="border-b border-slate-100 dark:border-slate-700/50">
                     <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Employee</th>
                     <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Job</th>
                     <th className="text-left py-2 pr-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hidden sm:table-cell">Task</th>
@@ -375,7 +375,7 @@ function ManagerDashboard() {
                           {ts.hours}h
                         </td>
                         <td className="py-2.5 text-right whitespace-nowrap">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: sc!.bg, color: sc!.color }}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sc!.cls}`}>
                             {sc!.label}
                           </span>
                         </td>
@@ -389,10 +389,10 @@ function ManagerDashboard() {
         </div>
 
         {/* Job status donut */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Job Status</h3>
           {jobStatusData.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No jobs yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No jobs yet.</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -420,13 +420,13 @@ function ManagerDashboard() {
       </div>
 
       {/* Team hours */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">Team Hours</h3>
           <Badge variant="secondary">{totalTeamHours}h total</Badge>
         </div>
         {teamMembers.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8">No time logged yet.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No time logged yet.</p>
         ) : (
           <div className="space-y-3">
             {teamMembers.map(member => (
@@ -451,10 +451,10 @@ function ManagerDashboard() {
       </div>
 
       {/* Recent jobs table */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Recent Jobs</h3>
         {recentJobs.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8">No jobs found.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No jobs found.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -507,8 +507,8 @@ function AdminDashboard() {
       <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-3">
         <AlertCircle size={24} className="text-red-500" />
       </div>
-      <h3 className="text-base font-semibold text-slate-700 mb-1">Failed to load dashboard</h3>
-      <p className="text-slate-400 text-sm max-w-sm">{error}</p>
+      <h3 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">Failed to load dashboard</h3>
+      <p className="text-slate-400 dark:text-slate-500 text-sm max-w-sm">{error}</p>
     </div>
   )
 
@@ -542,13 +542,13 @@ function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Leadership Dashboard 📈</h2>
-          <p className="text-slate-500 text-sm mt-1">Company-wide performance, revenue and profitability</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Leadership Dashboard 📈</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Company-wide performance, revenue and profitability</p>
         </div>
         <button
           onClick={refetch}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Refresh
@@ -588,10 +588,10 @@ function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue breakdown */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Financial Breakdown</h3>
           {revenueData.length === 0 || financial?.totalRevenue === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-16">No financial data yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-16">No financial data yet.</p>
           ) : (
             <div className="space-y-5">
               {revenueData.map((item, i) => {
@@ -611,7 +611,7 @@ function AdminDashboard() {
                         style={{ width: `${Math.max(pct, item.value > 0 ? 3 : 0)}%`, backgroundColor: colours[i] }}
                       />
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{pct}% of revenue</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{pct}% of revenue</p>
                   </div>
                 )
               })}
@@ -620,10 +620,10 @@ function AdminDashboard() {
         </div>
 
         {/* Top clients */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Client Revenue Breakdown</h3>
           {topClients.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No client data yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No client data yet.</p>
           ) : (
             <div className="space-y-3">
               {topClients.map(client => (
@@ -656,22 +656,22 @@ function AdminDashboard() {
 
       {/* KPIs row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all p-5">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Total Users</p>
           <p className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">{userStats?.total ?? '—'}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{userStats?.byStatus.ACTIVE ?? 0} active</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all p-5">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Total Jobs</p>
           <p className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">{jobStats?.total ?? '—'}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{financial?.invoicedJobs ?? 0} invoiced</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all p-5">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Avg Hours/Entry</p>
           <p className="text-2xl font-bold mb-2 text-emerald-600 dark:text-emerald-400">{timesheetStats?.averageHours ?? '—'}h</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">per timesheet entry</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all p-5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all p-5">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Net Profit</p>
           <p className="text-2xl font-bold mb-2 text-emerald-600 dark:text-emerald-400">{fmt(financial?.totalProfit ?? 0)}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">across completed jobs</p>
@@ -681,10 +681,10 @@ function AdminDashboard() {
       {/* Job status + priority breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Job status pie */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Job Pipeline</h3>
           {jobStatusData.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-8">No jobs yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No jobs yet.</p>
           ) : (
             <div className="flex items-center gap-6">
               <ResponsiveContainer width={160} height={160}>
@@ -711,10 +711,10 @@ function AdminDashboard() {
         </div>
 
         {/* Priority breakdown */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-shadow p-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow p-6">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Jobs by Priority</h3>
           {!jobStats ? (
-            <p className="text-sm text-slate-400 text-center py-8">No data yet.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No data yet.</p>
           ) : (
             <div className="space-y-4">
               {[

@@ -287,7 +287,7 @@ const deadlineAlertJobs = notifyJobDeadline
   const canEdit = user?.role !== 'employee'
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64 gap-3 text-slate-500">
+    <div className="flex items-center justify-center h-64 gap-3 text-slate-500 dark:text-slate-400">
       <Loader2 className="animate-spin" size={20} />
       <span className="text-sm">Loading jobs...</span>
     </div>
@@ -303,7 +303,7 @@ const deadlineAlertJobs = notifyJobDeadline
     <div style={{ fontFamily: 'inherit' }}>
       {/* Page Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1f36', margin: 0 }}>Jobs & Tasks</h1>
+        <h1 className="text-slate-900 dark:text-slate-100" style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Jobs & Tasks</h1>
         {canEdit && (
           <button
             onClick={() => { setSelected(null); setShowModal(true) }}
@@ -316,8 +316,8 @@ const deadlineAlertJobs = notifyJobDeadline
 
       {/* ── Deadline warning banner ───────────────────────────────────── */}
       {deadlineAlertJobs.length > 0 && (
-        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ width: 34, height: 34, background: '#ffedd5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50" style={{ borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div className="bg-orange-100 dark:bg-orange-900/40" style={{ width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <AlertTriangle size={17} color="#ea580c" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -353,13 +353,14 @@ const deadlineAlertJobs = notifyJobDeadline
       )}
 
       {/* Table Card */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb' }}>
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{ borderRadius: 12 }}>
         {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #f1f3f9', flexWrap: 'wrap', gap: 10 }}>
+        <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', flexWrap: 'wrap', gap: 10, position: 'relative', zIndex: 10 }}>
           {/* Status filter pills */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
               onClick={() => setStatusFilter('all')}
+              className={statusFilter === 'all' ? '' : 'dark:bg-slate-700 dark:text-slate-300'}
               style={{
                 padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                 background: statusFilter === 'all' ? '#1a1f36' : '#f3f4f6',
@@ -370,6 +371,7 @@ const deadlineAlertJobs = notifyJobDeadline
               <button
                 key={s}
                 onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
+                className={statusFilter === s ? '' : 'dark:bg-slate-700 dark:text-slate-300'}
                 style={{
                   padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                   background: statusFilter === s ? '#2563eb' : '#f3f4f6',
@@ -386,6 +388,7 @@ const deadlineAlertJobs = notifyJobDeadline
                 placeholder="Search..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                className="dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
                 style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, outline: 'none', width: '100%', maxWidth: 180 }}
               />
             </div>
@@ -393,11 +396,11 @@ const deadlineAlertJobs = notifyJobDeadline
             <div style={{ position: 'relative' }} ref={filterPanelRef}>
               <button
                 onClick={() => setShowFilterPanel(p => !p)}
+                className={`text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 ${showFilterPanel || activeFilterCount > 0 ? 'bg-slate-100 dark:bg-slate-600' : 'bg-white dark:bg-slate-700'}`}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7,
-                  background: showFilterPanel || activeFilterCount > 0 ? '#f3f4f6' : '#fff',
-                  fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500,
+                  padding: '7px 13px', borderRadius: 7,
+                  fontSize: 13, cursor: 'pointer', fontWeight: 500,
                 }}
               >
                 <Filter size={13} /> Filters
@@ -411,14 +414,14 @@ const deadlineAlertJobs = notifyJobDeadline
               </button>
 
               {showFilterPanel && (
-                <div style={{
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700" style={{
                   position: 'absolute', right: 0, top: '100%', marginTop: 6,
-                  background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
-                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: '100%', maxWidth: 300, minWidth: 260, zIndex: 50,
+                  borderRadius: 10,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: '100%', maxWidth: 300, minWidth: 260, zIndex: 200,
                 }}>
                   {/* Panel header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filters</span>
+                  <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
+                    <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filters</span>
                     {activeFilterCount > 0 && (
                       <button
                         onClick={clearAllFilters}
@@ -428,8 +431,8 @@ const deadlineAlertJobs = notifyJobDeadline
                   </div>
 
                   {/* Priority */}
-                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Priority</div>
+                  <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 14px' }}>
+                    <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Priority</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {(['low', 'medium', 'high', 'urgent'] as Priority[]).map(p => (
                         <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
@@ -448,12 +451,13 @@ const deadlineAlertJobs = notifyJobDeadline
                   </div>
 
                   {/* Client */}
-                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Client</div>
+                  <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 14px' }}>
+                    <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Client</div>
                     <select
                       value={filterClientId}
                       onChange={e => setFilterClientId(e.target.value)}
-                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer' }}
+                      className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
                     >
                       <option value="">All clients</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -461,12 +465,13 @@ const deadlineAlertJobs = notifyJobDeadline
                   </div>
 
                   {/* Assigned Manager */}
-                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Manager</div>
+                  <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 14px' }}>
+                    <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Manager</div>
                     <select
                       value={filterManagerId}
                       onChange={e => setFilterManagerId(e.target.value)}
-                      style={{ width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151', background: '#fff', cursor: 'pointer' }}
+                      className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
                     >
                       <option value="">All managers</option>
                       {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -474,18 +479,17 @@ const deadlineAlertJobs = notifyJobDeadline
                   </div>
 
                   {/* Billing Type */}
-                  <div style={{ padding: '12px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Billing Type</div>
+                  <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 14px' }}>
+                    <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Billing Type</div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {(['all', 'hourly', 'fixed'] as const).map(bt => (
                         <button
                           key={bt}
                           onClick={() => setFilterBillingType(bt)}
+                          className={filterBillingType === bt ? 'bg-blue-600 text-white border border-blue-600' : 'bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-600'}
                           style={{
-                            flex: 1, padding: '6px 0', borderRadius: 6, border: '1px solid #e5e7eb',
+                            flex: 1, padding: '6px 0', borderRadius: 6,
                             fontSize: 12, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
-                            background: filterBillingType === bt ? '#2563eb' : '#f9fafb',
-                            color: filterBillingType === bt ? '#fff' : '#6b7280',
                           }}
                         >{bt}</button>
                       ))}
@@ -494,7 +498,7 @@ const deadlineAlertJobs = notifyJobDeadline
 
                   {/* Deadline */}
                   <div style={{ padding: '12px 14px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Deadline</div>
+                    <div className="text-slate-500 dark:text-slate-400" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Deadline</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 12, color: '#9ca3af', width: 30 }}>From</span>
@@ -502,7 +506,8 @@ const deadlineAlertJobs = notifyJobDeadline
                           type="date"
                           value={filterDeadlineFrom}
                           onChange={e => setFilterDeadlineFrom(e.target.value)}
-                          style={{ flex: 1, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151' }}
+                          className="text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+                          style={{ flex: 1, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13 }}
                         />
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -512,7 +517,8 @@ const deadlineAlertJobs = notifyJobDeadline
                           value={filterDeadlineTo}
                           min={filterDeadlineFrom || undefined}
                           onChange={e => setFilterDeadlineTo(e.target.value)}
-                          style={{ flex: 1, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, color: '#374151' }}
+                          className="text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+                          style={{ flex: 1, padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13 }}
                         />
                       </div>
                     </div>
@@ -525,11 +531,11 @@ const deadlineAlertJobs = notifyJobDeadline
             <div style={{ position: 'relative' }} ref={columnPickerRef}>
               <button
                 onClick={() => setShowColumnPicker(p => !p)}
+                className={`text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 ${showColumnPicker ? 'bg-slate-100 dark:bg-slate-600' : 'bg-white dark:bg-slate-700'}`}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '7px 13px', border: '1px solid #e5e7eb', borderRadius: 7,
-                  background: showColumnPicker ? '#f3f4f6' : '#fff',
-                  fontSize: 13, color: '#6b7280', cursor: 'pointer', fontWeight: 500,
+                  padding: '7px 13px', borderRadius: 7,
+                  fontSize: 13, cursor: 'pointer', fontWeight: 500,
                 }}
                 title="Choose columns"
               >
@@ -537,27 +543,25 @@ const deadlineAlertJobs = notifyJobDeadline
               </button>
 
               {showColumnPicker && (
-                <div style={{
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hide-scrollbar" style={{
                   position: 'absolute', right: 0, top: '100%', marginTop: 6,
-                  background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
-                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 240, zIndex: 50,
+                  borderRadius: 10,
+                  boxShadow: '0 8px 24px rgba(0,0,0,.12)', width: 240, zIndex: 200,
                   maxHeight: 400, overflowY: 'auto',
                 }}>
-                  <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f3f9' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div className="border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '10px 14px' }}>
+                    <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       System Columns
                     </span>
                   </div>
                   {allColumns.filter(c => !c.isCustom && !(c.employeeHidden && isEmployee)).map(col => (
                     <label
                       key={col.key}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
-                        background: visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
-                      onMouseLeave={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                      className={`flex items-center gap-2.5 px-3.5 py-2 cursor-pointer text-[13px] text-slate-700 dark:text-slate-300 transition-colors ${
+                        visibleColumns.has(col.key)
+                          ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                          : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                      }`}
                     >
                       <input
                         type="checkbox"
@@ -571,21 +575,19 @@ const deadlineAlertJobs = notifyJobDeadline
 
                   {customFields.length > 0 && (
                     <>
-                      <div style={{ padding: '10px 14px', borderTop: '1px solid #f1f3f9', borderBottom: '1px solid #f1f3f9' }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div className="border-t border-b border-slate-100 dark:border-slate-700/50" style={{ padding: '10px 14px' }}>
+                        <span className="text-slate-700 dark:text-slate-300" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           Custom Fields
                         </span>
                       </div>
                       {allColumns.filter(c => c.isCustom).map(col => (
                         <label
                           key={col.key}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '8px 14px', cursor: 'pointer', fontSize: 13, color: '#374151',
-                            background: visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#dbeafe' : '#f9fafb')}
-                          onMouseLeave={e => (e.currentTarget.style.background = visibleColumns.has(col.key) ? '#f0f9ff' : 'transparent')}
+                          className={`flex items-center gap-2.5 px-3.5 py-2 cursor-pointer text-[13px] text-slate-700 dark:text-slate-300 transition-colors ${
+                            visibleColumns.has(col.key)
+                              ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                              : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                          }`}
                         >
                           <input
                             type="checkbox"
@@ -605,12 +607,12 @@ const deadlineAlertJobs = notifyJobDeadline
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
+        <div className="hide-scrollbar" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
+              <tr className="bg-slate-50 dark:bg-slate-800/60">
                 {activeColumns.map(col => (
-                  <th key={col.key} style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  <th key={col.key} className="text-slate-600 dark:text-slate-400" style={{ textAlign: 'left', padding: '11px 16px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
                     {col.label}
                   </th>
                 ))}
@@ -638,7 +640,7 @@ const deadlineAlertJobs = notifyJobDeadline
                 }
 
                 return (
-                <tr key={job.id} style={{ borderTop: '1px solid #f1f3f9', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                <tr key={job.id} className={`border-t border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-800/60'}`}>
                   {activeColumns.map(col => {
                     const tdStyle: React.CSSProperties = { padding: '12px 16px', fontSize: 13 }
 
@@ -646,12 +648,12 @@ const deadlineAlertJobs = notifyJobDeadline
                       case 'jobId':
                         return (
                           <td key={col.key} style={tdStyle}>
-                            <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '3px 8px', borderRadius: 5 }}>{job.jobId}</span>
+                            <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 5 }}>{job.jobId}</span>
                           </td>
                         )
                       case 'title':
                         return (
-                          <td key={col.key} style={{ ...tdStyle, fontWeight: 600, color: '#1a1f36', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <td key={col.key} className="text-slate-900 dark:text-slate-200" style={{ ...tdStyle, fontWeight: 600, maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {job.title}
                             {hourCheck.message && (hourCheck.isUnder && flagUnderHours || hourCheck.isOver && flagOverHours) && (
                               <span style={{
@@ -666,19 +668,19 @@ const deadlineAlertJobs = notifyJobDeadline
                           </td>
                         )
                       case 'clientName':
-                        return <td key={col.key} style={tdStyle}><div style={{ fontWeight: 600, color: '#1a1f36' }}>{job.clientName}</div></td>
+                        return <td key={col.key} style={tdStyle}><div className="text-slate-900 dark:text-slate-200" style={{ fontWeight: 600 }}>{job.clientName}</div></td>
                       case 'billingRate':
-                        return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{job.billingType === 'fixed' ? fmt(job.billingRate) : `${fmt(job.billingRate)}/hr`}</td>
+                        return <td key={col.key} className="text-slate-700 dark:text-slate-300" style={tdStyle}>{job.billingType === 'fixed' ? fmt(job.billingRate) : `${fmt(job.billingRate)}/hr`}</td>
                       case 'quoteApprovedDate':
-                        return <td key={col.key} style={{ ...tdStyle, color: '#6b7280' }}>{formatDateWithSettings(job.quoteApprovedDate, dateFormat)}</td>
+                        return <td key={col.key} className="text-slate-500 dark:text-slate-400" style={tdStyle}>{formatDateWithSettings(job.quoteApprovedDate, dateFormat)}</td>
                       case 'startDate':
-                        return <td key={col.key} style={{ ...tdStyle, color: '#6b7280' }}>{formatDateWithSettings(job.startDate, dateFormat)}</td>
+                        return <td key={col.key} className="text-slate-500 dark:text-slate-400" style={tdStyle}>{formatDateWithSettings(job.startDate, dateFormat)}</td>
                       case 'quotedHours':
-                        return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{fmtHours(job.quotedHours)}</td>
+                        return <td key={col.key} className="text-slate-700 dark:text-slate-300" style={tdStyle}>{fmtHours(job.quotedHours)}</td>
                       case 'actualHours':
-                        return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{fmtHours(job.actualHours)}</td>
+                        return <td key={col.key} className="text-slate-700 dark:text-slate-300" style={tdStyle}>{fmtHours(job.actualHours)}</td>
                       case 'deadline':
-                        return <td key={col.key} style={{ ...tdStyle, color: '#6b7280' }}>{formatDateWithSettings(job.deadline, dateFormat)}</td>
+                        return <td key={col.key} className="text-slate-500 dark:text-slate-400" style={tdStyle}>{formatDateWithSettings(job.deadline, dateFormat)}</td>
                       case 'priority':
                         return (
                           <td key={col.key} style={tdStyle}>
@@ -692,7 +694,8 @@ const deadlineAlertJobs = notifyJobDeadline
                               <select
                                 value={job.status}
                                 onChange={e => apiUpdateStatus(job.id, e.target.value as JobStatus)}
-                                style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '4px 8px', background: '#fff', cursor: 'pointer', outline: 'none' }}
+                                className="bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600"
+                                style={{ fontSize: 12, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', outline: 'none' }}
                               >
                                 {pageStatusOpts.map(s => (
                                   <option key={s} value={s}>
@@ -701,7 +704,7 @@ const deadlineAlertJobs = notifyJobDeadline
                                 ))}
                               </select>
                             ) : (
-                              <span style={{ color: '#374151' }}>
+                              <span className="text-slate-700 dark:text-slate-300">
                                 {(statusLabel as Record<string, string>)[job.status] ?? job.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                               </span>
                             )}
@@ -710,23 +713,23 @@ const deadlineAlertJobs = notifyJobDeadline
                       default:
                         // Custom field columns
                         if (col.isCustom && col.customField) {
-                          return <td key={col.key} style={{ ...tdStyle, color: '#374151' }}>{renderCFValue(col.customField)}</td>
+                          return <td key={col.key} className="text-slate-700 dark:text-slate-300" style={tdStyle}>{renderCFValue(col.customField)}</td>
                         }
                         return <td key={col.key} style={tdStyle}>—</td>
                     }
                   })}
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button onClick={() => setDetailJob(job)} style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#6b7280' }} title="View">
+                      <button onClick={() => setDetailJob(job)} className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600" style={{ padding: '5px 8px', borderRadius: 6, cursor: 'pointer' }} title="View">
                         <Eye size={14} />
                       </button>
                       {canEdit && (
-                        <button onClick={() => { setSelected(job); setShowModal(true) }} style={{ padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#6b7280' }} title="Edit">
+                        <button onClick={() => { setSelected(job); setShowModal(true) }} className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600" style={{ padding: '5px 8px', borderRadius: 6, cursor: 'pointer' }} title="Edit">
                           <Edit2 size={14} />
                         </button>
                       )}
                       {canEdit && (
-                        <button onClick={() => setConfirmDeleteJob(job.id)} style={{ padding: '5px 8px', border: '1px solid #fecaca', borderRadius: 6, background: '#fff5f5', cursor: 'pointer', color: '#ef4444' }} title="Delete">
+                        <button onClick={() => setConfirmDeleteJob(job.id)} className="border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400" style={{ padding: '5px 8px', borderRadius: 6, cursor: 'pointer' }} title="Delete">
                           <Trash2 size={14} />
                         </button>
                       )}
@@ -738,7 +741,7 @@ const deadlineAlertJobs = notifyJobDeadline
           </table>
         </div>
         {/* Pagination */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f3f9' }}>
+        <div className="border-t border-slate-100 dark:border-slate-700/50" style={{ padding: '12px 20px' }}>
           <Pagination
             total={filtered.length}
             page={jobsPage}
@@ -880,7 +883,7 @@ const deadlineAlertJobs = notifyJobDeadline
                     <div style={{ height: '100%', borderRadius: 6, width: `${hoursPct}%`, background: hoursOver ? '#ef4444' : '#2563eb', transition: 'width 0.3s' }} />
                   </div>
                   {jobTasks.length === 0 && (
-                    <div style={{ fontSize: 10, color: '#334155', marginTop: 6 }}>Based on job-level hours</div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Based on job-level hours</div>
                   )}
                 </div>
 
@@ -914,7 +917,7 @@ const deadlineAlertJobs = notifyJobDeadline
                     <div style={{ height: '100%', borderRadius: 6, width: `${taskPct}%`, background: taskPct === 100 ? '#4ade80' : '#2563eb', transition: 'width 0.3s' }} />
                   </div>
                   {totalTasks === 0 && (
-                    <div style={{ fontSize: 10, color: '#334155', marginTop: 6 }}>No tasks yet</div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>No tasks yet</div>
                   )}
                 </div>
               </div>
@@ -985,16 +988,16 @@ const deadlineAlertJobs = notifyJobDeadline
       {/* Delete Job confirmation */}
       {confirmDeleteJob && (
         <Modal open onClose={() => setConfirmDeleteJob(null)}>
-          <div style={{ padding: '28px 32px', maxWidth: 420, textAlign: 'center' }}>
+          <div className="bg-white dark:bg-slate-800" style={{ padding: '28px 32px', maxWidth: 420, textAlign: 'center', borderRadius: 12 }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Trash2 size={24} color="#ef4444" />
             </div>
-            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#111827' }}>Delete Job?</h3>
-            <p style={{ margin: '0 0 24px', fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
+            <h3 className="text-slate-900 dark:text-slate-100" style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>Delete Job?</h3>
+            <p className="text-slate-500 dark:text-slate-400" style={{ margin: '0 0 24px', fontSize: 14, lineHeight: 1.5 }}>
               This will permanently delete the job and all its associated tasks and time entries. This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button onClick={() => setConfirmDeleteJob(null)} style={{ padding: '9px 24px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' }}>
+              <button onClick={() => setConfirmDeleteJob(null)} className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600" style={{ padding: '9px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button

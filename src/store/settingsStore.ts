@@ -27,6 +27,7 @@ export interface NotificationFlags {
 interface SettingsState extends LocaleSettings, NotificationFlags {
   orgName: string
   orgSlug: string
+  orgLogoUrl: string | null
   timezone: string
   loaded: boolean
   loadSettings: () => Promise<void>
@@ -44,6 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Org defaults
       orgName: '',
       orgSlug: '',
+      orgLogoUrl: null,
       timezone: 'Australia/Sydney',
       // Notification defaults
       notifyTimesheetApproval: true,
@@ -59,7 +61,7 @@ export const useSettingsStore = create<SettingsState>()(
         try {
           const res = await api.get<ApiResponse<{
             org: { name: string; slug: string }
-            settings: Record<string, unknown>
+            settings: Record<string, unknown> & { logoUrl?: string | null }
           }>>('/settings')
           if (res.success && res.data) {
             const s = res.data.settings ?? {}
@@ -71,6 +73,7 @@ export const useSettingsStore = create<SettingsState>()(
               numberFormat:           (s.numberFormat as string)           || '1,234.56',
               orgName:                (org as { name?: string }).name      || '',
               orgSlug:                (org as { slug?: string }).slug      || '',
+              orgLogoUrl:             s.logoUrl ?? null,
               timezone:               (s.timezone as string)               || 'Australia/Sydney',
               notifyTimesheetApproval:(s.notifyTimesheetApproval as boolean) ?? true,
               notifyInvoiceOverdue:   (s.notifyInvoiceOverdue as boolean)  ?? true,
@@ -104,6 +107,7 @@ export const useSettingsStore = create<SettingsState>()(
         numberFormat:   state.numberFormat,
         orgName:        state.orgName,
         orgSlug:        state.orgSlug,
+        orgLogoUrl:     state.orgLogoUrl,
         timezone:       state.timezone,
       }),
     }

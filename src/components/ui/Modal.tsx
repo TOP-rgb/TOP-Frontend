@@ -63,12 +63,12 @@ export function Modal({
 
         {/* Header */}
         {!hideHeader && title && (
-          <DialogHeader className={`px-4 py-3 sm:px-6 sm:py-4 bg-[#0f1a2e] border-b border-[#2d4068] rounded-t-lg ${headerClassName}`}>
-            <DialogTitle className="text-lg font-semibold text-white">
+          <DialogHeader className={`px-4 py-3 sm:px-6 sm:py-4 bg-white dark:bg-[#0f1a2e] border-b border-slate-200 dark:border-[#2d4068] rounded-t-lg ${headerClassName}`}>
+            <DialogTitle className="text-lg font-semibold text-slate-900 dark:text-white">
               {title}
             </DialogTitle>
             {description && (
-              <DialogDescription className="text-sm text-slate-400 mt-1">
+              <DialogDescription className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                 {description}
               </DialogDescription>
             )}
@@ -76,13 +76,13 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className={`px-4 py-4 sm:px-6 sm:py-5 bg-[#152035] overflow-y-auto flex-1 min-h-0 hide-scrollbar ${contentClassName}`}>
+        <div className={`px-4 py-4 sm:px-6 sm:py-5 bg-white dark:bg-[#152035] overflow-y-auto flex-1 min-h-0 hide-scrollbar ${contentClassName}`}>
           {children}
         </div>
 
         {/* Footer */}
         {!hideFooter && footer && (
-          <DialogFooter className={`px-4 py-3 sm:px-6 sm:py-4 bg-[#0f1a2e] border-t border-[#2d4068] rounded-b-lg ${footerClassName}`}>
+          <DialogFooter className={`px-4 py-3 sm:px-6 sm:py-4 bg-slate-50 dark:bg-[#0f1a2e] border-t border-slate-200 dark:border-[#2d4068] rounded-b-lg ${footerClassName}`}>
             {footer}
           </DialogFooter>
         )}

@@ -1,4 +1,5 @@
 import * as SwitchPrimitive from '@radix-ui/react-switch'
+import { useUIStore } from '@/store/uiStore'
 
 interface SwitchProps {
   checked: boolean
@@ -11,21 +12,23 @@ interface SwitchProps {
 
 export function Switch({ checked, onCheckedChange, label, description, disabled, id }: SwitchProps) {
   const switchId = id || `switch-${Math.random().toString(36).substring(2, 9)}`
+  const theme = useUIStore(s => s.theme)
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+    <div className="border-b border-slate-100 dark:border-slate-700" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '10px 0' }}>
       {(label || description) && (
         <div style={{ flex: 1, minWidth: 0 }}>
           {label && (
             <label
               htmlFor={switchId}
-              style={{ fontSize: 14, fontWeight: 500, color: '#374151', cursor: disabled ? 'not-allowed' : 'pointer', display: 'block' }}
+              className="text-slate-700 dark:text-slate-200"
+              style={{ fontSize: 14, fontWeight: 500, cursor: disabled ? 'not-allowed' : 'pointer', display: 'block' }}
             >
               {label}
             </label>
           )}
           {description && (
-            <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0', lineHeight: 1.4 }}>
+            <p className="text-slate-400 dark:text-slate-500" style={{ fontSize: 12, margin: '2px 0 0', lineHeight: 1.4 }}>
               {description}
             </p>
           )}
@@ -48,7 +51,7 @@ export function Switch({ checked, onCheckedChange, label, description, disabled,
           border: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
           transition: 'background-color 0.2s',
-          backgroundColor: checked ? '#3b82f6' : '#d1d5db',
+          backgroundColor: checked ? '#3b82f6' : (theme === 'dark' ? '#4b5563' : '#d1d5db'),
           opacity: disabled ? 0.5 : 1,
           outline: 'none',
         }}

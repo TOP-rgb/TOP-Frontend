@@ -13,6 +13,109 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* ── Global dark mode base ── */
+/* Give all bordered elements a visible default border colour in dark mode.
+   Specific dark:border-* classes / !important rules below will override this. */
+.dark *,
+.dark *::before,
+.dark *::after {
+  border-color: #475569;
+}
+
+.dark body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Any element that has an explicit light text color and no dark: override
+   will fall back to a readable slate-200 */
+.dark p,
+.dark span,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark label,
+.dark li,
+.dark td,
+.dark th,
+.dark div {
+  color: inherit;
+}
+
+/* Inputs, selects, textareas default to dark in dark mode */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark textarea,
+.dark select {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+
+/* Tables */
+.dark table {
+  color: #e2e8f0;
+}
+
+/* Force table cell borders visible in dark mode — overrides inline borderBottom/#e5e7eb */
+.dark th, .dark td { border-color: #334155 !important; }
+
+/* Section icon background pills (Settings page icons) */
+.dark .section-icon-green  { background-color: #14532d33 !important; }
+.dark .section-icon-orange { background-color: #431407aa !important; }
+.dark .section-icon-red    { background-color: #4c0519aa !important; }
+.dark .section-icon-blue   { background-color: #1e3a5f55 !important; }
+
+/* Spinner track border in dark mode */
+.dark .spinner-track { border-color: #334155 !important; }
+
+/* Links default */
+.dark a:not([class*="text-"]) {
+  color: #93c5fd;
+}
+
+/* Tailwind slate text classes — ensure visibility in dark mode for any
+   element that still uses light-mode slate classes without a dark: override */
+.dark .text-slate-900 { color: #f1f5f9 !important; }
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .text-slate-400 { color: #64748b !important; }
+
+/* Background overrides for common light surfaces */
+.dark .bg-white        { background-color: #1e293b !important; }
+.dark .bg-slate-50     { background-color: #0f172a !important; }
+.dark .bg-slate-100    { background-color: #1e293b !important; }
+
+/* Border overrides — progressively darker so thinner/subtler borders
+   still stand out against dark card backgrounds (#1e293b / #0f172a) */
+.dark .border-slate-100 { border-color: #334155 !important; }
+.dark .border-slate-200 { border-color: #475569 !important; }
+.dark .border-slate-300 { border-color: #64748b !important; }
+.dark .divide-slate-100 > * + * { border-color: #334155 !important; }
+.dark .divide-slate-200 > * + * { border-color: #475569 !important; }
+.dark .divide-slate-300 > * + * { border-color: #64748b !important; }
+
+/* Ring overrides */
+.dark .ring-slate-200 { --tw-ring-color: #475569 !important; }
+.dark .ring-1          { --tw-ring-color: #475569; }
+
+/* Inline border styles from LayoutBuilder / modals that aren't Tailwind classes */
+.dark .border-slate-700 { border-color: #475569 !important; }
+.dark .border-slate-600 { border-color: #64748b !important; }
+
+/* Hover state overrides */
+.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+
 /* Hide scrollbar but keep scroll functionality */
 .hide-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
@@ -66,6 +169,110 @@ html {
   .modal-grid-4 {
     grid-template-columns: 1fr 1fr !important;
   }
+}
+
+/* ── Dark mode: FullCalendar overrides ── */
+.dark .fc {
+  color: #e2e8f0;
+}
+
+/* Borders */
+.dark .fc-theme-standard td,
+.dark .fc-theme-standard th,
+.dark .fc-theme-standard .fc-scrollgrid {
+  border-color: #475569 !important;
+}
+
+/* Column headers (Mon/Tue/Wed…) */
+.dark .fc .fc-col-header-cell,
+.dark .fc .fc-col-header {
+  background-color: #1e293b !important;
+}
+.dark .fc .fc-col-header-cell-cushion {
+  color: #94a3b8 !important;
+  text-decoration: none;
+}
+
+/* Day cells — the key fix */
+.dark .fc .fc-daygrid-day,
+.dark .fc td.fc-daygrid-day {
+  background-color: #0f172a !important;
+}
+.dark .fc .fc-daygrid-day:hover,
+.dark .fc td.fc-daygrid-day:hover {
+  background-color: #1e293b !important;
+}
+.dark .fc .fc-daygrid-day-number {
+  color: #94a3b8 !important;
+  text-decoration: none;
+}
+.dark .fc .fc-day-other .fc-daygrid-day-number {
+  color: #475569 !important;
+}
+
+/* Today highlight */
+.dark .fc .fc-day-today {
+  background-color: #1e3a5f !important;
+}
+.dark .fc .fc-day-today .fc-daygrid-day-number {
+  color: #93c5fd !important;
+  font-weight: 700;
+}
+
+/* Week/Day time grid */
+.dark .fc .fc-timegrid-col {
+  background-color: #0f172a !important;
+}
+.dark .fc .fc-timegrid-slot {
+  border-color: #1e293b !important;
+}
+.dark .fc .fc-timegrid-slot-label-cushion {
+  color: #64748b !important;
+}
+
+/* Scrollgrid body bg */
+.dark .fc .fc-scrollgrid-section > td {
+  border-color: #334155 !important;
+}
+
+/* List view */
+.dark .fc .fc-list-day-cushion {
+  background-color: #1e293b !important;
+}
+.dark .fc .fc-list-event:hover td {
+  background-color: #1e293b !important;
+}
+.dark .fc .fc-list-table td,
+.dark .fc .fc-list-table th {
+  border-color: #334155 !important;
+}
+.dark .fc .fc-list-event-title a,
+.dark .fc .fc-list-day-text,
+.dark .fc .fc-list-day-side-text {
+  color: #e2e8f0 !important;
+  text-decoration: none;
+}
+.dark .fc .fc-list-empty {
+  background-color: #0f172a !important;
+  color: #64748b !important;
+}
+
+/* Popover (+more) */
+.dark .fc .fc-more-popover {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+.dark .fc .fc-more-popover .fc-popover-header {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+.dark .fc .fc-popover-body {
+  background-color: #1e293b !important;
+}
+
+/* Non-business hours */
+.dark .fc .fc-non-business {
+  background-color: rgba(0,0,0,0.15) !important;
 }
 
 /* ── Invoice PDF print ── */
